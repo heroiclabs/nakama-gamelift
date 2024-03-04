@@ -65,6 +65,12 @@ github.com/heroiclabs/nakama-common/rtapi
 github.com/heroiclabs/nakama-common/runtime
 # google.golang.org/protobuf v1.31.0
 ## explicit; go 1.11
+<<<<<<< HEAD
+=======
+google.golang.org/protobuf/cmd/protoc-gen-go
+google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo
+google.golang.org/protobuf/compiler/protogen
+>>>>>>> 7f4bda9 (AWS Gamelift Fleet Manager implementation)
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
@@ -80,16 +86,34 @@ google.golang.org/protobuf/internal/filetype
 google.golang.org/protobuf/internal/flags
 google.golang.org/protobuf/internal/genid
 google.golang.org/protobuf/internal/impl
+<<<<<<< HEAD
+=======
+google.golang.org/protobuf/internal/msgfmt
+>>>>>>> 7f4bda9 (AWS Gamelift Fleet Manager implementation)
 google.golang.org/protobuf/internal/order
 google.golang.org/protobuf/internal/pragma
 google.golang.org/protobuf/internal/set
 google.golang.org/protobuf/internal/strs
 google.golang.org/protobuf/internal/version
 google.golang.org/protobuf/proto
+<<<<<<< HEAD
+=======
+google.golang.org/protobuf/reflect/protodesc
+google.golang.org/protobuf/reflect/protopath
+google.golang.org/protobuf/reflect/protorange
+>>>>>>> 7f4bda9 (AWS Gamelift Fleet Manager implementation)
 google.golang.org/protobuf/reflect/protoreflect
 google.golang.org/protobuf/reflect/protoregistry
 google.golang.org/protobuf/runtime/protoiface
 google.golang.org/protobuf/runtime/protoimpl
+<<<<<<< HEAD
 google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/known/wrapperspb
+=======
+google.golang.org/protobuf/types/descriptorpb
+google.golang.org/protobuf/types/dynamicpb
+google.golang.org/protobuf/types/known/timestamppb
+google.golang.org/protobuf/types/known/wrapperspb
+google.golang.org/protobuf/types/pluginpb
+>>>>>>> 7f4bda9 (AWS Gamelift Fleet Manager implementation)
 # github.com/heroiclabs/nakama-common => ../nakama-common

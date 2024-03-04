@@ -185,6 +185,7 @@ var (
 	ErrMatchmakerTooManyTickets   = errors.New("matchmaker too many tickets")
 	ErrMatchmakerTicketNotFound   = errors.New("matchmaker ticket not found")
 
+<<<<<<< HEAD
 	ErrPartyClosed                   = errors.New("party closed")
 	ErrPartyFull                     = errors.New("party full")
 	ErrPartyJoinRequestDuplicate     = errors.New("party join request duplicate")
@@ -196,6 +197,17 @@ var (
 	ErrPartyAcceptRequest            = errors.New("party could not accept request")
 	ErrPartyRemove                   = errors.New("party could not remove")
 	ErrPartyRemoveSelf               = errors.New("party cannot remove self")
+=======
+	ErrPartyClosed           = errors.New("party closed")
+	ErrPartyFull             = errors.New("party full")
+	ErrPartyJoinRequestsFull = errors.New("party join requests full")
+	ErrPartyNotLeader        = errors.New("party leader only")
+	ErrPartyNotMember        = errors.New("party member not found")
+	ErrPartyNotRequest       = errors.New("party join request not found")
+	ErrPartyAcceptRequest    = errors.New("party could not accept request")
+	ErrPartyRemove           = errors.New("party could not remove")
+	ErrPartyRemoveSelf       = errors.New("party cannot remove self")
+>>>>>>> 7f4bda9 (AWS Gamelift Fleet Manager implementation)
 
 	ErrGroupNameInUse         = errors.New("group name in use")
 	ErrGroupPermissionDenied  = errors.New("group permission denied")
@@ -852,7 +864,11 @@ type Initializer interface {
 	RegisterStorageIndexFilter(indexName string, fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, write *StorageWrite) bool) error
 
 	// RegisterFleetManager can be used to register a FleetManager implementation that can be retrieved from the runtime using GetFleetManager().
+<<<<<<< HEAD
 	RegisterFleetManager(fleetManagerInit FleetManagerInitializer) error
+=======
+	RegisterFleetManager(fleetManager FleetManager) error
+>>>>>>> 7f4bda9 (AWS Gamelift Fleet Manager implementation)
 }
 
 type PresenceReason uint8
@@ -1170,11 +1186,19 @@ type InstanceInfo struct {
 	// uniqueness at least among concurrently running instances.
 	Id string `json:"id"`
 	// Connection information in a platform-specific format, usually "address:port"
+<<<<<<< HEAD
 	ConnectionInfo *ConnectionInfo `json:"connection_info"`
 	// When this instance was first created.
 	CreateTime time.Time `json:"create_time"`
 	// Number of active player sessions on the server
 	PlayerCount int `json:"player_count"`
+=======
+	ConnectionInfo *ConnectionInfo `json:"connectionInfo"`
+	// When this instance was first created.
+	CreateTime time.Time `json:"createTime"`
+	// Number of active player sessions on the server
+	PlayerCount int `json:"playerCount"`
+>>>>>>> 7f4bda9 (AWS Gamelift Fleet Manager implementation)
 	// Status
 	Status string `json:"status"`
 	// Application-specific data for use in indexing and listings.
@@ -1182,6 +1206,7 @@ type InstanceInfo struct {
 }
 
 type ConnectionInfo struct {
+<<<<<<< HEAD
 	IpAddress string `json:"ip_address"`
 	DnsName   string `json:"dns_name"`
 	Port      int    `json:"port"`
@@ -1195,6 +1220,21 @@ type JoinInfo struct {
 type SessionInfo struct {
 	UserId    string `json:"user_id"`
 	SessionId string `json:"session_id"`
+=======
+	IpAddr  string `json:"ipAddr"`
+	DnsName string `json:"dnsName"`
+	Port    int    `json:"port"`
+}
+
+type JoinInfo struct {
+	InstanceInfo *InstanceInfo  `json:"instanceInfo"`
+	SessionInfo  []*SessionInfo `json:"sessionInfo"`
+}
+
+type SessionInfo struct {
+	UserId    string `json:"userId"`
+	SessionId string `json:"sessionId"`
+>>>>>>> 7f4bda9 (AWS Gamelift Fleet Manager implementation)
 }
 
 type FmCreateStatus int
@@ -1209,6 +1249,7 @@ const (
 )
 
 type FmCallbackHandler interface {
+<<<<<<< HEAD
 	// Generate a new callback id.
 	GenerateCallbackId() string
 	// Set the callback indexed by the generated id.
@@ -1224,6 +1265,11 @@ type FleetUserLatencies struct {
 	LatencyInMilliseconds float32
 	// Region associated to the experienced latency value.
 	RegionIdentifier string
+=======
+	GeneratePlacementId() string
+	SetCallback(placementId string, fn FmCreateCallbackFn)
+	InvokeCallback(placementId string, status FmCreateStatus, instanceInfo *InstanceInfo, sessionInfo []*SessionInfo, metadata map[string]any, err error)
+>>>>>>> 7f4bda9 (AWS Gamelift Fleet Manager implementation)
 }
 
 // FmCreateCallbackFn is the function that is invoked when Create asynchronously succeeds or fails (due to timeout or issues bringing up a new instance).
@@ -1234,6 +1280,13 @@ type FleetUserLatencies struct {
 type FmCreateCallbackFn func(status FmCreateStatus, instanceInfo *InstanceInfo, sessionInfo []*SessionInfo, metadata map[string]any, err error)
 
 type FleetManager interface {
+<<<<<<< HEAD
+=======
+	// Init function - it is called internally by RegisterFleetManager to expose NakamaModule and FmCallbackHandler.
+	// The implementation should keep references to nk and callbackHandler.
+	Init(nk NakamaModule, callbackHandler FmCallbackHandler) error
+
+>>>>>>> 7f4bda9 (AWS Gamelift Fleet Manager implementation)
 	// Get retrieves the most up-to-date information about an instance currently running
 	// in the Fleet Manager platform. An error is expected if the instance does not exist,
 	// either because it never existed or it was otherwise removed at some point.
@@ -1250,13 +1303,18 @@ type FleetManager interface {
 	// creation process was either successful or failed.
 	// If a list of userIds is optionally provided, the new instance (on successful creation) will reserve slots
 	// for the respective clients to connect, and the callback will contain the required []*SessionInfo.
+<<<<<<< HEAD
 	// Latencies is optional and its support depends on the Fleet Manager provider.
 	Create(ctx context.Context, maxPlayers int, userIds []string, latencies []FleetUserLatencies, metadata map[string]any, callback FmCreateCallbackFn) (err error)
+=======
+	Create(ctx context.Context, maxPlayers int, userIds []string, metadata map[string]any, callback FmCreateCallbackFn) (err error)
+>>>>>>> 7f4bda9 (AWS Gamelift Fleet Manager implementation)
 
 	// Join reserves a number of player slots in the target instance. These slots are reserved for a minute, after which,
 	// if clients do not connect to the instance to claim them, the returned SessionInfo will become invalid and the
 	// player slots will become available to new player sessions.
 	Join(ctx context.Context, id string, userIds []string, metadata map[string]string) (joinInfo *JoinInfo, err error)
+<<<<<<< HEAD
 }
 
 type FleetManagerInitializer interface {
@@ -1265,6 +1323,12 @@ type FleetManagerInitializer interface {
 	// The implementation should keep references to nk and callbackHandler.
 	Init(nk NakamaModule, callbackHandler FmCallbackHandler) error
 	Update(ctx context.Context, id string, playerCount int, metadata map[string]any) error
+=======
+
+	// Delete issues a request to the underlying Fleet Manager platform to shut down a
+	// running instance by its identifier. The operation is expected to be idempotent, so
+	// deleting an instance that never existed or was already shut down should succeed.
+>>>>>>> 7f4bda9 (AWS Gamelift Fleet Manager implementation)
 	Delete(ctx context.Context, id string) error
 }
 

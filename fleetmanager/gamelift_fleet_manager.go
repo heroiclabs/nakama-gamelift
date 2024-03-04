@@ -6,6 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -13,9 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/heroiclabs/nakama-common/runtime"
-	"net"
-	"strings"
-	"time"
 )
 
 const (
