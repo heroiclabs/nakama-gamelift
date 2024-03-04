@@ -1,6 +1,7 @@
 Nakama and AWS GameLift Integration
 ===
 Nakama Fleet Manager implementation for AWS GameLift.
+
 ## Introduction
 
 The `fleetmanager` package in this repository implements [Nakama](https://heroiclabs.com/nakama)'s Go runtime Fleet Manager interface to interact with an existing [AWS Gamelift](https://aws.amazon.com/gamelift/) Fleet.
