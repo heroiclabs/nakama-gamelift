@@ -6,6 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -13,9 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/heroiclabs/nakama-common/runtime"
-	"net"
-	"strings"
-	"time"
 )
 
 const (
@@ -163,11 +164,6 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 	// NOTE: This RPC is required and must be invoked from the Game Session whenever a Game Session terminates.
 	// Refer to the documentation for more information.
 	if err := initializer.RegisterRpc(RpcIdDeleteInstanceInfo, glfm.DeleteInstanceInfo); err != nil {
-		return nil, err
-	}
-
-	// TODO: Delete
-	if err := initializer.RegisterRpc("find_game_session", glfm.findGameSession); err != nil {
 		return nil, err
 	}
 
@@ -986,65 +982,4 @@ type findGameSessionRequest struct {
 	Query  string `json:"query"`
 	Limit  int    `json:"limit"`
 	Cursor string `json:"cursor"`
-}
-
-func (fm *GameLiftFleetManager) findGameSession(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
-	userId, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
-	if !ok {
-		return "", ErrInvalidInput
-	}
-
-	var req *findGameSessionRequest
-	if payload != "" {
-		if err := json.Unmarshal([]byte(payload), &req); err != nil {
-			logger.WithField("error", err.Error()).Error("failed to unmarshal findOrCreate request")
-			return "", ErrInternalError
-		}
-	} else {
-		req = &findGameSessionRequest{
-			Limit: 10,
-		}
-	}
-
-	instances, _, err := fm.List(ctx, req.Query, req.Limit, req.Cursor)
-	if err != nil {
-		logger.WithField("error", err.Error()).Error("failed to list gamelift instances")
-		return "", ErrInternalError
-	}
-
-	if len(instances) > 0 {
-		instance := instances[0]
-		joinInfo, err := fm.Join(ctx, instance.Id, []string{userId}, nil)
-		if err != nil {
-			logger.WithField("error", err.Error()).Error("failed to join gamelift instance")
-			return "", ErrInternalError
-		}
-
-		out, err := json.Marshal(joinInfo)
-		if err != nil {
-			logger.WithField("error", err.Error()).Error("failed to marshal instances payload")
-			return "", ErrInternalError
-		}
-
-		return string(out), nil
-	}
-
-	var callback runtime.FmCreateCallbackFn = func(status runtime.FmCreateStatus, instanceInfo *runtime.InstanceInfo, sessionInfo []*runtime.SessionInfo, metadata map[string]any, createErr error) {
-		switch status {
-		case runtime.CreateSuccess:
-			info, _ := json.Marshal(instanceInfo)
-			logger.Info("GameLift instance created: %s", info)
-			return
-		default:
-			logger.WithField("error", createErr.Error()).Error("Failed to create GameLift instance")
-			return
-		}
-	}
-
-	if err = fm.Create(ctx, 10, []string{userId}, nil, nil, callback); err != nil {
-		logger.WithField("error", err.Error()).Error("failed to create new fleet game session")
-		return "", ErrInternalError
-	}
-
-	return "", nil
 }

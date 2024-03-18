@@ -7,7 +7,7 @@ Nakama Fleet Manager implementation for AWS GameLift.
 The `fleetmanager` package in this repository implements [Nakama](https://heroiclabs.com/nakama)'s Go runtime Fleet Manager interface to interact with an existing [AWS Gamelift](https://aws.amazon.com/gamelift/) Fleet.
 
 This enables the use of Nakama's social gameplay and matchmaking features for GameLift Game Session discovery and
-creation, facilitating the process of Fleet Management orchestration to direct players to existing or new Game Sessions as needed. 
+creation, facilitating the process of Fleet Management orchestration to direct players to existing or new Game Sessions as needed.
 
 ## Prerequisites
 The Nakama GameLift Fleet Manager expects an AWS Fleet to be up and running with a specific setup, including:
@@ -49,7 +49,7 @@ Once registered, it can be retrieved throughout your Nakama plugin code via the 
 fm := nk.GetFleetManager() // If fm is nil the FleetManager was not registered.
 ```
 
-The `fm` instance can then be used to list or create Game Sessions. 
+The `fm` instance can then be used to list or create Game Sessions.
 
 ### Create
 Notice that `Create` receives a callback function as part of its signature - the creation process is asynchronous, so the callback is invoked once the creation process either succeeds, times-out or fails.
@@ -64,7 +64,7 @@ switch status {
         // sessionInfo contains Player Session info if a list of userIds is passed to the Create function.
         info, _ := json.Marshal(instanceInfo)
         logger.Info("GameLift instance created: %s", info)
-        // Notify any interested party. 
+        // Notify any interested party.
         return
     case runtime.CreateTimeout:
         // AWS GameLift was not able to successfully create the placed Game Session request within the timeout
@@ -72,7 +72,7 @@ switch status {
         // The client should be notified to either reattempt to find an available Game Session or retry creation.
         info, _ := json.Marshal(instanceInfo)
         logger.Info("GameLift instance created: %s", info)
-        // Notify any interested party. 
+        // Notify any interested party.
         return
     default:
         // The request failed to be placed.
@@ -85,11 +85,11 @@ switch status {
 // maxPlayers: Maximum number of players supported by the game session.
 maxPlayers := 10
 // playerIds - Optional: Reserves a Player Session for each userId. The reservation expires after 60s if the client doesn't connect.
-playerIds := []string{userId} 
+playerIds := []string{userId}
 // metadata - Optional: Can contain the following keys: GameSessionDataKey, GamePropertiesKey and GameSessionNameKey.
 // Expects the value of GameSessionDataKey and GameSessionNameKey to be strings. GamePropertiesKey's value should be a map[string]string
 metadata := map[string]any{GamePropertiesKey: map[string]string{"key1":"value1"}}
-// latencies - Optional: - A list of latencies to different aws regions, per userId, experienced from the client.  
+// latencies - Optional: - A list of latencies to different aws regions, per userId, experienced from the client.
 latencies := []runtime.FleetUserLatencies{{
     UserId:                userId,
     LatencyInMilliseconds: 100,
@@ -157,43 +157,43 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
   if !ok {
     return runtime.NewError("missing GL_AWS_ACCESS_KEY environment variable", 3)
   }
-  
+
   awsSecretAccessKey, ok := env["GL_AWS_SECRET_ACCESS_KEY"]
   if !ok {
     return runtime.NewError("missing GL_AWS_SECRET_ACCESS_KEY environment variable", 3)
   }
-  
+
   awsRegion, ok := env["GL_AWS_REGION"]
   if !ok {
     return runtime.NewError("missing GL_AWS_REGION environment variable", 3)
   }
-  
+
   awsAliasId, ok := env["GL_AWS_ALIAS_ID"]
   if !ok {
     return runtime.NewError("missing GL_AWS_ALIAS_ID environment variable", 3)
   }
-  
+
   awsPlacementQueueName, ok := env["GL_PLACEMENT_QUEUE_NAME"]
   if !ok {
     return runtime.NewError("missing GL_PLACEMENT_QUEUE_NAME environment variable", 3)
   }
-  
+
   awsGameLiftPlacementEventsQueueUrl, ok := env["GL_PLACEMENT_EVENTS_SQS_URL"]
   if !ok {
     return runtime.NewError("missing GL_PLACEMENT_EVENTS_SQS_URL environment variable", 3)
   }
-  
+
   cfg := fleetmanager.NewGameLiftConfig(awsAccessKey, awsSecretAccessKey, awsRegion, awsAliasId, awsPlacementQueueName, awsGameLiftPlacementEventsQueueUrl)
   glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, initializer, nk, cfg)
   if err != nil {
     return err
   }
-  
+
   if err = initializer.RegisterFleetManager(glfm); err != nil {
   logger.WithField("error", err).Error("failed to register aws gamelift fleet manager")
     return err
   }
-  
+
   return nil
 }
 ```
@@ -209,7 +209,7 @@ To run it locally using [Docker](https://www.docker.com/) follow the steps in th
 ### Configuration
 To connect to your existing fleet, make sure you modify all the required runtime env parameters in the `local.yml` file.
 
-The plugin sample code in this repository can be loaded and run into a Nakama container using the following Docker Compose command:  
+The plugin sample code in this repository can be loaded and run into a Nakama container using the following Docker Compose command:
 ```bash
 docker compose up
 ```
@@ -220,7 +220,7 @@ For Nakama to be up-to-date on the number of Player Sessions currently connected
 ### Update RPC
 * RpcId: `update_instance_info`
 
-This RPC should be invoked any time a player connects or disconnects from the Game Session to update the playerCount by passing the current number of connected players. 
+This RPC should be invoked any time a player connects or disconnects from the Game Session to update the playerCount by passing the current number of connected players.
 
 It can also be used to update a Game Session's `GameSessionName`, `GameSessionData` or `GameProperties`. Updating these metadata fields allow the filtering of Game Sessions in the `List` function based on the properties values.
 Each of metadata's expected keys are optional, and only if present with a value will overwrite the current value in the Nakama storage index.

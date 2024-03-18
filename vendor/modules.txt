@@ -58,7 +58,7 @@ github.com/aws/smithy-go/rand
 github.com/aws/smithy-go/time
 github.com/aws/smithy-go/transport/http
 github.com/aws/smithy-go/transport/http/internal/io
-# github.com/heroiclabs/nakama-common v1.30.2-0.20240213191416-bdb912a5aec6 => ../nakama-common
+# github.com/heroiclabs/nakama-common v1.31.0
 ## explicit; go 1.19
 github.com/heroiclabs/nakama-common/api
 github.com/heroiclabs/nakama-common/rtapi
@@ -92,4 +92,3 @@ google.golang.org/protobuf/runtime/protoiface
 google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/known/wrapperspb
-# github.com/heroiclabs/nakama-common => ../nakama-common
