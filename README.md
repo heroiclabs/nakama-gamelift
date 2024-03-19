@@ -18,7 +18,7 @@ The Nakama GameLift Fleet Manager expects an AWS Fleet to be up and running with
 * An SQS Queue subscribed to the above Topic;
 * Invocation of [status update RPCs](#status-update-rpcs) exposed by the Fleet Manager implementation.
 
-Follow [our setup guide](//TODO) to create a minimal test Fleet deployment on AWS, with instructions on how to set up the above.
+Follow [our setup guide](https://heroiclabs.com/docs/nakama/guides/concepts/gamelift-integration/) to create a minimal test Fleet deployment on AWS, with instructions on how to set up the above.
 
 ## Installation
 To add the GameLift Fleet Manager implementation to your Nakama Go plugin project use the Go command:
@@ -184,13 +184,14 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
   }
 
   cfg := fleetmanager.NewGameLiftConfig(awsAccessKey, awsSecretAccessKey, awsRegion, awsAliasId, awsPlacementQueueName, awsGameLiftPlacementEventsQueueUrl)
+
   glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, initializer, nk, cfg)
   if err != nil {
     return err
   }
 
   if err = initializer.RegisterFleetManager(glfm); err != nil {
-  logger.WithField("error", err).Error("failed to register aws gamelift fleet manager")
+    logger.WithField("error", err).Error("failed to register aws gamelift fleet manager")
     return err
   }
 

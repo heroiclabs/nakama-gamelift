@@ -975,11 +975,3 @@ func (fm *GameLiftFleetManager) listGameliftActiveInstances(ctx context.Context,
 
 	return activeSessions, nextCursor, nil
 }
-
-// TODO: DELETE
-
-type findGameSessionRequest struct {
-	Query  string `json:"query"`
-	Limit  int    `json:"limit"`
-	Cursor string `json:"cursor"`
-}
