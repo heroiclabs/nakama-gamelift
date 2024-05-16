@@ -72,7 +72,7 @@ func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsG
 		AwsFleetAlias:            awsGameLiftFleetAlias,
 		AwsPlacementQueueName:    awsGameLiftPlacementQueueName,
 		AwsPlacementEventsSqsUrl: awsGameLiftPlacementEventsSqsUrl,
-		AwsGameLiftPollingPeriod: 1 * time.Hour,
+		AwsGameLiftPollingPeriod: 10 * time.Minute,
 		IndexMaxEntries:          1_000_000,
 		HttpRequestTimeout:       30 * time.Second,
 		HttpDialerTimeout:        15 * time.Second,

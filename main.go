@@ -69,7 +69,7 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	}
 
 	if err = initializer.RegisterFleetManager(glfm); err != nil {
-		logger.WithField("error", err).Error("failed to register aws gamelift fleet manager")
+		logger.WithField("error", err).Error("failed to register amazon gamelift fleet manager")
 		return err
 	}
 
