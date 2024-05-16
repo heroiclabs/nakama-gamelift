@@ -9,9 +9,9 @@ socket:
   max_request_size_bytes: 131072
 runtime:
   env:
-    - "GL_AWS_ACCESS_KEY="
-    - "GL_AWS_SECRET_ACCESS_KEY="
-    - "GL_AWS_REGION="
-    - "GL_AWS_ALIAS_ID="
-    - "GL_PLACEMENT_QUEUE_NAME="
-    - "GL_PLACEMENT_EVENTS_SQS_URL="
+    - "GL_AWS_ACCESS_KEY=AKIAT4INFJN5V5JCJVHO"
+    - "GL_AWS_SECRET_ACCESS_KEY=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"
+    - "GL_AWS_REGION=us-east-1"
+    - "GL_AWS_ALIAS_ID=alias-8e00755e-58bb-4575-b602-d10ef0c5b472"
+    - "GL_PLACEMENT_QUEUE_NAME=player-session-placement"
+    - "GL_PLACEMENT_EVENTS_SQS_URL=https://sqs.us-east-1.amazonaws.com/266852453243/fleet-placement-events.fifo"
