@@ -1,16 +1,16 @@
-Nakama and AWS GameLift Integration
+Nakama and Amazon GameLift Integration
 ===
-Nakama Fleet Manager implementation for AWS GameLift.
+Nakama Fleet Manager implementation for Amazon GameLift.
 
 ## Introduction
 
-The `fleetmanager` package in this repository implements [Nakama](https://heroiclabs.com/nakama)'s Go runtime Fleet Manager interface to interact with an existing [AWS Gamelift](https://aws.amazon.com/gamelift/) Fleet.
+The `fleetmanager` package in this repository implements [Nakama](https://heroiclabs.com/nakama)'s Go runtime Fleet Manager interface to interact with an existing [Amazon Gamelift](https://aws.amazon.com/gamelift/) Fleet.
 
 This enables the use of Nakama's social gameplay and matchmaking features for GameLift Game Session discovery and
 creation, facilitating the process of Fleet Management orchestration to direct players to existing or new Game Sessions as needed.
 
 ## Prerequisites
-The Nakama GameLift Fleet Manager expects an AWS Fleet to be up and running with a specific setup, including:
+The Nakama GameLift Fleet Manager expects a GameLift Fleet to be up and running with a specific setup, including:
 
 * A Fleet Alias;
 * A Placement Queue;
@@ -38,7 +38,7 @@ if err != nil {
 }
 
 if err = initializer.RegisterFleetManager(glfm); err != nil {
-    logger.WithField("error", err).Error("failed to register aws gamelift fleet manager")
+    logger.WithField("error", err).Error("failed to register amazon gamelift fleet manager")
     return err
 }
 ```
@@ -57,7 +57,7 @@ The callback can be used to notify any interested parties on the status of the c
 ```go
 var callback runtime.FmCreateCallbackFn = func(status runtime.FmCreateStatus, instanceInfo *runtime.InstanceInfo, sessionInfo []*runtime.SessionInfo, metadata map[string]any, createErr error) {
 // createErr is not nil only if status is != runtime.CreateSuccess.
-// the original AWS Placement Event can be retrieved from `metadata` under the 'event' key.
+// the original GameLift Placement Event can be retrieved from `metadata` under the 'event' key.
 switch status {
     case runtime.CreateSuccess:
         // Create was successful, instanceInfo contains the instance information for player connection.
@@ -67,7 +67,7 @@ switch status {
         // Notify any interested party.
         return
     case runtime.CreateTimeout:
-        // AWS GameLift was not able to successfully create the placed Game Session request within the timeout
+        // Amazon GameLift was not able to successfully create the placed Game Session request within the timeout
         // (configurable in the placement queue).
         // The client should be notified to either reattempt to find an available Game Session or retry creation.
         info, _ := json.Marshal(instanceInfo)
@@ -87,7 +87,7 @@ maxPlayers := 10
 // playerIds - Optional: Reserves a Player Session for each userId. The reservation expires after 60s if the client doesn't connect.
 playerIds := []string{userId}
 // metadata - Optional: Can contain the following keys: GameSessionDataKey, GamePropertiesKey and GameSessionNameKey.
-// Expects the value of GameSessionDataKey and GameSessionNameKey to be strings. GamePropertiesKey's value should be a map[string]string
+// Expects the value of GameSessionDataKey and GameSessionNameKey to be strings. GamePropertiesKey's value should be a map[string]string.
 metadata := map[string]any{GamePropertiesKey: map[string]string{"key1":"value1"}}
 // latencies - Optional: - A list of latencies to different aws regions, per userId, experienced from the client.
 latencies := []runtime.FleetUserLatencies{{
@@ -103,20 +103,20 @@ err = fm.Create(ctx, maxPlayers, playerIds, latencies, metadata, callback)
 To query for existing Game Sessions, `List` can be used with the [Query Syntax](https://heroiclabs.com/docs/nakama/concepts/multiplayer/query-syntax/):
 ```go
 query := "+value.playerCount:2" // Query to list Game Sessions currently containing 2 Player Sessions. An empty query will list all Game Sessions.
-limit := 10 // Number of results per page (does not apply if a query is != ""
-cursor := "" // Pagination cursor
+limit := 10 // Number of results per page (does not apply if query is != "").
+cursor := "" // Pagination cursor.
 instances, nextCursor, err := fm.List(ctx, query, limit, cursor)
 ```
 
 ### Get
-Grab the information of a Game Session:
+Get the information of a Game Session:
 ```go
 id := "<Game Session ARN>"
 instance, err := fm.Get(ctx, id)
 ```
 
 ### Join
-To reserve a seat on an existing Game Session and retrieve the corresponding Player Session data needed for a client to connect to it:
+Reserve a seat on an existing Game Session and retrieve the corresponding Player Session needed for a client to connect to it:
 ```go
 id := "<game session ARN>"
 userIds := []string{userId}
@@ -127,14 +127,14 @@ joinInfo, err := fm.Join(ctx, id string, userIds []string, metadata map[string]s
 ```
 
 ### Delete
-Delete should be used to delete an InstanceInfo data regarding a Game Session that was terminated on GameLift:
+Delete should be used to remove an InstanceInfo data of a Game Session that was terminated on GameLift:
 ```go
 id := "<game session ARN>"
 err := fm.Delete(ctx, id)
 ```
 
 ### Configuration
-The `fleetmanager` instance expects a number of required configurations to be provided upon creation:
+The `fleetmanager` instance expects a number of required configurations to be provided on creation:
 
 * AWS Key;
 * AWS Secret;
@@ -143,7 +143,7 @@ The `fleetmanager` instance expects a number of required configurations to be pr
 * AWS Fleet Placement Queue Name;
 * AWS GameLift Placement Events SQS URL;
 
-Typically, these values would be passed exposed to Nakama via its [Nakama's runtime env configuration](https://heroiclabs.com/docs/nakama/getting-started/configuration/#runtime.env).
+Typically, these values would be passed to Nakama via its [Nakama's runtime env configuration](https://heroiclabs.com/docs/nakama/getting-started/configuration/#runtime.env).
 
 ### Example
 ```go
@@ -191,7 +191,7 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
   }
 
   if err = initializer.RegisterFleetManager(glfm); err != nil {
-    logger.WithField("error", err).Error("failed to register aws gamelift fleet manager")
+    logger.WithField("error", err).Error("failed to register amazon gamelift fleet manager")
     return err
   }
 
@@ -224,7 +224,8 @@ For Nakama to be up-to-date on the number of Player Sessions currently connected
 This RPC should be invoked any time a player connects or disconnects from the Game Session to update the playerCount by passing the current number of connected players.
 
 It can also be used to update a Game Session's `GameSessionName`, `GameSessionData` or `GameProperties`. Updating these metadata fields allow the filtering of Game Sessions in the `List` function based on the properties values.
-Each of metadata's expected keys are optional, and only if present with a value will overwrite the current value in the Nakama storage index.
+Each of metadata's expected keys are optional, and only if any is present with a value will it overwrite the current value in the Nakama Storage Index.
+The expected RPC payload is the following:
 ```json
 {
   "id": "<Game Session ARN>",
@@ -243,10 +244,10 @@ Each of metadata's expected keys are optional, and only if present with a value 
 ### Delete RPC
 * RpcId: `delete_instance_info`
 
-This RPC should be invoked any time a Game Session terminates, and it expects the following payload:
+This RPC should be invoked any time a Game Session terminates.
+The expected RPC payload is the following:
 ```json
 {
   "id": "<Game Session ARN>"
 }
 ```
-
