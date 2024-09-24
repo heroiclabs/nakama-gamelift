@@ -1025,3 +1025,47 @@ func (fm *GameLiftFleetManager) findGameSession(ctx context.Context, logger runt
 
 	return "", nil
 }
+
+func NewInstanceInfo(gs types.GameSession) *runtime.InstanceInfo {
+	metadata := make(map[string]any)
+	if gs.GameSessionData != nil {
+		metadata[GameSessionDataKey] = *gs.GameSessionData
+	}
+	if len(gs.GameProperties) > 0 {
+		props := make(map[string]string, len(gs.GameProperties))
+		for _, p := range gs.GameProperties {
+			props[*p.Key] = *p.Value
+		}
+		metadata[GamePropertiesKey] = props
+	}
+	if gs.Name != nil {
+		metadata[GameSessionNameKey] = *gs.Name
+	}
+
+	dns := ""
+	if gs.DnsName != nil {
+		dns = *gs.DnsName
+	}
+
+	return &runtime.InstanceInfo{
+		Id: *gs.GameSessionId,
+		ConnectionInfo: &runtime.ConnectionInfo{
+			IpAddress: *gs.IpAddress,
+			DnsName:   dns,
+			Port:      int(*gs.Port),
+		},
+		CreateTime:  *gs.CreationTime,
+		PlayerCount: int(*gs.CurrentPlayerSessionCount),
+		Status:      string(gs.Status),
+		Metadata:    metadata,
+	}
+}
+
+func InstanceIdToStorageKey(id string) (string, error) {
+	tokens := strings.Split(id, "/")
+	if len(tokens) < 2 {
+		return "", errors.New("failed to convert instance id: %s to storage key")
+	}
+
+	return tokens[len(tokens)-1], nil
+}
