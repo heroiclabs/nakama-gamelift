@@ -72,7 +72,7 @@ func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsG
 		AwsFleetAlias:            awsGameLiftFleetAlias,
 		AwsPlacementQueueName:    awsGameLiftPlacementQueueName,
 		AwsPlacementEventsSqsUrl: awsGameLiftPlacementEventsSqsUrl,
-		AwsGameLiftPollingPeriod: 1 * time.Hour,
+		AwsGameLiftPollingPeriod: 15 * time.Minute,
 		IndexMaxEntries:          1_000_000,
 		HttpRequestTimeout:       30 * time.Second,
 		HttpDialerTimeout:        15 * time.Second,
@@ -131,7 +131,7 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 		return nil, err
 	}
 
-	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex, StorageGameLiftInstancesCollection, "", []string{"id", "create_time", "player_count", "metadata"}, 1_000_000, false); err != nil {
+	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex, StorageGameLiftInstancesCollection, "", []string{"id", "create_time", "player_count", "metadata"}, []string{"create_time", "player_count"}, 1_000_000, false); err != nil {
 		return nil, err
 	}
 
@@ -340,7 +340,7 @@ func (fm *GameLiftFleetManager) List(ctx context.Context, query string, limit in
 		return instances, nextCursor, nil
 	}
 
-	entries, err := fm.nk.StorageIndexList(ctx, "", StorageGameLiftIndex, query, limit)
+	entries, err := fm.nk.StorageIndexList(ctx, "", StorageGameLiftIndex, query, limit, []string{"player_count", "-create_time"}) // Emptiest matches, most recently created first.
 	if err != nil {
 		return nil, "", err
 	}
