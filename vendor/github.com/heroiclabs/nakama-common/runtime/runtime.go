@@ -90,6 +90,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"os"
 	"time"
 
@@ -170,6 +171,8 @@ var (
 
 	ErrFriendInvalidCursor = errors.New("friend cursor invalid")
 
+	ErrLeaderboardNotFound = errors.New("leaderboard not found")
+
 	ErrTournamentNotFound                = errors.New("tournament not found")
 	ErrTournamentAuthoritative           = errors.New("tournament only allows authoritative submissions")
 	ErrTournamentMaxSizeReached          = errors.New("tournament max size reached")
@@ -196,6 +199,8 @@ var (
 	ErrPartyAcceptRequest            = errors.New("party could not accept request")
 	ErrPartyRemove                   = errors.New("party could not remove")
 	ErrPartyRemoveSelf               = errors.New("party cannot remove self")
+
+	ErrGracePeriodExpired = errors.New("grace period expired")
 
 	ErrGroupNameInUse         = errors.New("group name in use")
 	ErrGroupPermissionDenied  = errors.New("group permission denied")
@@ -464,6 +469,12 @@ type Initializer interface {
 	// RegisterAfterListFriends can be used to perform additional logic after friends are listed.
 	RegisterAfterListFriends(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, out *api.FriendList) error) error
 
+	// RegisterBeforeListFriendsOfFriends can be used to perform additional logic before listing friends of friends.
+	RegisterBeforeListFriendsOfFriends(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, in *api.ListFriendsOfFriendsRequest) (*api.ListFriendsOfFriendsRequest, error)) error
+
+	// RegisterAfterListFriendsOfFriends can be used to perform additional logic after listing friends of friends.
+	RegisterAfterListFriendsOfFriends(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, out *api.FriendsOfFriendsList) error) error
+
 	// RegisterBeforeAddFriends can be used to perform additional logic before friends are added.
 	RegisterBeforeAddFriends(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, in *api.AddFriendsRequest) (*api.AddFriendsRequest, error)) error
 
@@ -662,6 +673,12 @@ type Initializer interface {
 	// RegisterAfterListMatches can be used to perform additional logic after listing matches.
 	RegisterAfterListMatches(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, out *api.MatchList, in *api.ListMatchesRequest) error) error
 
+	// RegisterBeforeMatchmakerStats is used to register a function invoked when the server receives the relevant request.
+	RegisterBeforeGetMatchmakerStats(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule) error) error
+
+	// RegisterAfterMarchmakerStats is used to register a function invoked after the server processes the relevant request.
+	RegisterAfterGetMatchmakerStats(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, out *api.MatchmakerStats) error) error
+
 	// RegisterBeforeListNotifications can be used to perform additional logic before listing notifications for a user.
 	RegisterBeforeListNotifications(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, in *api.ListNotificationsRequest) (*api.ListNotificationsRequest, error)) error
 
@@ -846,13 +863,17 @@ type Initializer interface {
 	RegisterEventSessionEnd(fn func(ctx context.Context, logger Logger, evt *api.Event)) error
 
 	// Register a new storage index.
-	RegisterStorageIndex(name, collection, key string, fields []string, maxEntries int, indexOnly bool) error
+	RegisterStorageIndex(name, collection, key string, fields []string, sortableFields []string, maxEntries int, indexOnly bool) error
 
 	// RegisterStorageIndexFilter can be used to define a filtering function for a given storage index.
 	RegisterStorageIndexFilter(indexName string, fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, write *StorageWrite) bool) error
 
 	// RegisterFleetManager can be used to register a FleetManager implementation that can be retrieved from the runtime using GetFleetManager().
 	RegisterFleetManager(fleetManagerInit FleetManagerInitializer) error
+
+	// RegisterShutdown can be used to register a function that is executed once the server receives a termination signal.
+	// This function only fires if shutdown_grace_sec > 0 and will be terminated early if its execution takes longer than the configured grace seconds.
+	RegisterShutdown(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule)) error
 }
 
 type PresenceReason uint8
@@ -935,6 +956,17 @@ type NotificationSend struct {
 type NotificationDelete struct {
 	UserID         string
 	NotificationID string
+}
+
+type Notification struct {
+	Id         string
+	UserID     string
+	Subject    string
+	Content    map[string]any
+	Code       int
+	Sender     string
+	CreateTime *timestamppb.Timestamp
+	Persistent bool
 }
 
 type WalletUpdate struct {
@@ -1073,6 +1105,8 @@ type NakamaModule interface {
 	NotificationsSend(ctx context.Context, notifications []*NotificationSend) error
 	NotificationSendAll(ctx context.Context, subject string, content map[string]interface{}, code int, persistent bool) error
 	NotificationsDelete(ctx context.Context, notifications []*NotificationDelete) error
+	NotificationsGetId(ctx context.Context, userID string, ids []string) ([]*Notification, error)
+	NotificationsDeleteId(ctx context.Context, userID string, ids []string) error
 
 	WalletUpdate(ctx context.Context, userID string, changeset map[string]int64, metadata map[string]interface{}, updateLedger bool) (updated map[string]int64, previous map[string]int64, err error)
 	WalletsUpdate(ctx context.Context, updates []*WalletUpdate, updateLedger bool) ([]*WalletUpdateResult, error)
@@ -1083,13 +1117,14 @@ type NakamaModule interface {
 	StorageRead(ctx context.Context, reads []*StorageRead) ([]*api.StorageObject, error)
 	StorageWrite(ctx context.Context, writes []*StorageWrite) ([]*api.StorageObjectAck, error)
 	StorageDelete(ctx context.Context, deletes []*StorageDelete) error
-	StorageIndexList(ctx context.Context, callerID, indexName, query string, limit int) (*api.StorageObjects, error)
+	StorageIndexList(ctx context.Context, callerID, indexName, query string, limit int, order []string) (*api.StorageObjects, error)
 
 	MultiUpdate(ctx context.Context, accountUpdates []*AccountUpdate, storageWrites []*StorageWrite, storageDeletes []*StorageDelete, walletUpdates []*WalletUpdate, updateLedger bool) ([]*api.StorageObjectAck, []*WalletUpdateResult, error)
 
-	LeaderboardCreate(ctx context.Context, id string, authoritative bool, sortOrder, operator, resetSchedule string, metadata map[string]interface{}) error
+	LeaderboardCreate(ctx context.Context, id string, authoritative bool, sortOrder, operator, resetSchedule string, metadata map[string]interface{}, enableRanks bool) error
 	LeaderboardDelete(ctx context.Context, id string) error
 	LeaderboardList(limit int, cursor string) (*api.LeaderboardList, error)
+	LeaderboardRanksDisable(ctx context.Context, id string) error
 	LeaderboardRecordsList(ctx context.Context, id string, ownerIDs []string, limit int, cursor string, expiry int64) (records []*api.LeaderboardRecord, ownerRecords []*api.LeaderboardRecord, nextCursor string, prevCursor string, err error)
 	LeaderboardRecordsListCursorFromRank(id string, rank, overrideExpiry int64) (string, error)
 	LeaderboardRecordWrite(ctx context.Context, id, ownerID, username string, score, subscore int64, metadata map[string]interface{}, overrideOperator *int) (*api.LeaderboardRecord, error)
@@ -1115,12 +1150,13 @@ type NakamaModule interface {
 	SubscriptionsList(ctx context.Context, userID string, limit int, cursor string) (*api.SubscriptionList, error)
 	SubscriptionGetByProductId(ctx context.Context, userID, productID string) (*api.ValidatedSubscription, error)
 
-	TournamentCreate(ctx context.Context, id string, authoritative bool, sortOrder, operator, resetSchedule string, metadata map[string]interface{}, title, description string, category, startTime, endTime, duration, maxSize, maxNumScore int, joinRequired bool) error
+	TournamentCreate(ctx context.Context, id string, authoritative bool, sortOrder, operator, resetSchedule string, metadata map[string]interface{}, title, description string, category, startTime, endTime, duration, maxSize, maxNumScore int, joinRequired, enableRanks bool) error
 	TournamentDelete(ctx context.Context, id string) error
 	TournamentAddAttempt(ctx context.Context, id, ownerID string, count int) error
 	TournamentJoin(ctx context.Context, id, ownerID, username string) error
 	TournamentsGetId(ctx context.Context, tournamentIDs []string) ([]*api.Tournament, error)
 	TournamentList(ctx context.Context, categoryStart, categoryEnd, startTime, endTime, limit int, cursor string) (*api.TournamentList, error)
+	TournamentRanksDisable(ctx context.Context, id string) error
 	TournamentRecordsList(ctx context.Context, tournamentId string, ownerIDs []string, limit int, cursor string, overrideExpiry int64) (records []*api.LeaderboardRecord, ownerRecords []*api.LeaderboardRecord, prevCursor string, nextCursor string, err error)
 	TournamentRecordWrite(ctx context.Context, id, ownerID, username string, score, subscore int64, metadata map[string]interface{}, operatorOverride *int) (*api.LeaderboardRecord, error)
 	TournamentRecordDelete(ctx context.Context, id, ownerID string) error
@@ -1143,6 +1179,7 @@ type NakamaModule interface {
 	UserGroupsList(ctx context.Context, userID string, limit int, state *int, cursor string) ([]*api.UserGroupList_UserGroup, string, error)
 
 	FriendsList(ctx context.Context, userID string, limit int, state *int, cursor string) ([]*api.Friend, string, error)
+	FriendsOfFriendsList(ctx context.Context, userID string, limit int, cursor string) ([]*api.FriendsOfFriendsList_FriendOfFriend, string, error)
 	FriendsAdd(ctx context.Context, userID string, username string, ids []string, usernames []string) error
 	FriendsDelete(ctx context.Context, userID string, username string, ids []string, usernames []string) error
 	FriendsBlock(ctx context.Context, userID string, username string, ids []string, usernames []string) error
