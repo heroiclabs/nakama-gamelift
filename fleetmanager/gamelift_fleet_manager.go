@@ -72,7 +72,7 @@ func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsG
 		AwsFleetAlias:            awsGameLiftFleetAlias,
 		AwsPlacementQueueName:    awsGameLiftPlacementQueueName,
 		AwsPlacementEventsSqsUrl: awsGameLiftPlacementEventsSqsUrl,
-		AwsGameLiftPollingPeriod: 10 * time.Minute,
+		AwsGameLiftPollingPeriod: 15 * time.Minute,
 		IndexMaxEntries:          1_000_000,
 		HttpRequestTimeout:       30 * time.Second,
 		HttpDialerTimeout:        15 * time.Second,
@@ -131,7 +131,7 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 		return nil, err
 	}
 
-	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex, StorageGameLiftInstancesCollection, "", []string{"id", "create_time", "player_count", "metadata"}, 1_000_000, false); err != nil {
+	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex, StorageGameLiftInstancesCollection, "", []string{"id", "create_time", "player_count", "metadata"}, []string{"create_time", "player_count"}, 1_000_000, false); err != nil {
 		return nil, err
 	}
 
@@ -304,33 +304,7 @@ func (fm *GameLiftFleetManager) Get(ctx context.Context, id string) (instance *r
 
 	gs := out.GameSessions[0]
 
-	metadata := make(map[string]any)
-	if gs.GameSessionData != nil {
-		metadata[GameSessionDataKey] = *gs.GameSessionData
-	}
-	if len(gs.GameProperties) > 0 {
-		props := make(map[string]string, len(gs.GameProperties))
-		for _, p := range gs.GameProperties {
-			props[*p.Key] = *p.Value
-		}
-		metadata[GamePropertiesKey] = props
-	}
-	if gs.Name != nil {
-		metadata[GameSessionNameKey] = *gs.Name
-	}
-
-	instance = &runtime.InstanceInfo{
-		Id: *gs.GameSessionId,
-		ConnectionInfo: &runtime.ConnectionInfo{
-			IpAddress: *gs.IpAddress,
-			DnsName:   *gs.DnsName,
-			Port:      int(*gs.Port),
-		},
-		CreateTime:  *gs.CreationTime,
-		PlayerCount: int(*gs.CurrentPlayerSessionCount),
-		Status:      string(gs.Status),
-		Metadata:    metadata,
-	}
+	instance = NewInstanceInfo(gs)
 
 	switch gs.Status {
 	case types.GameSessionStatusActive:
@@ -361,7 +335,7 @@ func (fm *GameLiftFleetManager) List(ctx context.Context, query string, limit in
 		return instances, nextCursor, nil
 	}
 
-	entries, err := fm.nk.StorageIndexList(ctx, "", StorageGameLiftIndex, query, limit)
+	entries, err := fm.nk.StorageIndexList(ctx, "", StorageGameLiftIndex, query, limit, []string{"player_count", "-create_time"}) // Emptiest matches, most recently created first.
 	if err != nil {
 		return nil, "", err
 	}
@@ -395,33 +369,7 @@ func (fm *GameLiftFleetManager) listGameLiftGameSessions(ctx context.Context, cu
 	}
 
 	for _, i := range out.GameSessions {
-		metadata := make(map[string]any)
-		if len(i.GameProperties) > 0 {
-			props := make(map[string]string, len(i.GameProperties))
-			for _, p := range i.GameProperties {
-				props[*p.Key] = *p.Value
-			}
-			metadata[GamePropertiesKey] = props
-		}
-		if i.GameSessionData != nil {
-			metadata[GameSessionDataKey] = *i.GameSessionData
-		}
-		if i.Name != nil {
-			metadata[GameSessionNameKey] = *i.Name
-		}
-
-		instances = append(instances, &runtime.InstanceInfo{
-			Id: *i.GameSessionId,
-			ConnectionInfo: &runtime.ConnectionInfo{
-				IpAddress: *i.IpAddress,
-				DnsName:   *i.DnsName,
-				Port:      int(*i.Port),
-			},
-			CreateTime:  *i.CreationTime,
-			PlayerCount: int(*i.CurrentPlayerSessionCount),
-			Status:      string(i.Status),
-			Metadata:    metadata,
-		})
+		instances = append(instances, NewInstanceInfo(i))
 	}
 
 	nextCursor := ""
@@ -460,9 +408,13 @@ func (fm *GameLiftFleetManager) listDbGameSessions(ctx context.Context) ([]*runt
 }
 
 func (fm *GameLiftFleetManager) getDbGameSession(ctx context.Context, id string) (*runtime.InstanceInfo, error) {
+	key, err := InstanceIdToStorageKey(id)
+	if err != nil {
+		return nil, err
+	}
 	objects, err := fm.nk.StorageRead(ctx, []*runtime.StorageRead{{
 		Collection: StorageGameLiftInstancesCollection,
-		Key:        id,
+		Key:        key,
 	}})
 	if err != nil {
 		return nil, err
@@ -490,9 +442,13 @@ func (fm *GameLiftFleetManager) updateStorageGameSessions(ctx context.Context, i
 			return err
 		}
 
+		key, err := InstanceIdToStorageKey(i.Id)
+		if err != nil {
+			return err
+		}
 		storageWrites = append(storageWrites, &runtime.StorageWrite{
 			Collection: StorageGameLiftInstancesCollection,
-			Key:        i.Id,
+			Key:        key,
 			Value:      string(v),
 		})
 	}
@@ -507,9 +463,13 @@ func (fm *GameLiftFleetManager) updateStorageGameSessions(ctx context.Context, i
 func (fm *GameLiftFleetManager) deleteStorageGameSessions(ctx context.Context, ids []string) error {
 	deletes := make([]*runtime.StorageDelete, 0, len(ids))
 	for _, id := range ids {
+		key, err := InstanceIdToStorageKey(id)
+		if err != nil {
+			return err
+		}
 		deletes = append(deletes, &runtime.StorageDelete{
 			Collection: StorageGameLiftInstancesCollection,
-			Key:        id,
+			Key:        key,
 		})
 	}
 
@@ -939,33 +899,7 @@ func (fm *GameLiftFleetManager) listGameliftActiveInstances(ctx context.Context,
 
 	activeSessions := make([]*runtime.InstanceInfo, 0, len(out.GameSessions))
 	for _, s := range out.GameSessions {
-		metadata := make(map[string]any)
-		if s.GameSessionData != nil {
-			metadata[GameSessionDataKey] = *s.GameSessionData
-		}
-		if len(s.GameProperties) > 0 {
-			props := make(map[string]string, len(s.GameProperties))
-			for _, p := range s.GameProperties {
-				props[*p.Key] = *p.Value
-			}
-			metadata[GamePropertiesKey] = props
-		}
-		if s.Name != nil {
-			metadata[GameSessionNameKey] = *s.Name
-		}
-
-		activeSessions = append(activeSessions, &runtime.InstanceInfo{
-			Id: *s.GameSessionId,
-			ConnectionInfo: &runtime.ConnectionInfo{
-				IpAddress: *s.IpAddress,
-				DnsName:   *s.DnsName,
-				Port:      int(*s.Port),
-			},
-			CreateTime:  *s.CreationTime,
-			PlayerCount: int(*s.CurrentPlayerSessionCount),
-			Status:      string(s.Status),
-			Metadata:    metadata,
-		})
+		activeSessions = append(activeSessions, NewInstanceInfo(s))
 	}
 
 	var nextCursor string
@@ -974,4 +908,48 @@ func (fm *GameLiftFleetManager) listGameliftActiveInstances(ctx context.Context,
 	}
 
 	return activeSessions, nextCursor, nil
+}
+
+func NewInstanceInfo(gs types.GameSession) *runtime.InstanceInfo {
+	metadata := make(map[string]any)
+	if gs.GameSessionData != nil {
+		metadata[GameSessionDataKey] = *gs.GameSessionData
+	}
+	if len(gs.GameProperties) > 0 {
+		props := make(map[string]string, len(gs.GameProperties))
+		for _, p := range gs.GameProperties {
+			props[*p.Key] = *p.Value
+		}
+		metadata[GamePropertiesKey] = props
+	}
+	if gs.Name != nil {
+		metadata[GameSessionNameKey] = *gs.Name
+	}
+
+	dns := ""
+	if gs.DnsName != nil {
+		dns = *gs.DnsName
+	}
+
+	return &runtime.InstanceInfo{
+		Id: *gs.GameSessionId,
+		ConnectionInfo: &runtime.ConnectionInfo{
+			IpAddress: *gs.IpAddress,
+			DnsName:   dns,
+			Port:      int(*gs.Port),
+		},
+		CreateTime:  *gs.CreationTime,
+		PlayerCount: int(*gs.CurrentPlayerSessionCount),
+		Status:      string(gs.Status),
+		Metadata:    metadata,
+	}
+}
+
+func InstanceIdToStorageKey(id string) (string, error) {
+	tokens := strings.Split(id, "/")
+	if len(tokens) < 2 {
+		return "", errors.New("failed to convert instance id: %s to storage key")
+	}
+
+	return tokens[len(tokens)-1], nil
 }
