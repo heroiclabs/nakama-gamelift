@@ -335,7 +335,8 @@ func (fm *GameLiftFleetManager) List(ctx context.Context, query string, limit in
 		return instances, nextCursor, nil
 	}
 
-	entries, err := fm.nk.StorageIndexList(ctx, "", StorageGameLiftIndex, query, limit, []string{"player_count", "-create_time"}) // Emptiest matches, most recently created first.
+	// Emptiest matches, most recently created first.
+	entries, _, err := fm.nk.StorageIndexList(ctx, "", StorageGameLiftIndex, query, limit, []string{"player_count", "-create_time"}, "")
 	if err != nil {
 		return nil, "", err
 	}
