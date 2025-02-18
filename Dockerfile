@@ -1,4 +1,6 @@
-FROM heroiclabs/nakama-pluginbuilder:3.23.0 AS builder
+ARG NAKAMA_VERSION=3.26.0
+
+FROM heroiclabs/nakama-pluginbuilder:${NAKAMA_VERSION} AS builder
 
 ENV GO111MODULE on
 ENV CGO_ENABLED 1
@@ -8,7 +10,7 @@ COPY . .
 
 RUN go build --trimpath --mod=vendor --gcflags "--trimpath $PWD" -asmflags "--trimpath $PWD" --buildmode=plugin -o ./backend.so
 
-FROM heroiclabs/nakama:3.23.0
+FROM heroiclabs/nakama:${NAKAMA_VERSION}
 
 COPY --from=builder /backend/backend.so /nakama/data/modules
 COPY --from=builder /backend/local.yml /nakama/data/
