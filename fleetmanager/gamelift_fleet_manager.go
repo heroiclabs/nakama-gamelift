@@ -28,6 +28,7 @@ const (
 	GameSessionDataKey = "GameSessionData"
 	GamePropertiesKey  = "GameProperties"
 	GameSessionNameKey = "GameSessionName"
+	PlacementIdKey     = "placementId"
 )
 
 const (
@@ -238,7 +239,7 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 
 	var playerLatencies []types.PlayerLatency
 	if len(latencies) > 0 {
-		playerLatencies = make([]types.PlayerLatency, 0, len(playerLatencies))
+		playerLatencies = make([]types.PlayerLatency, 0, len(latencies))
 		for _, l := range latencies {
 			playerLatencies = append(playerLatencies, types.PlayerLatency{
 				LatencyInMilliseconds: aws.Float32(l.LatencyInMilliseconds),
@@ -248,7 +249,19 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 		}
 	}
 
-	placementId := fm.callbackHandler.GenerateCallbackId()
+	var placementId string
+	if metadata != nil {
+		if v, ok := metadata[PlacementIdKey]; ok {
+			if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+				placementId = s
+				fm.logger.WithField("placement_id", placementId).Debug("using placementId from metadata")
+			}
+		}
+	}
+	if placementId == "" {
+		placementId = fm.callbackHandler.GenerateCallbackId()
+		fm.logger.WithField("placement_id", placementId).Debug("no placementId in metadata; generated fallback")
+	}
 	fm.logger.WithField("placement_id", placementId).WithField("game_properties", gameProperties).Debug("placement input")
 
 	placementInput := &gamelift.StartGameSessionPlacementInput{
@@ -953,4 +966,8 @@ func InstanceIdToStorageKey(id string) (string, error) {
 	}
 
 	return tokens[len(tokens)-1], nil
+}
+
+func (fm *GameLiftFleetManager) GeneratePlacementId() string {
+	return fm.callbackHandler.GenerateCallbackId()
 }
