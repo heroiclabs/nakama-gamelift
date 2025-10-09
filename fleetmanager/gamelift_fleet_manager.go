@@ -168,10 +168,6 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 		return nil, err
 	}
 
-	if err := initializer.RegisterRpc(RpcIdGetPlacementId, glfm.GetPlacementId); err != nil {
-		return nil, err
-	}
-
 	return glfm, nil
 }
 
@@ -972,13 +968,6 @@ func InstanceIdToStorageKey(id string) (string, error) {
 	return tokens[len(tokens)-1], nil
 }
 
-const RpcIdGetPlacementId = "get_placement_id"
-
 func (fm *GameLiftFleetManager) GeneratePlacementId() string {
 	return fm.callbackHandler.GenerateCallbackId()
-}
-
-func (fm *GameLiftFleetManager) GetPlacementId(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
-	id := fm.callbackHandler.GenerateCallbackId()
-	return fmt.Sprintf(`{"placement_id":"%s"}`, id), nil
 }
