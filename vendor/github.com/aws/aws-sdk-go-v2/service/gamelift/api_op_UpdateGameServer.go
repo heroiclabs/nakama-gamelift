@@ -6,33 +6,43 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is used with the Amazon GameLift FleetIQ solution and game
-// server groups. Updates information about a registered game server to help Amazon
-// GameLift FleetIQ track game server availability. This operation is called by a
-// game server process that is running on an instance in a game server group. Use
-// this operation to update the following types of game server information. You can
-// make all three types of updates in the same request:
+//	This API works with the following fleet types: EC2 (FleetIQ)
+//
+// Updates information about a registered game server to help Amazon GameLift
+// Servers FleetIQ track game server availability. This operation is called by a
+// game server process that is running on an instance in a game server group.
+//
+// Use this operation to update the following types of game server information.
+// You can make all three types of updates in the same request:
+//
 //   - To update the game server's utilization status from AVAILABLE (when the game
 //     server is available to be claimed) to UTILIZED (when the game server is
 //     currently hosting games). Identify the game server and game server group and
 //     specify the new utilization status. You can't change the status from to
 //     UTILIZED to AVAILABLE .
+//
 //   - To report health status, identify the game server and game server group and
 //     set health check to HEALTHY . If a game server does not report health status
 //     for a certain length of time, the game server is no longer considered healthy.
 //     As a result, it will be eventually deregistered from the game server group to
 //     avoid affecting utilization metrics. The best practice is to report health every
 //     60 seconds.
+//
 //   - To change game server metadata, provide updated game server data.
 //
 // Once a game server is successfully updated, the relevant statuses and
-// timestamps are updated. Learn more Amazon GameLift FleetIQ Guide (https://docs.aws.amazon.com/gamelift/latest/fleetiqguide/gsg-intro.html)
+// timestamps are updated.
+//
+// # Learn more
+//
+// [Amazon GameLift Servers FleetIQ Guide]
+//
+// [Amazon GameLift Servers FleetIQ Guide]: https://docs.aws.amazon.com/gamelift/latest/fleetiqguide/gsg-intro.html
 func (c *Client) UpdateGameServer(ctx context.Context, params *UpdateGameServerInput, optFns ...func(*Options)) (*UpdateGameServerOutput, error) {
 	if params == nil {
 		params = &UpdateGameServerInput{}
@@ -92,11 +102,11 @@ func (c *Client) addOperationUpdateGameServerMiddlewares(stack *middleware.Stack
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpUpdateGameServer{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpUpdateGameServer{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpUpdateGameServer{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpUpdateGameServer{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -110,25 +120,28 @@ func (c *Client) addOperationUpdateGameServerMiddlewares(stack *middleware.Stack
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -143,13 +156,22 @@ func (c *Client) addOperationUpdateGameServerMiddlewares(stack *middleware.Stack
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpUpdateGameServerValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opUpdateGameServer(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -162,6 +184,15 @@ func (c *Client) addOperationUpdateGameServerMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -6,50 +6,66 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+//	This API works with the following fleet types: EC2
+//
 // Retrieves the instance limits and current utilization for an Amazon Web
 // Services Region or location. Instance limits control the number of instances,
 // per instance type, per location, that your Amazon Web Services account can use.
-// Learn more at Amazon EC2 Instance Types (http://aws.amazon.com/ec2/instance-types/)
-// . The information returned includes the maximum number of instances allowed and
-// your account's current usage across all fleets. This information can affect your
-// ability to scale your Amazon GameLift fleets. You can request a limit increase
-// for your account by using the Service limits page in the Amazon GameLift
-// console. Instance limits differ based on whether the instances are deployed in a
-// fleet's home Region or in a remote location. For remote locations, limits also
-// differ based on the combination of home Region and remote location. All requests
-// must specify an Amazon Web Services Region (either explicitly or as your default
+// Learn more at [Amazon EC2 Instance Types]. The information returned includes the maximum number of
+// instances allowed and your account's current usage across all fleets. This
+// information can affect your ability to scale your Amazon GameLift Servers
+// fleets. You can request a limit increase for your account by using the Service
+// limits page in the Amazon GameLift Servers console.
+//
+// Instance limits differ based on whether the instances are deployed in a fleet's
+// home Region or in a remote location. For remote locations, limits also differ
+// based on the combination of home Region and remote location. All requests must
+// specify an Amazon Web Services Region (either explicitly or as your default
 // settings). To get the limit for a remote location, you must also specify the
-// location. For example, the following requests all return different results:
+// location. To learn more about how Amazon GameLift Servers handles locations, see
+// [Amazon GameLift Servers service locations]. For example, the following requests all return different results:
+//
 //   - Request specifies the Region ap-northeast-1 with no location. The result is
-//     limits and usage data on all instance types that are deployed in us-east-2 ,
-//     by all of the fleets that reside in ap-northeast-1 .
-//   - Request specifies the Region us-east-1 with location ca-central-1 . The
-//     result is limits and usage data on all instance types that are deployed in
-//     ca-central-1 , by all of the fleets that reside in us-east-2 . These limits do
-//     not affect fleets in any other Regions that deploy instances to ca-central-1 .
-//   - Request specifies the Region eu-west-1 with location ca-central-1 . The
-//     result is limits and usage data on all instance types that are deployed in
-//     ca-central-1 , by all of the fleets that reside in eu-west-1 .
+//     limits and usage data on all of the fleets that reside in ap-northeast-1 , for
+//     all instance types that are deployed in ap-northeast-1 .
+//
+//   - Request specifies the Region ap-northeast-1 with location us-west-2 . The
+//     result is limits and usage data on all of the fleets that reside in
+//     ap-northeast-1 , for all instance types that are deployed in us-west-2 .
+//
+//   - Request specifies the Region us-east-1 with location ap-northeast-1 . The
+//     result is limits and usage data on all of the fleets that reside in us-east-1
+//     , for all instance types that are deployed in ap-northeast-1 . These limits do
+//     not affect fleets in any other Regions that deploy instances to ap-northeast-1
+//     .
 //
 // This operation can be used in the following ways:
+//
 //   - To get limit and usage data for all instance types that are deployed in an
 //     Amazon Web Services Region by fleets that reside in the same Region: Specify the
 //     Region only. Optionally, specify a single instance type to retrieve information
 //     for.
+//
 //   - To get limit and usage data for all instance types that are deployed to a
 //     remote location by fleets that reside in different Amazon Web Services Region:
 //     Provide both the Amazon Web Services Region and the remote location. Optionally,
 //     specify a single instance type to retrieve information for.
 //
 // If successful, an EC2InstanceLimits object is returned with limits and usage
-// data for each requested instance type. Learn more Setting up Amazon GameLift
-// fleets (https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-intro.html)
+// data for each requested instance type.
+//
+// # Learn more
+//
+// [Setting up Amazon GameLift Servers fleets]
+//
+// [Amazon GameLift Servers service locations]: https://docs.aws.amazon.com/gameliftservers/latest/developerguide/gamelift-regions.html
+// [Amazon EC2 Instance Types]: http://aws.amazon.com/ec2/instance-types/
+// [Setting up Amazon GameLift Servers fleets]: https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-intro.html
 func (c *Client) DescribeEC2InstanceLimits(ctx context.Context, params *DescribeEC2InstanceLimitsInput, optFns ...func(*Options)) (*DescribeEC2InstanceLimitsOutput, error) {
 	if params == nil {
 		params = &DescribeEC2InstanceLimitsInput{}
@@ -67,10 +83,11 @@ func (c *Client) DescribeEC2InstanceLimits(ctx context.Context, params *Describe
 
 type DescribeEC2InstanceLimitsInput struct {
 
-	// Name of an Amazon EC2 instance type that is supported in Amazon GameLift. A
-	// fleet instance type determines the computing resources of each instance in the
-	// fleet, including CPU, memory, storage, and networking capacity. Do not specify a
-	// value for this parameter to retrieve limits for all instance types.
+	// Name of an Amazon EC2 instance type that is supported in Amazon GameLift
+	// Servers. A fleet instance type determines the computing resources of each
+	// instance in the fleet, including CPU, memory, storage, and networking capacity.
+	// Do not specify a value for this parameter to retrieve limits for all instance
+	// types.
 	EC2InstanceType types.EC2InstanceType
 
 	// The name of a remote location to request instance limits for, in the form of an
@@ -95,11 +112,11 @@ func (c *Client) addOperationDescribeEC2InstanceLimitsMiddlewares(stack *middlew
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeEC2InstanceLimits{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpDescribeEC2InstanceLimits{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeEC2InstanceLimits{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpDescribeEC2InstanceLimits{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -113,25 +130,28 @@ func (c *Client) addOperationDescribeEC2InstanceLimitsMiddlewares(stack *middlew
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -146,10 +166,19 @@ func (c *Client) addOperationDescribeEC2InstanceLimitsMiddlewares(stack *middlew
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeEC2InstanceLimits(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -162,6 +191,15 @@ func (c *Client) addOperationDescribeEC2InstanceLimitsMiddlewares(stack *middlew
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

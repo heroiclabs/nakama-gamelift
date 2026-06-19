@@ -6,30 +6,43 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+//	This API works with the following fleet types: EC2, Anywhere, Container
+//
 // Uses FlexMatch to create a game match for a group of players based on custom
-// matchmaking rules. With games that use Amazon GameLift managed hosting, this
-// operation also triggers Amazon GameLift to find hosting resources and start a
-// new game session for the new match. Each matchmaking request includes
-// information on one or more players and specifies the FlexMatch matchmaker to
-// use. When a request is for multiple players, FlexMatch attempts to build a match
-// that includes all players in the request, placing them in the same team and
-// finding additional players as needed to fill the match. To start matchmaking,
-// provide a unique ticket ID, specify a matchmaking configuration, and include the
-// players to be matched. You must also include any player attributes that are
-// required by the matchmaking configuration's rule set. If successful, a
-// matchmaking ticket is returned with status set to QUEUED . Track matchmaking
-// events to respond as needed and acquire game session connection information for
-// successfully completed matches. Ticket status updates are tracked using event
-// notification through Amazon Simple Notification Service, which is defined in the
-// matchmaking configuration. Learn more Add FlexMatch to a game client (https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/match-client.html)
-// Set Up FlexMatch event notification (https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/match-notification.html)
-// How Amazon GameLift FlexMatch works (https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/gamelift-match.html)
+// matchmaking rules. With games that use Amazon GameLift Servers managed hosting,
+// this operation also triggers Amazon GameLift Servers to find hosting resources
+// and start a new game session for the new match. Each matchmaking request
+// includes information on one or more players and specifies the FlexMatch
+// matchmaker to use. When a request is for multiple players, FlexMatch attempts to
+// build a match that includes all players in the request, placing them in the same
+// team and finding additional players as needed to fill the match.
+//
+// To start matchmaking, provide a unique ticket ID, specify a matchmaking
+// configuration, and include the players to be matched. You must also include any
+// player attributes that are required by the matchmaking configuration's rule set.
+// If successful, a matchmaking ticket is returned with status set to QUEUED .
+//
+// Track matchmaking events to respond as needed and acquire game session
+// connection information for successfully completed matches. Ticket status updates
+// are tracked using event notification through Amazon Simple Notification Service,
+// which is defined in the matchmaking configuration.
+//
+// # Learn more
+//
+// [Add FlexMatch to a game client]
+//
+// [Set Up FlexMatch event notification]
+//
+// [How Amazon GameLift Servers FlexMatch works]
+//
+// [Set Up FlexMatch event notification]: https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/match-notification.html
+// [Add FlexMatch to a game client]: https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/match-client.html
+// [How Amazon GameLift Servers FlexMatch works]: https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/gamelift-match.html
 func (c *Client) StartMatchmaking(ctx context.Context, params *StartMatchmakingInput, optFns ...func(*Options)) (*StartMatchmakingOutput, error) {
 	if params == nil {
 		params = &StartMatchmakingInput{}
@@ -57,14 +70,15 @@ type StartMatchmakingInput struct {
 	// Information on each player to be matched. This information must include a
 	// player ID, and may contain player attributes and latency data to be used in the
 	// matchmaking process. After a successful match, Player objects contain the name
-	// of the team the player is assigned to. You can include up to 10 Players in a
-	// StartMatchmaking request.
+	// of the team the player is assigned to.
+	//
+	// You can include up to 10 Players in a StartMatchmaking request.
 	//
 	// This member is required.
 	Players []types.Player
 
 	// A unique identifier for a matchmaking ticket. If no ticket ID is specified
-	// here, Amazon GameLift will generate one in the form of a UUID. Use this
+	// here, Amazon GameLift Servers will generate one in the form of a UUID. Use this
 	// identifier to track the matchmaking ticket status and retrieve match results.
 	TicketId *string
 
@@ -88,11 +102,11 @@ func (c *Client) addOperationStartMatchmakingMiddlewares(stack *middleware.Stack
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpStartMatchmaking{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpStartMatchmaking{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpStartMatchmaking{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpStartMatchmaking{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -106,25 +120,28 @@ func (c *Client) addOperationStartMatchmakingMiddlewares(stack *middleware.Stack
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -139,13 +156,22 @@ func (c *Client) addOperationStartMatchmakingMiddlewares(stack *middleware.Stack
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpStartMatchmakingValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opStartMatchmaking(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -158,6 +184,15 @@ func (c *Client) addOperationStartMatchmakingMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

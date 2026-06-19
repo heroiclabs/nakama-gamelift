@@ -6,26 +6,39 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Requests authorization to remotely connect to a compute resource in an Amazon
-// GameLift fleet. Call this action to connect to an instance in a managed EC2
-// fleet if the fleet's game build uses Amazon GameLift server SDK 5.x or later. To
-// connect to instances with game builds that use server SDK 4.x or earlier, call
-// GetInstanceAccess . To request access to a compute, identify the specific EC2
-// instance and the fleet it belongs to. You can retrieve instances for a managed
-// EC2 fleet by calling ListCompute . If successful, this operation returns a set
-// of temporary Amazon Web Services credentials, including a two-part access key
-// and a session token. Use these credentials with Amazon EC2 Systems Manager (SSM)
-// to start a session with the compute. For more details, see Starting a session
-// (CLI) (https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#sessions-start-cli)
-// in the Amazon EC2 Systems Manager User Guide. Learn more Remotely connect to
-// fleet instances (https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-remote-access.html)
-// Debug fleet issues (https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-creating-debug.html)
+//	This API works with the following fleet types: EC2, Container
+//
+// Requests authorization to remotely connect to a hosting resource in a Amazon
+// GameLift Servers managed fleet. This operation is not used with Amazon GameLift
+// Servers Anywhere fleets.
+//
+// # Request options
+//
+// Provide the fleet ID and compute name. The compute name varies depending on the
+// type of fleet.
+//
+//   - For a compute in a managed EC2 fleet, provide an instance ID. Each instance
+//     in the fleet is a compute.
+//
+//   - For a compute in a managed container fleet, provide a compute name. In a
+//     container fleet, each game server container group on a fleet instance is
+//     assigned a compute name.
+//
+// # Results
+//
+// If successful, this operation returns a set of temporary Amazon Web Services
+// credentials, including a two-part access key and a session token.
+//
+//   - With a managed EC2 fleet (where compute type is EC2 ), use these credentials
+//     with Amazon EC2 Systems Manager (SSM) to start a session with the compute. For
+//     more details, see [Starting a session (CLI)]in the Amazon EC2 Systems Manager User Guide.
+//
+// [Starting a session (CLI)]: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#sessions-start-cli
 func (c *Client) GetComputeAccess(ctx context.Context, params *GetComputeAccessInput, optFns ...func(*Options)) (*GetComputeAccessOutput, error) {
 	if params == nil {
 		params = &GetComputeAccessInput{}
@@ -43,13 +56,16 @@ func (c *Client) GetComputeAccess(ctx context.Context, params *GetComputeAccessI
 
 type GetComputeAccessInput struct {
 
-	// A unique identifier for the compute resource that you want to connect to. You
-	// can use either a registered compute name or an instance ID.
+	// A unique identifier for the compute resource that you want to connect to. For
+	// an EC2 fleet, use an instance ID. For a managed container fleet, use a compute
+	// name. You can retrieve a fleet's compute names by calling [ListCompute].
+	//
+	// [ListCompute]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_ListCompute.html
 	//
 	// This member is required.
 	ComputeName *string
 
-	// A unique identifier for the fleet that contains the compute resource you want
+	// A unique identifier for the fleet that holds the compute resource that you want
 	// to connect to. You can use either the fleet ID or ARN value.
 	//
 	// This member is required.
@@ -60,28 +76,38 @@ type GetComputeAccessInput struct {
 
 type GetComputeAccessOutput struct {
 
-	// The Amazon Resource Name ( ARN (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html)
-	// ) that is assigned to an Amazon GameLift compute resource and uniquely
-	// identifies it. ARNs are unique across all Regions. Format is
+	// The Amazon Resource Name ([ARN] ) that is assigned to an Amazon GameLift Servers
+	// compute resource and uniquely identifies it. ARNs are unique across all Regions.
+	// Format is
 	// arn:aws:gamelift:::compute/compute-a1234567-b8c9-0d1e-2fa3-b45c6d7e8912 .
+	//
+	// [ARN]: https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
 	ComputeArn *string
 
 	// The identifier of the compute resource to be accessed. This value might be
 	// either a compute name or an instance ID.
 	ComputeName *string
 
+	// For a managed container fleet, a list of containers on the compute. Use the
+	// container runtime ID with Docker commands to connect to a specific container.
+	ContainerIdentifiers []types.ContainerIdentifier
+
 	// A set of temporary Amazon Web Services credentials for use when connecting to
 	// the compute resource with Amazon EC2 Systems Manager (SSM).
 	Credentials *types.AwsCredentials
 
-	// The Amazon Resource Name ( ARN (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html)
-	// ) that is assigned to a Amazon GameLift fleet resource and uniquely identifies
-	// it. ARNs are unique across all Regions. Format is
-	// arn:aws:gamelift:::fleet/fleet-a1234567-b8c9-0d1e-2fa3-b45c6d7e8912 .
+	// The Amazon Resource Name ([ARN] ) that is assigned to a Amazon GameLift Servers fleet
+	// resource and uniquely identifies it. ARNs are unique across all Regions. Format
+	// is arn:aws:gamelift:::fleet/fleet-a1234567-b8c9-0d1e-2fa3-b45c6d7e8912 .
+	//
+	// [ARN]: https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
 	FleetArn *string
 
-	// The ID of the fleet that contains the compute resource to be accessed.
+	// The ID of the fleet that holds the compute resource to be accessed.
 	FleetId *string
+
+	// The instance ID where the compute resource is running.
+	Target *string
 
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -93,11 +119,11 @@ func (c *Client) addOperationGetComputeAccessMiddlewares(stack *middleware.Stack
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpGetComputeAccess{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpGetComputeAccess{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpGetComputeAccess{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpGetComputeAccess{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -111,25 +137,28 @@ func (c *Client) addOperationGetComputeAccessMiddlewares(stack *middleware.Stack
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -144,13 +173,22 @@ func (c *Client) addOperationGetComputeAccessMiddlewares(stack *middleware.Stack
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetComputeAccessValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetComputeAccess(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -163,6 +201,15 @@ func (c *Client) addOperationGetComputeAccessMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

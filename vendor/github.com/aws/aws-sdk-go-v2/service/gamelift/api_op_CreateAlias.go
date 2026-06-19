@@ -6,25 +6,35 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+//	This API works with the following fleet types: EC2, Anywhere, Container
+//
 // Creates an alias for a fleet. In most situations, you can use an alias ID in
 // place of a fleet ID. An alias provides a level of abstraction for a fleet that
 // is useful when redirecting player traffic from one fleet to another, such as
-// when updating your game build. Amazon GameLift supports two types of routing
-// strategies for aliases: simple and terminal. A simple alias points to an active
-// fleet. A terminal alias is used to display messaging or link to a URL instead of
-// routing players to an active fleet. For example, you might use a terminal alias
-// when a game version is no longer supported and you want to direct players to an
-// upgrade site. To create a fleet alias, specify an alias name, routing strategy,
-// and optional description. Each simple alias can point to only one fleet, but a
-// fleet can have multiple aliases. If successful, a new alias record is returned,
-// including an alias ID and an ARN. You can reassign an alias to another fleet by
-// calling UpdateAlias . Related actions All APIs by task (https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets)
+// when updating your game build.
+//
+// Amazon GameLift Servers supports two types of routing strategies for aliases:
+// simple and terminal. A simple alias points to an active fleet. A terminal alias
+// is used to display messaging or link to a URL instead of routing players to an
+// active fleet. For example, you might use a terminal alias when a game version is
+// no longer supported and you want to direct players to an upgrade site.
+//
+// To create a fleet alias, specify an alias name, routing strategy, and optional
+// description. Each simple alias can point to only one fleet, but a fleet can have
+// multiple aliases. If successful, a new alias record is returned, including an
+// alias ID and an ARN. You can reassign an alias to another fleet by calling
+// UpdateAlias .
+//
+// # Related actions
+//
+// [All APIs by task]
+//
+// [All APIs by task]: https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets
 func (c *Client) CreateAlias(ctx context.Context, params *CreateAliasInput, optFns ...func(*Options)) (*CreateAliasOutput, error) {
 	if params == nil {
 		params = &CreateAliasInput{}
@@ -60,8 +70,9 @@ type CreateAliasInput struct {
 	// A list of labels to assign to the new alias resource. Tags are
 	// developer-defined key-value pairs. Tagging Amazon Web Services resources are
 	// useful for resource management, access management and cost allocation. For more
-	// information, see Tagging Amazon Web Services Resources (https://docs.aws.amazon.com/general/latest/gr/aws_tagging.html)
-	// in the Amazon Web Services General Reference.
+	// information, see [Tagging Amazon Web Services Resources]in the Amazon Web Services General Reference.
+	//
+	// [Tagging Amazon Web Services Resources]: https://docs.aws.amazon.com/general/latest/gr/aws_tagging.html
 	Tags []types.Tag
 
 	noSmithyDocumentSerde
@@ -82,11 +93,11 @@ func (c *Client) addOperationCreateAliasMiddlewares(stack *middleware.Stack, opt
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpCreateAlias{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpCreateAlias{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpCreateAlias{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpCreateAlias{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -100,25 +111,28 @@ func (c *Client) addOperationCreateAliasMiddlewares(stack *middleware.Stack, opt
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -133,13 +147,22 @@ func (c *Client) addOperationCreateAliasMiddlewares(stack *middleware.Stack, opt
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpCreateAliasValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opCreateAlias(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -152,6 +175,15 @@ func (c *Client) addOperationCreateAliasMiddlewares(stack *middleware.Stack, opt
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

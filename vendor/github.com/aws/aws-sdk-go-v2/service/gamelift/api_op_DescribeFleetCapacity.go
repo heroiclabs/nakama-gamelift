@@ -6,31 +6,48 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Retrieves the resource capacity settings for one or more fleets. The data
-// returned includes the current fleet capacity (number of EC2 instances), and
-// settings that can control how capacity scaling. For fleets with remote
-// locations, this operation retrieves data for the fleet's home Region only. This
-// operation can be used in the following ways:
+//	This API works with the following fleet types: EC2, Container
+//
+// Retrieves the resource capacity settings for one or more fleets. For a
+// container fleet, this operation also returns counts for game server container
+// groups.
+//
+// With multi-location fleets, this operation retrieves data for the fleet's home
+// Region only. To retrieve capacity for remote locations, see [https://docs.aws.amazon.com/gamelift/latest/apireference/API_DescribeFleetLocationCapacity.html].
+//
+// This operation can be used in the following ways:
+//
 //   - To get capacity data for one or more specific fleets, provide a list of
 //     fleet IDs or fleet ARNs.
+//
 //   - To get capacity data for all fleets, do not provide a fleet identifier.
 //
 // When requesting multiple fleets, use the pagination parameters to retrieve
-// results as a set of sequential pages. If successful, a FleetCapacity object is
-// returned for each requested fleet ID. Each FleetCapacity object includes a
-// Location property, which is set to the fleet's home Region. When a list of fleet
-// IDs is provided, attribute objects are returned only for fleets that currently
-// exist. Some API operations may limit the number of fleet IDs that are allowed in
-// one request. If a request exceeds this limit, the request fails and the error
-// message includes the maximum allowed. Learn more Setting up Amazon GameLift
-// fleets (https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-intro.html)
-// GameLift metrics for fleets (https://docs.aws.amazon.com/gamelift/latest/developerguide/monitoring-cloudwatch.html#gamelift-metrics-fleet)
+// results as a set of sequential pages.
+//
+// If successful, a FleetCapacity object is returned for each requested fleet ID.
+// Each FleetCapacity object includes a Location property, which is set to the
+// fleet's home Region. Capacity values are returned only for fleets that currently
+// exist.
+//
+// Some API operations may limit the number of fleet IDs that are allowed in one
+// request. If a request exceeds this limit, the request fails and the error
+// message includes the maximum allowed.
+//
+// # Learn more
+//
+// [Setting up Amazon GameLift Servers fleets]
+//
+// [GameLift metrics for fleets]
+//
+// [https://docs.aws.amazon.com/gamelift/latest/apireference/API_DescribeFleetLocationCapacity.html]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_DescribeFleetLocationCapacity.html
+// [GameLift metrics for fleets]: https://docs.aws.amazon.com/gamelift/latest/developerguide/monitoring-cloudwatch.html#gamelift-metrics-fleet
+// [Setting up Amazon GameLift Servers fleets]: https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-intro.html
 func (c *Client) DescribeFleetCapacity(ctx context.Context, params *DescribeFleetCapacityInput, optFns ...func(*Options)) (*DescribeFleetCapacityOutput, error) {
 	if params == nil {
 		params = &DescribeFleetCapacityInput{}
@@ -89,11 +106,11 @@ func (c *Client) addOperationDescribeFleetCapacityMiddlewares(stack *middleware.
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeFleetCapacity{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpDescribeFleetCapacity{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeFleetCapacity{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpDescribeFleetCapacity{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -107,25 +124,28 @@ func (c *Client) addOperationDescribeFleetCapacityMiddlewares(stack *middleware.
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -140,10 +160,19 @@ func (c *Client) addOperationDescribeFleetCapacityMiddlewares(stack *middleware.
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeFleetCapacity(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -158,16 +187,17 @@ func (c *Client) addOperationDescribeFleetCapacityMiddlewares(stack *middleware.
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribeFleetCapacityAPIClient is a client that implements the
-// DescribeFleetCapacity operation.
-type DescribeFleetCapacityAPIClient interface {
-	DescribeFleetCapacity(context.Context, *DescribeFleetCapacityInput, ...func(*Options)) (*DescribeFleetCapacityOutput, error)
-}
-
-var _ DescribeFleetCapacityAPIClient = (*Client)(nil)
 
 // DescribeFleetCapacityPaginatorOptions is the paginator options for
 // DescribeFleetCapacity
@@ -235,6 +265,9 @@ func (p *DescribeFleetCapacityPaginator) NextPage(ctx context.Context, optFns ..
 	}
 	params.Limit = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribeFleetCapacity(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -253,6 +286,14 @@ func (p *DescribeFleetCapacityPaginator) NextPage(ctx context.Context, optFns ..
 
 	return result, nil
 }
+
+// DescribeFleetCapacityAPIClient is a client that implements the
+// DescribeFleetCapacity operation.
+type DescribeFleetCapacityAPIClient interface {
+	DescribeFleetCapacity(context.Context, *DescribeFleetCapacityInput, ...func(*Options)) (*DescribeFleetCapacityOutput, error)
+}
+
+var _ DescribeFleetCapacityAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opDescribeFleetCapacity(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

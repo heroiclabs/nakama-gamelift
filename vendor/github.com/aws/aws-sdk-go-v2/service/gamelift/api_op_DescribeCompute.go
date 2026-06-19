@@ -6,19 +6,45 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Retrieves properties for a compute resource in an Amazon GameLift fleet. Call
-// ListCompute to get a list of compute resources in a fleet. You can request
-// information for computes in either managed EC2 fleets or Anywhere fleets. To
-// request compute properties, specify the compute name and fleet ID. If
-// successful, this operation returns details for the requested compute resource.
-// For managed EC2 fleets, this operation returns the fleet's EC2 instances. For
-// Anywhere fleets, this operation returns the fleet's registered computes.
+//	This API works with the following fleet types: EC2, Anywhere, Container
+//
+// Retrieves properties for a specific compute resource in an Amazon GameLift
+// Servers fleet. You can list all computes in a fleet by calling [ListCompute].
+//
+// # Request options
+//
+// Provide the fleet ID and compute name. The compute name varies depending on the
+// type of fleet.
+//
+//   - For a compute in a managed EC2 fleet, provide an instance ID. Each instance
+//     in the fleet is a compute.
+//
+//   - For a compute in a managed container fleet, provide a compute name. In a
+//     container fleet, each game server container group on a fleet instance is
+//     assigned a compute name.
+//
+//   - For a compute in an Anywhere fleet, provide a registered compute name.
+//     Anywhere fleet computes are created when you register a hosting resource with
+//     the fleet.
+//
+// # Results
+//
+// If successful, this operation returns details for the requested compute
+// resource. Depending on the fleet's compute type, the result includes the
+// following information:
+//
+//   - For a managed EC2 fleet, this operation returns information about the EC2
+//     instance.
+//
+//   - For an Anywhere fleet, this operation returns information about the
+//     registered compute.
+//
+// [ListCompute]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_ListCompute.html
 func (c *Client) DescribeCompute(ctx context.Context, params *DescribeComputeInput, optFns ...func(*Options)) (*DescribeComputeOutput, error) {
 	if params == nil {
 		params = &DescribeComputeInput{}
@@ -36,15 +62,17 @@ func (c *Client) DescribeCompute(ctx context.Context, params *DescribeComputeInp
 
 type DescribeComputeInput struct {
 
-	// The unique identifier of the compute resource to retrieve properties for. For
-	// an Anywhere fleet compute, use the registered compute name. For a managed EC2
-	// fleet instance, use the instance ID.
+	// The unique identifier of the compute resource to retrieve properties for. For a
+	// managed container fleet or Anywhere fleet, use a compute name. For an EC2 fleet,
+	// use an instance ID. To retrieve a fleet's compute identifiers, call [ListCompute].
+	//
+	// [ListCompute]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_ListCompute.html
 	//
 	// This member is required.
 	ComputeName *string
 
-	// A unique identifier for the fleet that the compute is registered to. You can
-	// use either the fleet ID or ARN value.
+	// A unique identifier for the fleet that the compute belongs to. You can use
+	// either the fleet ID or ARN value.
 	//
 	// This member is required.
 	FleetId *string
@@ -67,11 +95,11 @@ func (c *Client) addOperationDescribeComputeMiddlewares(stack *middleware.Stack,
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeCompute{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpDescribeCompute{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeCompute{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpDescribeCompute{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -85,25 +113,28 @@ func (c *Client) addOperationDescribeComputeMiddlewares(stack *middleware.Stack,
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -118,13 +149,22 @@ func (c *Client) addOperationDescribeComputeMiddlewares(stack *middleware.Stack,
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDescribeComputeValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeCompute(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -137,6 +177,15 @@ func (c *Client) addOperationDescribeComputeMiddlewares(stack *middleware.Stack,
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

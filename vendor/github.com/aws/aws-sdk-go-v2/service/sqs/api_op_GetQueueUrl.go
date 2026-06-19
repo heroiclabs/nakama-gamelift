@@ -6,17 +6,21 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns the URL of an existing Amazon SQS queue. To access a queue that belongs
-// to another AWS account, use the QueueOwnerAWSAccountId parameter to specify the
-// account ID of the queue's owner. The queue's owner must grant you permission to
-// access the queue. For more information about shared queue access, see
-// AddPermission or see Allow Developers to Write Messages to a Shared Queue (https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-writing-an-sqs-policy.html#write-messages-to-shared-queue)
-// in the Amazon SQS Developer Guide.
+// The GetQueueUrl API returns the URL of an existing Amazon SQS queue. This is
+// useful when you know the queue's name but need to retrieve its URL for further
+// operations.
+//
+// To access a queue owned by another Amazon Web Services account, use the
+// QueueOwnerAWSAccountId parameter to specify the account ID of the queue's owner.
+// Note that the queue owner must grant you the necessary permissions to access the
+// queue. For more information about accessing shared queues, see the AddPermissionAPI or [Allow developers to write messages to a shared queue] in
+// the Amazon SQS Developer Guide.
+//
+// [Allow developers to write messages to a shared queue]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-writing-an-sqs-policy.html#write-messages-to-shared-queue
 func (c *Client) GetQueueUrl(ctx context.Context, params *GetQueueUrlInput, optFns ...func(*Options)) (*GetQueueUrlOutput, error) {
 	if params == nil {
 		params = &GetQueueUrlInput{}
@@ -32,23 +36,28 @@ func (c *Client) GetQueueUrl(ctx context.Context, params *GetQueueUrlInput, optF
 	return out, nil
 }
 
+// Retrieves the URL of an existing queue based on its name and, optionally, the
+// Amazon Web Services account ID.
 type GetQueueUrlInput struct {
 
-	// The name of the queue whose URL must be fetched. Maximum 80 characters. Valid
-	// values: alphanumeric characters, hyphens ( - ), and underscores ( _ ). Queue
-	// URLs and names are case-sensitive.
+	// (Required) The name of the queue for which you want to fetch the URL. The name
+	// can be up to 80 characters long and can include alphanumeric characters, hyphens
+	// (-), and underscores (_). Queue URLs and names are case-sensitive.
 	//
 	// This member is required.
 	QueueName *string
 
-	// The Amazon Web Services account ID of the account that created the queue.
+	// (Optional) The Amazon Web Services account ID of the account that created the
+	// queue. This is only required when you are attempting to access a queue owned by
+	// another Amazon Web Services account.
 	QueueOwnerAWSAccountId *string
 
 	noSmithyDocumentSerde
 }
 
-// For more information, see Interpreting Responses (https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-api-responses.html)
-// in the Amazon SQS Developer Guide.
+// For more information, see [Interpreting Responses] in the Amazon SQS Developer Guide.
+//
+// [Interpreting Responses]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-api-responses.html
 type GetQueueUrlOutput struct {
 
 	// The URL of the queue.
@@ -82,25 +91,28 @@ func (c *Client) addOperationGetQueueUrlMiddlewares(stack *middleware.Stack, opt
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -115,13 +127,19 @@ func (c *Client) addOperationGetQueueUrlMiddlewares(stack *middleware.Stack, opt
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetQueueUrlValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetQueueUrl(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -134,6 +152,15 @@ func (c *Client) addOperationGetQueueUrlMiddlewares(stack *middleware.Stack, opt
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

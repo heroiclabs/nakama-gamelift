@@ -6,31 +6,42 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is used with the Amazon GameLift FleetIQ solution and game
-// server groups. Terminates a game server group and permanently deletes the game
-// server group record. You have several options for how these resources are
-// impacted when deleting the game server group. Depending on the type of delete
-// operation selected, this operation might affect these resources:
+//	This API works with the following fleet types: EC2 (FleetIQ)
+//
+// Terminates a game server group and permanently deletes the game server group
+// record. You have several options for how these resources are impacted when
+// deleting the game server group. Depending on the type of delete operation
+// selected, this operation might affect these resources:
+//
 //   - The game server group
+//
 //   - The corresponding Auto Scaling group
+//
 //   - All game servers that are currently running in the group
 //
 // To delete a game server group, identify the game server group to delete and
 // specify the type of delete operation to initiate. Game server groups can only be
-// deleted if they are in ACTIVE or ERROR status. If the delete request is
-// successful, a series of operations are kicked off. The game server group status
-// is changed to DELETE_SCHEDULED , which prevents new game servers from being
-// registered and stops automatic scaling activity. Once all game servers in the
-// game server group are deregistered, Amazon GameLift FleetIQ can begin deleting
-// resources. If any of the delete operations fail, the game server group is placed
-// in ERROR status. Amazon GameLift FleetIQ emits delete events to Amazon
-// CloudWatch. Learn more Amazon GameLift FleetIQ Guide (https://docs.aws.amazon.com/gamelift/latest/fleetiqguide/gsg-intro.html)
+// deleted if they are in ACTIVE or ERROR status.
+//
+// If the delete request is successful, a series of operations are kicked off. The
+// game server group status is changed to DELETE_SCHEDULED , which prevents new
+// game servers from being registered and stops automatic scaling activity. Once
+// all game servers in the game server group are deregistered, Amazon GameLift
+// Servers FleetIQ can begin deleting resources. If any of the delete operations
+// fail, the game server group is placed in ERROR status.
+//
+// Amazon GameLift Servers FleetIQ emits delete events to Amazon CloudWatch.
+//
+// # Learn more
+//
+// [Amazon GameLift Servers FleetIQ Guide]
+//
+// [Amazon GameLift Servers FleetIQ Guide]: https://docs.aws.amazon.com/gamelift/latest/fleetiqguide/gsg-intro.html
 func (c *Client) DeleteGameServerGroup(ctx context.Context, params *DeleteGameServerGroupInput, optFns ...func(*Options)) (*DeleteGameServerGroupOutput, error) {
 	if params == nil {
 		params = &DeleteGameServerGroupInput{}
@@ -54,11 +65,14 @@ type DeleteGameServerGroupInput struct {
 	GameServerGroupName *string
 
 	// The type of delete to perform. Options include the following:
+	//
 	//   - SAFE_DELETE – (default) Terminates the game server group and Amazon EC2 Auto
 	//   Scaling group only when it has no game servers that are in UTILIZED status.
+	//
 	//   - FORCE_DELETE – Terminates the game server group, including all active game
 	//   servers regardless of their utilization status, and the Amazon EC2 Auto Scaling
 	//   group.
+	//
 	//   - RETAIN – Does a safe delete of the game server group but retains the Amazon
 	//   EC2 Auto Scaling group as is.
 	DeleteOption types.GameServerGroupDeleteOption
@@ -82,11 +96,11 @@ func (c *Client) addOperationDeleteGameServerGroupMiddlewares(stack *middleware.
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDeleteGameServerGroup{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpDeleteGameServerGroup{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDeleteGameServerGroup{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpDeleteGameServerGroup{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -100,25 +114,28 @@ func (c *Client) addOperationDeleteGameServerGroupMiddlewares(stack *middleware.
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -133,13 +150,22 @@ func (c *Client) addOperationDeleteGameServerGroupMiddlewares(stack *middleware.
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDeleteGameServerGroupValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDeleteGameServerGroup(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -152,6 +178,15 @@ func (c *Client) addOperationDeleteGameServerGroupMiddlewares(stack *middleware.
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

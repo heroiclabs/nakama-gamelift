@@ -11,8 +11,9 @@ const (
 )
 
 // Values returns all known values for AcceptanceType. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (AcceptanceType) Values() []AcceptanceType {
 	return []AcceptanceType{
 		"ACCEPT",
@@ -29,8 +30,9 @@ const (
 )
 
 // Values returns all known values for BackfillMode. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (BackfillMode) Values() []BackfillMode {
 	return []BackfillMode{
 		"AUTOMATIC",
@@ -48,8 +50,9 @@ const (
 )
 
 // Values returns all known values for BalancingStrategy. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (BalancingStrategy) Values() []BalancingStrategy {
 	return []BalancingStrategy{
 		"SPOT_ONLY",
@@ -68,8 +71,9 @@ const (
 )
 
 // Values returns all known values for BuildStatus. Note that this can be expanded
-// in the future, and so it is only as up to date as the client. The ordering of
-// this slice is not guaranteed to be stable across updates.
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (BuildStatus) Values() []BuildStatus {
 	return []BuildStatus{
 		"INITIALIZED",
@@ -87,8 +91,9 @@ const (
 )
 
 // Values returns all known values for CertificateType. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (CertificateType) Values() []CertificateType {
 	return []CertificateType{
 		"DISABLED",
@@ -107,8 +112,9 @@ const (
 )
 
 // Values returns all known values for ComparisonOperatorType. Note that this can
-// be expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (ComparisonOperatorType) Values() []ComparisonOperatorType {
 	return []ComparisonOperatorType{
 		"GreaterThanOrEqualToThreshold",
@@ -125,16 +131,19 @@ const (
 	ComputeStatusPending     ComputeStatus = "PENDING"
 	ComputeStatusActive      ComputeStatus = "ACTIVE"
 	ComputeStatusTerminating ComputeStatus = "TERMINATING"
+	ComputeStatusImpaired    ComputeStatus = "IMPAIRED"
 )
 
 // Values returns all known values for ComputeStatus. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (ComputeStatus) Values() []ComputeStatus {
 	return []ComputeStatus{
 		"PENDING",
 		"ACTIVE",
 		"TERMINATING",
+		"IMPAIRED",
 	}
 }
 
@@ -147,8 +156,9 @@ const (
 )
 
 // Values returns all known values for ComputeType. Note that this can be expanded
-// in the future, and so it is only as up to date as the client. The ordering of
-// this slice is not guaranteed to be stable across updates.
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (ComputeType) Values() []ComputeType {
 	return []ComputeType{
 		"EC2",
@@ -156,190 +166,788 @@ func (ComputeType) Values() []ComputeType {
 	}
 }
 
+type ContainerDependencyCondition string
+
+// Enum values for ContainerDependencyCondition
+const (
+	ContainerDependencyConditionStart    ContainerDependencyCondition = "START"
+	ContainerDependencyConditionComplete ContainerDependencyCondition = "COMPLETE"
+	ContainerDependencyConditionSuccess  ContainerDependencyCondition = "SUCCESS"
+	ContainerDependencyConditionHealthy  ContainerDependencyCondition = "HEALTHY"
+)
+
+// Values returns all known values for ContainerDependencyCondition. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ContainerDependencyCondition) Values() []ContainerDependencyCondition {
+	return []ContainerDependencyCondition{
+		"START",
+		"COMPLETE",
+		"SUCCESS",
+		"HEALTHY",
+	}
+}
+
+type ContainerFleetBillingType string
+
+// Enum values for ContainerFleetBillingType
+const (
+	ContainerFleetBillingTypeOnDemand ContainerFleetBillingType = "ON_DEMAND"
+	ContainerFleetBillingTypeSpot     ContainerFleetBillingType = "SPOT"
+)
+
+// Values returns all known values for ContainerFleetBillingType. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ContainerFleetBillingType) Values() []ContainerFleetBillingType {
+	return []ContainerFleetBillingType{
+		"ON_DEMAND",
+		"SPOT",
+	}
+}
+
+type ContainerFleetLocationStatus string
+
+// Enum values for ContainerFleetLocationStatus
+const (
+	ContainerFleetLocationStatusPending    ContainerFleetLocationStatus = "PENDING"
+	ContainerFleetLocationStatusCreating   ContainerFleetLocationStatus = "CREATING"
+	ContainerFleetLocationStatusCreated    ContainerFleetLocationStatus = "CREATED"
+	ContainerFleetLocationStatusActivating ContainerFleetLocationStatus = "ACTIVATING"
+	ContainerFleetLocationStatusActive     ContainerFleetLocationStatus = "ACTIVE"
+	ContainerFleetLocationStatusUpdating   ContainerFleetLocationStatus = "UPDATING"
+	ContainerFleetLocationStatusDeleting   ContainerFleetLocationStatus = "DELETING"
+)
+
+// Values returns all known values for ContainerFleetLocationStatus. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ContainerFleetLocationStatus) Values() []ContainerFleetLocationStatus {
+	return []ContainerFleetLocationStatus{
+		"PENDING",
+		"CREATING",
+		"CREATED",
+		"ACTIVATING",
+		"ACTIVE",
+		"UPDATING",
+		"DELETING",
+	}
+}
+
+type ContainerFleetRemoveAttribute string
+
+// Enum values for ContainerFleetRemoveAttribute
+const (
+	ContainerFleetRemoveAttributePerInstanceContainerGroupDefinition ContainerFleetRemoveAttribute = "PER_INSTANCE_CONTAINER_GROUP_DEFINITION"
+)
+
+// Values returns all known values for ContainerFleetRemoveAttribute. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ContainerFleetRemoveAttribute) Values() []ContainerFleetRemoveAttribute {
+	return []ContainerFleetRemoveAttribute{
+		"PER_INSTANCE_CONTAINER_GROUP_DEFINITION",
+	}
+}
+
+type ContainerFleetStatus string
+
+// Enum values for ContainerFleetStatus
+const (
+	ContainerFleetStatusPending    ContainerFleetStatus = "PENDING"
+	ContainerFleetStatusCreating   ContainerFleetStatus = "CREATING"
+	ContainerFleetStatusCreated    ContainerFleetStatus = "CREATED"
+	ContainerFleetStatusActivating ContainerFleetStatus = "ACTIVATING"
+	ContainerFleetStatusActive     ContainerFleetStatus = "ACTIVE"
+	ContainerFleetStatusUpdating   ContainerFleetStatus = "UPDATING"
+	ContainerFleetStatusDeleting   ContainerFleetStatus = "DELETING"
+)
+
+// Values returns all known values for ContainerFleetStatus. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ContainerFleetStatus) Values() []ContainerFleetStatus {
+	return []ContainerFleetStatus{
+		"PENDING",
+		"CREATING",
+		"CREATED",
+		"ACTIVATING",
+		"ACTIVE",
+		"UPDATING",
+		"DELETING",
+	}
+}
+
+type ContainerGroupDefinitionStatus string
+
+// Enum values for ContainerGroupDefinitionStatus
+const (
+	ContainerGroupDefinitionStatusReady   ContainerGroupDefinitionStatus = "READY"
+	ContainerGroupDefinitionStatusCopying ContainerGroupDefinitionStatus = "COPYING"
+	ContainerGroupDefinitionStatusFailed  ContainerGroupDefinitionStatus = "FAILED"
+)
+
+// Values returns all known values for ContainerGroupDefinitionStatus. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ContainerGroupDefinitionStatus) Values() []ContainerGroupDefinitionStatus {
+	return []ContainerGroupDefinitionStatus{
+		"READY",
+		"COPYING",
+		"FAILED",
+	}
+}
+
+type ContainerGroupType string
+
+// Enum values for ContainerGroupType
+const (
+	ContainerGroupTypeGameServer  ContainerGroupType = "GAME_SERVER"
+	ContainerGroupTypePerInstance ContainerGroupType = "PER_INSTANCE"
+)
+
+// Values returns all known values for ContainerGroupType. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ContainerGroupType) Values() []ContainerGroupType {
+	return []ContainerGroupType{
+		"GAME_SERVER",
+		"PER_INSTANCE",
+	}
+}
+
+type ContainerMountPointAccessLevel string
+
+// Enum values for ContainerMountPointAccessLevel
+const (
+	ContainerMountPointAccessLevelReadOnly     ContainerMountPointAccessLevel = "READ_ONLY"
+	ContainerMountPointAccessLevelReadAndWrite ContainerMountPointAccessLevel = "READ_AND_WRITE"
+)
+
+// Values returns all known values for ContainerMountPointAccessLevel. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ContainerMountPointAccessLevel) Values() []ContainerMountPointAccessLevel {
+	return []ContainerMountPointAccessLevel{
+		"READ_ONLY",
+		"READ_AND_WRITE",
+	}
+}
+
+type ContainerOperatingSystem string
+
+// Enum values for ContainerOperatingSystem
+const (
+	ContainerOperatingSystemAmazonLinux2023 ContainerOperatingSystem = "AMAZON_LINUX_2023"
+)
+
+// Values returns all known values for ContainerOperatingSystem. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ContainerOperatingSystem) Values() []ContainerOperatingSystem {
+	return []ContainerOperatingSystem{
+		"AMAZON_LINUX_2023",
+	}
+}
+
+type DeploymentImpairmentStrategy string
+
+// Enum values for DeploymentImpairmentStrategy
+const (
+	DeploymentImpairmentStrategyMaintain DeploymentImpairmentStrategy = "MAINTAIN"
+	DeploymentImpairmentStrategyRollback DeploymentImpairmentStrategy = "ROLLBACK"
+)
+
+// Values returns all known values for DeploymentImpairmentStrategy. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (DeploymentImpairmentStrategy) Values() []DeploymentImpairmentStrategy {
+	return []DeploymentImpairmentStrategy{
+		"MAINTAIN",
+		"ROLLBACK",
+	}
+}
+
+type DeploymentProtectionStrategy string
+
+// Enum values for DeploymentProtectionStrategy
+const (
+	DeploymentProtectionStrategyWithProtection   DeploymentProtectionStrategy = "WITH_PROTECTION"
+	DeploymentProtectionStrategyIgnoreProtection DeploymentProtectionStrategy = "IGNORE_PROTECTION"
+)
+
+// Values returns all known values for DeploymentProtectionStrategy. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (DeploymentProtectionStrategy) Values() []DeploymentProtectionStrategy {
+	return []DeploymentProtectionStrategy{
+		"WITH_PROTECTION",
+		"IGNORE_PROTECTION",
+	}
+}
+
+type DeploymentStatus string
+
+// Enum values for DeploymentStatus
+const (
+	DeploymentStatusInProgress         DeploymentStatus = "IN_PROGRESS"
+	DeploymentStatusImpaired           DeploymentStatus = "IMPAIRED"
+	DeploymentStatusComplete           DeploymentStatus = "COMPLETE"
+	DeploymentStatusRollbackInProgress DeploymentStatus = "ROLLBACK_IN_PROGRESS"
+	DeploymentStatusRollbackComplete   DeploymentStatus = "ROLLBACK_COMPLETE"
+	DeploymentStatusCancelled          DeploymentStatus = "CANCELLED"
+	DeploymentStatusPending            DeploymentStatus = "PENDING"
+)
+
+// Values returns all known values for DeploymentStatus. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (DeploymentStatus) Values() []DeploymentStatus {
+	return []DeploymentStatus{
+		"IN_PROGRESS",
+		"IMPAIRED",
+		"COMPLETE",
+		"ROLLBACK_IN_PROGRESS",
+		"ROLLBACK_COMPLETE",
+		"CANCELLED",
+		"PENDING",
+	}
+}
+
 type EC2InstanceType string
 
 // Enum values for EC2InstanceType
 const (
-	EC2InstanceTypeT2Micro      EC2InstanceType = "t2.micro"
-	EC2InstanceTypeT2Small      EC2InstanceType = "t2.small"
-	EC2InstanceTypeT2Medium     EC2InstanceType = "t2.medium"
-	EC2InstanceTypeT2Large      EC2InstanceType = "t2.large"
-	EC2InstanceTypeC3Large      EC2InstanceType = "c3.large"
-	EC2InstanceTypeC3Xlarge     EC2InstanceType = "c3.xlarge"
-	EC2InstanceTypeC32xlarge    EC2InstanceType = "c3.2xlarge"
-	EC2InstanceTypeC34xlarge    EC2InstanceType = "c3.4xlarge"
-	EC2InstanceTypeC38xlarge    EC2InstanceType = "c3.8xlarge"
-	EC2InstanceTypeC4Large      EC2InstanceType = "c4.large"
-	EC2InstanceTypeC4Xlarge     EC2InstanceType = "c4.xlarge"
-	EC2InstanceTypeC42xlarge    EC2InstanceType = "c4.2xlarge"
-	EC2InstanceTypeC44xlarge    EC2InstanceType = "c4.4xlarge"
-	EC2InstanceTypeC48xlarge    EC2InstanceType = "c4.8xlarge"
-	EC2InstanceTypeC5Large      EC2InstanceType = "c5.large"
-	EC2InstanceTypeC5Xlarge     EC2InstanceType = "c5.xlarge"
-	EC2InstanceTypeC52xlarge    EC2InstanceType = "c5.2xlarge"
-	EC2InstanceTypeC54xlarge    EC2InstanceType = "c5.4xlarge"
-	EC2InstanceTypeC59xlarge    EC2InstanceType = "c5.9xlarge"
-	EC2InstanceTypeC512xlarge   EC2InstanceType = "c5.12xlarge"
-	EC2InstanceTypeC518xlarge   EC2InstanceType = "c5.18xlarge"
-	EC2InstanceTypeC524xlarge   EC2InstanceType = "c5.24xlarge"
-	EC2InstanceTypeC5aLarge     EC2InstanceType = "c5a.large"
-	EC2InstanceTypeC5aXlarge    EC2InstanceType = "c5a.xlarge"
-	EC2InstanceTypeC5a2xlarge   EC2InstanceType = "c5a.2xlarge"
-	EC2InstanceTypeC5a4xlarge   EC2InstanceType = "c5a.4xlarge"
-	EC2InstanceTypeC5a8xlarge   EC2InstanceType = "c5a.8xlarge"
-	EC2InstanceTypeC5a12xlarge  EC2InstanceType = "c5a.12xlarge"
-	EC2InstanceTypeC5a16xlarge  EC2InstanceType = "c5a.16xlarge"
-	EC2InstanceTypeC5a24xlarge  EC2InstanceType = "c5a.24xlarge"
-	EC2InstanceTypeR3Large      EC2InstanceType = "r3.large"
-	EC2InstanceTypeR3Xlarge     EC2InstanceType = "r3.xlarge"
-	EC2InstanceTypeR32xlarge    EC2InstanceType = "r3.2xlarge"
-	EC2InstanceTypeR34xlarge    EC2InstanceType = "r3.4xlarge"
-	EC2InstanceTypeR38xlarge    EC2InstanceType = "r3.8xlarge"
-	EC2InstanceTypeR4Large      EC2InstanceType = "r4.large"
-	EC2InstanceTypeR4Xlarge     EC2InstanceType = "r4.xlarge"
-	EC2InstanceTypeR42xlarge    EC2InstanceType = "r4.2xlarge"
-	EC2InstanceTypeR44xlarge    EC2InstanceType = "r4.4xlarge"
-	EC2InstanceTypeR48xlarge    EC2InstanceType = "r4.8xlarge"
-	EC2InstanceTypeR416xlarge   EC2InstanceType = "r4.16xlarge"
-	EC2InstanceTypeR5Large      EC2InstanceType = "r5.large"
-	EC2InstanceTypeR5Xlarge     EC2InstanceType = "r5.xlarge"
-	EC2InstanceTypeR52xlarge    EC2InstanceType = "r5.2xlarge"
-	EC2InstanceTypeR54xlarge    EC2InstanceType = "r5.4xlarge"
-	EC2InstanceTypeR58xlarge    EC2InstanceType = "r5.8xlarge"
-	EC2InstanceTypeR512xlarge   EC2InstanceType = "r5.12xlarge"
-	EC2InstanceTypeR516xlarge   EC2InstanceType = "r5.16xlarge"
-	EC2InstanceTypeR524xlarge   EC2InstanceType = "r5.24xlarge"
-	EC2InstanceTypeR5aLarge     EC2InstanceType = "r5a.large"
-	EC2InstanceTypeR5aXlarge    EC2InstanceType = "r5a.xlarge"
-	EC2InstanceTypeR5a2xlarge   EC2InstanceType = "r5a.2xlarge"
-	EC2InstanceTypeR5a4xlarge   EC2InstanceType = "r5a.4xlarge"
-	EC2InstanceTypeR5a8xlarge   EC2InstanceType = "r5a.8xlarge"
-	EC2InstanceTypeR5a12xlarge  EC2InstanceType = "r5a.12xlarge"
-	EC2InstanceTypeR5a16xlarge  EC2InstanceType = "r5a.16xlarge"
-	EC2InstanceTypeR5a24xlarge  EC2InstanceType = "r5a.24xlarge"
-	EC2InstanceTypeM3Medium     EC2InstanceType = "m3.medium"
-	EC2InstanceTypeM3Large      EC2InstanceType = "m3.large"
-	EC2InstanceTypeM3Xlarge     EC2InstanceType = "m3.xlarge"
-	EC2InstanceTypeM32xlarge    EC2InstanceType = "m3.2xlarge"
-	EC2InstanceTypeM4Large      EC2InstanceType = "m4.large"
-	EC2InstanceTypeM4Xlarge     EC2InstanceType = "m4.xlarge"
-	EC2InstanceTypeM42xlarge    EC2InstanceType = "m4.2xlarge"
-	EC2InstanceTypeM44xlarge    EC2InstanceType = "m4.4xlarge"
-	EC2InstanceTypeM410xlarge   EC2InstanceType = "m4.10xlarge"
-	EC2InstanceTypeM5Large      EC2InstanceType = "m5.large"
-	EC2InstanceTypeM5Xlarge     EC2InstanceType = "m5.xlarge"
-	EC2InstanceTypeM52xlarge    EC2InstanceType = "m5.2xlarge"
-	EC2InstanceTypeM54xlarge    EC2InstanceType = "m5.4xlarge"
-	EC2InstanceTypeM58xlarge    EC2InstanceType = "m5.8xlarge"
-	EC2InstanceTypeM512xlarge   EC2InstanceType = "m5.12xlarge"
-	EC2InstanceTypeM516xlarge   EC2InstanceType = "m5.16xlarge"
-	EC2InstanceTypeM524xlarge   EC2InstanceType = "m5.24xlarge"
-	EC2InstanceTypeM5aLarge     EC2InstanceType = "m5a.large"
-	EC2InstanceTypeM5aXlarge    EC2InstanceType = "m5a.xlarge"
-	EC2InstanceTypeM5a2xlarge   EC2InstanceType = "m5a.2xlarge"
-	EC2InstanceTypeM5a4xlarge   EC2InstanceType = "m5a.4xlarge"
-	EC2InstanceTypeM5a8xlarge   EC2InstanceType = "m5a.8xlarge"
-	EC2InstanceTypeM5a12xlarge  EC2InstanceType = "m5a.12xlarge"
-	EC2InstanceTypeM5a16xlarge  EC2InstanceType = "m5a.16xlarge"
-	EC2InstanceTypeM5a24xlarge  EC2InstanceType = "m5a.24xlarge"
-	EC2InstanceTypeC5dLarge     EC2InstanceType = "c5d.large"
-	EC2InstanceTypeC5dXlarge    EC2InstanceType = "c5d.xlarge"
-	EC2InstanceTypeC5d2xlarge   EC2InstanceType = "c5d.2xlarge"
-	EC2InstanceTypeC5d4xlarge   EC2InstanceType = "c5d.4xlarge"
-	EC2InstanceTypeC5d9xlarge   EC2InstanceType = "c5d.9xlarge"
-	EC2InstanceTypeC5d12xlarge  EC2InstanceType = "c5d.12xlarge"
-	EC2InstanceTypeC5d18xlarge  EC2InstanceType = "c5d.18xlarge"
-	EC2InstanceTypeC5d24xlarge  EC2InstanceType = "c5d.24xlarge"
-	EC2InstanceTypeC6aLarge     EC2InstanceType = "c6a.large"
-	EC2InstanceTypeC6aXlarge    EC2InstanceType = "c6a.xlarge"
-	EC2InstanceTypeC6a2xlarge   EC2InstanceType = "c6a.2xlarge"
-	EC2InstanceTypeC6a4xlarge   EC2InstanceType = "c6a.4xlarge"
-	EC2InstanceTypeC6a8xlarge   EC2InstanceType = "c6a.8xlarge"
-	EC2InstanceTypeC6a12xlarge  EC2InstanceType = "c6a.12xlarge"
-	EC2InstanceTypeC6a16xlarge  EC2InstanceType = "c6a.16xlarge"
-	EC2InstanceTypeC6a24xlarge  EC2InstanceType = "c6a.24xlarge"
-	EC2InstanceTypeC6iLarge     EC2InstanceType = "c6i.large"
-	EC2InstanceTypeC6iXlarge    EC2InstanceType = "c6i.xlarge"
-	EC2InstanceTypeC6i2xlarge   EC2InstanceType = "c6i.2xlarge"
-	EC2InstanceTypeC6i4xlarge   EC2InstanceType = "c6i.4xlarge"
-	EC2InstanceTypeC6i8xlarge   EC2InstanceType = "c6i.8xlarge"
-	EC2InstanceTypeC6i12xlarge  EC2InstanceType = "c6i.12xlarge"
-	EC2InstanceTypeC6i16xlarge  EC2InstanceType = "c6i.16xlarge"
-	EC2InstanceTypeC6i24xlarge  EC2InstanceType = "c6i.24xlarge"
-	EC2InstanceTypeR5dLarge     EC2InstanceType = "r5d.large"
-	EC2InstanceTypeR5dXlarge    EC2InstanceType = "r5d.xlarge"
-	EC2InstanceTypeR5d2xlarge   EC2InstanceType = "r5d.2xlarge"
-	EC2InstanceTypeR5d4xlarge   EC2InstanceType = "r5d.4xlarge"
-	EC2InstanceTypeR5d8xlarge   EC2InstanceType = "r5d.8xlarge"
-	EC2InstanceTypeR5d12xlarge  EC2InstanceType = "r5d.12xlarge"
-	EC2InstanceTypeR5d16xlarge  EC2InstanceType = "r5d.16xlarge"
-	EC2InstanceTypeR5d24xlarge  EC2InstanceType = "r5d.24xlarge"
-	EC2InstanceTypeM6gMedium    EC2InstanceType = "m6g.medium"
-	EC2InstanceTypeM6gLarge     EC2InstanceType = "m6g.large"
-	EC2InstanceTypeM6gXlarge    EC2InstanceType = "m6g.xlarge"
-	EC2InstanceTypeM6g2xlarge   EC2InstanceType = "m6g.2xlarge"
-	EC2InstanceTypeM6g4xlarge   EC2InstanceType = "m6g.4xlarge"
-	EC2InstanceTypeM6g8xlarge   EC2InstanceType = "m6g.8xlarge"
-	EC2InstanceTypeM6g12xlarge  EC2InstanceType = "m6g.12xlarge"
-	EC2InstanceTypeM6g16xlarge  EC2InstanceType = "m6g.16xlarge"
-	EC2InstanceTypeC6gMedium    EC2InstanceType = "c6g.medium"
-	EC2InstanceTypeC6gLarge     EC2InstanceType = "c6g.large"
-	EC2InstanceTypeC6gXlarge    EC2InstanceType = "c6g.xlarge"
-	EC2InstanceTypeC6g2xlarge   EC2InstanceType = "c6g.2xlarge"
-	EC2InstanceTypeC6g4xlarge   EC2InstanceType = "c6g.4xlarge"
-	EC2InstanceTypeC6g8xlarge   EC2InstanceType = "c6g.8xlarge"
-	EC2InstanceTypeC6g12xlarge  EC2InstanceType = "c6g.12xlarge"
-	EC2InstanceTypeC6g16xlarge  EC2InstanceType = "c6g.16xlarge"
-	EC2InstanceTypeR6gMedium    EC2InstanceType = "r6g.medium"
-	EC2InstanceTypeR6gLarge     EC2InstanceType = "r6g.large"
-	EC2InstanceTypeR6gXlarge    EC2InstanceType = "r6g.xlarge"
-	EC2InstanceTypeR6g2xlarge   EC2InstanceType = "r6g.2xlarge"
-	EC2InstanceTypeR6g4xlarge   EC2InstanceType = "r6g.4xlarge"
-	EC2InstanceTypeR6g8xlarge   EC2InstanceType = "r6g.8xlarge"
-	EC2InstanceTypeR6g12xlarge  EC2InstanceType = "r6g.12xlarge"
-	EC2InstanceTypeR6g16xlarge  EC2InstanceType = "r6g.16xlarge"
-	EC2InstanceTypeC6gnMedium   EC2InstanceType = "c6gn.medium"
-	EC2InstanceTypeC6gnLarge    EC2InstanceType = "c6gn.large"
-	EC2InstanceTypeC6gnXlarge   EC2InstanceType = "c6gn.xlarge"
-	EC2InstanceTypeC6gn2xlarge  EC2InstanceType = "c6gn.2xlarge"
-	EC2InstanceTypeC6gn4xlarge  EC2InstanceType = "c6gn.4xlarge"
-	EC2InstanceTypeC6gn8xlarge  EC2InstanceType = "c6gn.8xlarge"
-	EC2InstanceTypeC6gn12xlarge EC2InstanceType = "c6gn.12xlarge"
-	EC2InstanceTypeC6gn16xlarge EC2InstanceType = "c6gn.16xlarge"
-	EC2InstanceTypeC7gMedium    EC2InstanceType = "c7g.medium"
-	EC2InstanceTypeC7gLarge     EC2InstanceType = "c7g.large"
-	EC2InstanceTypeC7gXlarge    EC2InstanceType = "c7g.xlarge"
-	EC2InstanceTypeC7g2xlarge   EC2InstanceType = "c7g.2xlarge"
-	EC2InstanceTypeC7g4xlarge   EC2InstanceType = "c7g.4xlarge"
-	EC2InstanceTypeC7g8xlarge   EC2InstanceType = "c7g.8xlarge"
-	EC2InstanceTypeC7g12xlarge  EC2InstanceType = "c7g.12xlarge"
-	EC2InstanceTypeC7g16xlarge  EC2InstanceType = "c7g.16xlarge"
-	EC2InstanceTypeR7gMedium    EC2InstanceType = "r7g.medium"
-	EC2InstanceTypeR7gLarge     EC2InstanceType = "r7g.large"
-	EC2InstanceTypeR7gXlarge    EC2InstanceType = "r7g.xlarge"
-	EC2InstanceTypeR7g2xlarge   EC2InstanceType = "r7g.2xlarge"
-	EC2InstanceTypeR7g4xlarge   EC2InstanceType = "r7g.4xlarge"
-	EC2InstanceTypeR7g8xlarge   EC2InstanceType = "r7g.8xlarge"
-	EC2InstanceTypeR7g12xlarge  EC2InstanceType = "r7g.12xlarge"
-	EC2InstanceTypeR7g16xlarge  EC2InstanceType = "r7g.16xlarge"
-	EC2InstanceTypeM7gMedium    EC2InstanceType = "m7g.medium"
-	EC2InstanceTypeM7gLarge     EC2InstanceType = "m7g.large"
-	EC2InstanceTypeM7gXlarge    EC2InstanceType = "m7g.xlarge"
-	EC2InstanceTypeM7g2xlarge   EC2InstanceType = "m7g.2xlarge"
-	EC2InstanceTypeM7g4xlarge   EC2InstanceType = "m7g.4xlarge"
-	EC2InstanceTypeM7g8xlarge   EC2InstanceType = "m7g.8xlarge"
-	EC2InstanceTypeM7g12xlarge  EC2InstanceType = "m7g.12xlarge"
-	EC2InstanceTypeM7g16xlarge  EC2InstanceType = "m7g.16xlarge"
-	EC2InstanceTypeG5gXlarge    EC2InstanceType = "g5g.xlarge"
-	EC2InstanceTypeG5g2xlarge   EC2InstanceType = "g5g.2xlarge"
-	EC2InstanceTypeG5g4xlarge   EC2InstanceType = "g5g.4xlarge"
-	EC2InstanceTypeG5g8xlarge   EC2InstanceType = "g5g.8xlarge"
-	EC2InstanceTypeG5g16xlarge  EC2InstanceType = "g5g.16xlarge"
+	EC2InstanceTypeT2Micro       EC2InstanceType = "t2.micro"
+	EC2InstanceTypeT2Small       EC2InstanceType = "t2.small"
+	EC2InstanceTypeT2Medium      EC2InstanceType = "t2.medium"
+	EC2InstanceTypeT2Large       EC2InstanceType = "t2.large"
+	EC2InstanceTypeC3Large       EC2InstanceType = "c3.large"
+	EC2InstanceTypeC3Xlarge      EC2InstanceType = "c3.xlarge"
+	EC2InstanceTypeC32xlarge     EC2InstanceType = "c3.2xlarge"
+	EC2InstanceTypeC34xlarge     EC2InstanceType = "c3.4xlarge"
+	EC2InstanceTypeC38xlarge     EC2InstanceType = "c3.8xlarge"
+	EC2InstanceTypeC4Large       EC2InstanceType = "c4.large"
+	EC2InstanceTypeC4Xlarge      EC2InstanceType = "c4.xlarge"
+	EC2InstanceTypeC42xlarge     EC2InstanceType = "c4.2xlarge"
+	EC2InstanceTypeC44xlarge     EC2InstanceType = "c4.4xlarge"
+	EC2InstanceTypeC48xlarge     EC2InstanceType = "c4.8xlarge"
+	EC2InstanceTypeC5Large       EC2InstanceType = "c5.large"
+	EC2InstanceTypeC5Xlarge      EC2InstanceType = "c5.xlarge"
+	EC2InstanceTypeC52xlarge     EC2InstanceType = "c5.2xlarge"
+	EC2InstanceTypeC54xlarge     EC2InstanceType = "c5.4xlarge"
+	EC2InstanceTypeC59xlarge     EC2InstanceType = "c5.9xlarge"
+	EC2InstanceTypeC512xlarge    EC2InstanceType = "c5.12xlarge"
+	EC2InstanceTypeC518xlarge    EC2InstanceType = "c5.18xlarge"
+	EC2InstanceTypeC524xlarge    EC2InstanceType = "c5.24xlarge"
+	EC2InstanceTypeC5aLarge      EC2InstanceType = "c5a.large"
+	EC2InstanceTypeC5aXlarge     EC2InstanceType = "c5a.xlarge"
+	EC2InstanceTypeC5a2xlarge    EC2InstanceType = "c5a.2xlarge"
+	EC2InstanceTypeC5a4xlarge    EC2InstanceType = "c5a.4xlarge"
+	EC2InstanceTypeC5a8xlarge    EC2InstanceType = "c5a.8xlarge"
+	EC2InstanceTypeC5a12xlarge   EC2InstanceType = "c5a.12xlarge"
+	EC2InstanceTypeC5a16xlarge   EC2InstanceType = "c5a.16xlarge"
+	EC2InstanceTypeC5a24xlarge   EC2InstanceType = "c5a.24xlarge"
+	EC2InstanceTypeR3Large       EC2InstanceType = "r3.large"
+	EC2InstanceTypeR3Xlarge      EC2InstanceType = "r3.xlarge"
+	EC2InstanceTypeR32xlarge     EC2InstanceType = "r3.2xlarge"
+	EC2InstanceTypeR34xlarge     EC2InstanceType = "r3.4xlarge"
+	EC2InstanceTypeR38xlarge     EC2InstanceType = "r3.8xlarge"
+	EC2InstanceTypeR4Large       EC2InstanceType = "r4.large"
+	EC2InstanceTypeR4Xlarge      EC2InstanceType = "r4.xlarge"
+	EC2InstanceTypeR42xlarge     EC2InstanceType = "r4.2xlarge"
+	EC2InstanceTypeR44xlarge     EC2InstanceType = "r4.4xlarge"
+	EC2InstanceTypeR48xlarge     EC2InstanceType = "r4.8xlarge"
+	EC2InstanceTypeR416xlarge    EC2InstanceType = "r4.16xlarge"
+	EC2InstanceTypeR5Large       EC2InstanceType = "r5.large"
+	EC2InstanceTypeR5Xlarge      EC2InstanceType = "r5.xlarge"
+	EC2InstanceTypeR52xlarge     EC2InstanceType = "r5.2xlarge"
+	EC2InstanceTypeR54xlarge     EC2InstanceType = "r5.4xlarge"
+	EC2InstanceTypeR58xlarge     EC2InstanceType = "r5.8xlarge"
+	EC2InstanceTypeR512xlarge    EC2InstanceType = "r5.12xlarge"
+	EC2InstanceTypeR516xlarge    EC2InstanceType = "r5.16xlarge"
+	EC2InstanceTypeR524xlarge    EC2InstanceType = "r5.24xlarge"
+	EC2InstanceTypeR5aLarge      EC2InstanceType = "r5a.large"
+	EC2InstanceTypeR5aXlarge     EC2InstanceType = "r5a.xlarge"
+	EC2InstanceTypeR5a2xlarge    EC2InstanceType = "r5a.2xlarge"
+	EC2InstanceTypeR5a4xlarge    EC2InstanceType = "r5a.4xlarge"
+	EC2InstanceTypeR5a8xlarge    EC2InstanceType = "r5a.8xlarge"
+	EC2InstanceTypeR5a12xlarge   EC2InstanceType = "r5a.12xlarge"
+	EC2InstanceTypeR5a16xlarge   EC2InstanceType = "r5a.16xlarge"
+	EC2InstanceTypeR5a24xlarge   EC2InstanceType = "r5a.24xlarge"
+	EC2InstanceTypeM3Medium      EC2InstanceType = "m3.medium"
+	EC2InstanceTypeM3Large       EC2InstanceType = "m3.large"
+	EC2InstanceTypeM3Xlarge      EC2InstanceType = "m3.xlarge"
+	EC2InstanceTypeM32xlarge     EC2InstanceType = "m3.2xlarge"
+	EC2InstanceTypeM4Large       EC2InstanceType = "m4.large"
+	EC2InstanceTypeM4Xlarge      EC2InstanceType = "m4.xlarge"
+	EC2InstanceTypeM42xlarge     EC2InstanceType = "m4.2xlarge"
+	EC2InstanceTypeM44xlarge     EC2InstanceType = "m4.4xlarge"
+	EC2InstanceTypeM410xlarge    EC2InstanceType = "m4.10xlarge"
+	EC2InstanceTypeM5Large       EC2InstanceType = "m5.large"
+	EC2InstanceTypeM5Xlarge      EC2InstanceType = "m5.xlarge"
+	EC2InstanceTypeM52xlarge     EC2InstanceType = "m5.2xlarge"
+	EC2InstanceTypeM54xlarge     EC2InstanceType = "m5.4xlarge"
+	EC2InstanceTypeM58xlarge     EC2InstanceType = "m5.8xlarge"
+	EC2InstanceTypeM512xlarge    EC2InstanceType = "m5.12xlarge"
+	EC2InstanceTypeM516xlarge    EC2InstanceType = "m5.16xlarge"
+	EC2InstanceTypeM524xlarge    EC2InstanceType = "m5.24xlarge"
+	EC2InstanceTypeM5aLarge      EC2InstanceType = "m5a.large"
+	EC2InstanceTypeM5aXlarge     EC2InstanceType = "m5a.xlarge"
+	EC2InstanceTypeM5a2xlarge    EC2InstanceType = "m5a.2xlarge"
+	EC2InstanceTypeM5a4xlarge    EC2InstanceType = "m5a.4xlarge"
+	EC2InstanceTypeM5a8xlarge    EC2InstanceType = "m5a.8xlarge"
+	EC2InstanceTypeM5a12xlarge   EC2InstanceType = "m5a.12xlarge"
+	EC2InstanceTypeM5a16xlarge   EC2InstanceType = "m5a.16xlarge"
+	EC2InstanceTypeM5a24xlarge   EC2InstanceType = "m5a.24xlarge"
+	EC2InstanceTypeC5dLarge      EC2InstanceType = "c5d.large"
+	EC2InstanceTypeC5dXlarge     EC2InstanceType = "c5d.xlarge"
+	EC2InstanceTypeC5d2xlarge    EC2InstanceType = "c5d.2xlarge"
+	EC2InstanceTypeC5d4xlarge    EC2InstanceType = "c5d.4xlarge"
+	EC2InstanceTypeC5d9xlarge    EC2InstanceType = "c5d.9xlarge"
+	EC2InstanceTypeC5d12xlarge   EC2InstanceType = "c5d.12xlarge"
+	EC2InstanceTypeC5d18xlarge   EC2InstanceType = "c5d.18xlarge"
+	EC2InstanceTypeC5d24xlarge   EC2InstanceType = "c5d.24xlarge"
+	EC2InstanceTypeC6aLarge      EC2InstanceType = "c6a.large"
+	EC2InstanceTypeC6aXlarge     EC2InstanceType = "c6a.xlarge"
+	EC2InstanceTypeC6a2xlarge    EC2InstanceType = "c6a.2xlarge"
+	EC2InstanceTypeC6a4xlarge    EC2InstanceType = "c6a.4xlarge"
+	EC2InstanceTypeC6a8xlarge    EC2InstanceType = "c6a.8xlarge"
+	EC2InstanceTypeC6a12xlarge   EC2InstanceType = "c6a.12xlarge"
+	EC2InstanceTypeC6a16xlarge   EC2InstanceType = "c6a.16xlarge"
+	EC2InstanceTypeC6a24xlarge   EC2InstanceType = "c6a.24xlarge"
+	EC2InstanceTypeC6iLarge      EC2InstanceType = "c6i.large"
+	EC2InstanceTypeC6iXlarge     EC2InstanceType = "c6i.xlarge"
+	EC2InstanceTypeC6i2xlarge    EC2InstanceType = "c6i.2xlarge"
+	EC2InstanceTypeC6i4xlarge    EC2InstanceType = "c6i.4xlarge"
+	EC2InstanceTypeC6i8xlarge    EC2InstanceType = "c6i.8xlarge"
+	EC2InstanceTypeC6i12xlarge   EC2InstanceType = "c6i.12xlarge"
+	EC2InstanceTypeC6i16xlarge   EC2InstanceType = "c6i.16xlarge"
+	EC2InstanceTypeC6i24xlarge   EC2InstanceType = "c6i.24xlarge"
+	EC2InstanceTypeR5dLarge      EC2InstanceType = "r5d.large"
+	EC2InstanceTypeR5dXlarge     EC2InstanceType = "r5d.xlarge"
+	EC2InstanceTypeR5d2xlarge    EC2InstanceType = "r5d.2xlarge"
+	EC2InstanceTypeR5d4xlarge    EC2InstanceType = "r5d.4xlarge"
+	EC2InstanceTypeR5d8xlarge    EC2InstanceType = "r5d.8xlarge"
+	EC2InstanceTypeR5d12xlarge   EC2InstanceType = "r5d.12xlarge"
+	EC2InstanceTypeR5d16xlarge   EC2InstanceType = "r5d.16xlarge"
+	EC2InstanceTypeR5d24xlarge   EC2InstanceType = "r5d.24xlarge"
+	EC2InstanceTypeM6gMedium     EC2InstanceType = "m6g.medium"
+	EC2InstanceTypeM6gLarge      EC2InstanceType = "m6g.large"
+	EC2InstanceTypeM6gXlarge     EC2InstanceType = "m6g.xlarge"
+	EC2InstanceTypeM6g2xlarge    EC2InstanceType = "m6g.2xlarge"
+	EC2InstanceTypeM6g4xlarge    EC2InstanceType = "m6g.4xlarge"
+	EC2InstanceTypeM6g8xlarge    EC2InstanceType = "m6g.8xlarge"
+	EC2InstanceTypeM6g12xlarge   EC2InstanceType = "m6g.12xlarge"
+	EC2InstanceTypeM6g16xlarge   EC2InstanceType = "m6g.16xlarge"
+	EC2InstanceTypeC6gMedium     EC2InstanceType = "c6g.medium"
+	EC2InstanceTypeC6gLarge      EC2InstanceType = "c6g.large"
+	EC2InstanceTypeC6gXlarge     EC2InstanceType = "c6g.xlarge"
+	EC2InstanceTypeC6g2xlarge    EC2InstanceType = "c6g.2xlarge"
+	EC2InstanceTypeC6g4xlarge    EC2InstanceType = "c6g.4xlarge"
+	EC2InstanceTypeC6g8xlarge    EC2InstanceType = "c6g.8xlarge"
+	EC2InstanceTypeC6g12xlarge   EC2InstanceType = "c6g.12xlarge"
+	EC2InstanceTypeC6g16xlarge   EC2InstanceType = "c6g.16xlarge"
+	EC2InstanceTypeR6gMedium     EC2InstanceType = "r6g.medium"
+	EC2InstanceTypeR6gLarge      EC2InstanceType = "r6g.large"
+	EC2InstanceTypeR6gXlarge     EC2InstanceType = "r6g.xlarge"
+	EC2InstanceTypeR6g2xlarge    EC2InstanceType = "r6g.2xlarge"
+	EC2InstanceTypeR6g4xlarge    EC2InstanceType = "r6g.4xlarge"
+	EC2InstanceTypeR6g8xlarge    EC2InstanceType = "r6g.8xlarge"
+	EC2InstanceTypeR6g12xlarge   EC2InstanceType = "r6g.12xlarge"
+	EC2InstanceTypeR6g16xlarge   EC2InstanceType = "r6g.16xlarge"
+	EC2InstanceTypeC6gnMedium    EC2InstanceType = "c6gn.medium"
+	EC2InstanceTypeC6gnLarge     EC2InstanceType = "c6gn.large"
+	EC2InstanceTypeC6gnXlarge    EC2InstanceType = "c6gn.xlarge"
+	EC2InstanceTypeC6gn2xlarge   EC2InstanceType = "c6gn.2xlarge"
+	EC2InstanceTypeC6gn4xlarge   EC2InstanceType = "c6gn.4xlarge"
+	EC2InstanceTypeC6gn8xlarge   EC2InstanceType = "c6gn.8xlarge"
+	EC2InstanceTypeC6gn12xlarge  EC2InstanceType = "c6gn.12xlarge"
+	EC2InstanceTypeC6gn16xlarge  EC2InstanceType = "c6gn.16xlarge"
+	EC2InstanceTypeC7gMedium     EC2InstanceType = "c7g.medium"
+	EC2InstanceTypeC7gLarge      EC2InstanceType = "c7g.large"
+	EC2InstanceTypeC7gXlarge     EC2InstanceType = "c7g.xlarge"
+	EC2InstanceTypeC7g2xlarge    EC2InstanceType = "c7g.2xlarge"
+	EC2InstanceTypeC7g4xlarge    EC2InstanceType = "c7g.4xlarge"
+	EC2InstanceTypeC7g8xlarge    EC2InstanceType = "c7g.8xlarge"
+	EC2InstanceTypeC7g12xlarge   EC2InstanceType = "c7g.12xlarge"
+	EC2InstanceTypeC7g16xlarge   EC2InstanceType = "c7g.16xlarge"
+	EC2InstanceTypeR7gMedium     EC2InstanceType = "r7g.medium"
+	EC2InstanceTypeR7gLarge      EC2InstanceType = "r7g.large"
+	EC2InstanceTypeR7gXlarge     EC2InstanceType = "r7g.xlarge"
+	EC2InstanceTypeR7g2xlarge    EC2InstanceType = "r7g.2xlarge"
+	EC2InstanceTypeR7g4xlarge    EC2InstanceType = "r7g.4xlarge"
+	EC2InstanceTypeR7g8xlarge    EC2InstanceType = "r7g.8xlarge"
+	EC2InstanceTypeR7g12xlarge   EC2InstanceType = "r7g.12xlarge"
+	EC2InstanceTypeR7g16xlarge   EC2InstanceType = "r7g.16xlarge"
+	EC2InstanceTypeM7gMedium     EC2InstanceType = "m7g.medium"
+	EC2InstanceTypeM7gLarge      EC2InstanceType = "m7g.large"
+	EC2InstanceTypeM7gXlarge     EC2InstanceType = "m7g.xlarge"
+	EC2InstanceTypeM7g2xlarge    EC2InstanceType = "m7g.2xlarge"
+	EC2InstanceTypeM7g4xlarge    EC2InstanceType = "m7g.4xlarge"
+	EC2InstanceTypeM7g8xlarge    EC2InstanceType = "m7g.8xlarge"
+	EC2InstanceTypeM7g12xlarge   EC2InstanceType = "m7g.12xlarge"
+	EC2InstanceTypeM7g16xlarge   EC2InstanceType = "m7g.16xlarge"
+	EC2InstanceTypeG5gXlarge     EC2InstanceType = "g5g.xlarge"
+	EC2InstanceTypeG5g2xlarge    EC2InstanceType = "g5g.2xlarge"
+	EC2InstanceTypeG5g4xlarge    EC2InstanceType = "g5g.4xlarge"
+	EC2InstanceTypeG5g8xlarge    EC2InstanceType = "g5g.8xlarge"
+	EC2InstanceTypeG5g16xlarge   EC2InstanceType = "g5g.16xlarge"
+	EC2InstanceTypeR6iLarge      EC2InstanceType = "r6i.large"
+	EC2InstanceTypeR6iXlarge     EC2InstanceType = "r6i.xlarge"
+	EC2InstanceTypeR6i2xlarge    EC2InstanceType = "r6i.2xlarge"
+	EC2InstanceTypeR6i4xlarge    EC2InstanceType = "r6i.4xlarge"
+	EC2InstanceTypeR6i8xlarge    EC2InstanceType = "r6i.8xlarge"
+	EC2InstanceTypeR6i12xlarge   EC2InstanceType = "r6i.12xlarge"
+	EC2InstanceTypeR6i16xlarge   EC2InstanceType = "r6i.16xlarge"
+	EC2InstanceTypeC6gdMedium    EC2InstanceType = "c6gd.medium"
+	EC2InstanceTypeC6gdLarge     EC2InstanceType = "c6gd.large"
+	EC2InstanceTypeC6gdXlarge    EC2InstanceType = "c6gd.xlarge"
+	EC2InstanceTypeC6gd2xlarge   EC2InstanceType = "c6gd.2xlarge"
+	EC2InstanceTypeC6gd4xlarge   EC2InstanceType = "c6gd.4xlarge"
+	EC2InstanceTypeC6gd8xlarge   EC2InstanceType = "c6gd.8xlarge"
+	EC2InstanceTypeC6gd12xlarge  EC2InstanceType = "c6gd.12xlarge"
+	EC2InstanceTypeC6gd16xlarge  EC2InstanceType = "c6gd.16xlarge"
+	EC2InstanceTypeC6inLarge     EC2InstanceType = "c6in.large"
+	EC2InstanceTypeC6inXlarge    EC2InstanceType = "c6in.xlarge"
+	EC2InstanceTypeC6in2xlarge   EC2InstanceType = "c6in.2xlarge"
+	EC2InstanceTypeC6in4xlarge   EC2InstanceType = "c6in.4xlarge"
+	EC2InstanceTypeC6in8xlarge   EC2InstanceType = "c6in.8xlarge"
+	EC2InstanceTypeC6in12xlarge  EC2InstanceType = "c6in.12xlarge"
+	EC2InstanceTypeC6in16xlarge  EC2InstanceType = "c6in.16xlarge"
+	EC2InstanceTypeC7aMedium     EC2InstanceType = "c7a.medium"
+	EC2InstanceTypeC7aLarge      EC2InstanceType = "c7a.large"
+	EC2InstanceTypeC7aXlarge     EC2InstanceType = "c7a.xlarge"
+	EC2InstanceTypeC7a2xlarge    EC2InstanceType = "c7a.2xlarge"
+	EC2InstanceTypeC7a4xlarge    EC2InstanceType = "c7a.4xlarge"
+	EC2InstanceTypeC7a8xlarge    EC2InstanceType = "c7a.8xlarge"
+	EC2InstanceTypeC7a12xlarge   EC2InstanceType = "c7a.12xlarge"
+	EC2InstanceTypeC7a16xlarge   EC2InstanceType = "c7a.16xlarge"
+	EC2InstanceTypeC7gdMedium    EC2InstanceType = "c7gd.medium"
+	EC2InstanceTypeC7gdLarge     EC2InstanceType = "c7gd.large"
+	EC2InstanceTypeC7gdXlarge    EC2InstanceType = "c7gd.xlarge"
+	EC2InstanceTypeC7gd2xlarge   EC2InstanceType = "c7gd.2xlarge"
+	EC2InstanceTypeC7gd4xlarge   EC2InstanceType = "c7gd.4xlarge"
+	EC2InstanceTypeC7gd8xlarge   EC2InstanceType = "c7gd.8xlarge"
+	EC2InstanceTypeC7gd12xlarge  EC2InstanceType = "c7gd.12xlarge"
+	EC2InstanceTypeC7gd16xlarge  EC2InstanceType = "c7gd.16xlarge"
+	EC2InstanceTypeC7gnMedium    EC2InstanceType = "c7gn.medium"
+	EC2InstanceTypeC7gnLarge     EC2InstanceType = "c7gn.large"
+	EC2InstanceTypeC7gnXlarge    EC2InstanceType = "c7gn.xlarge"
+	EC2InstanceTypeC7gn2xlarge   EC2InstanceType = "c7gn.2xlarge"
+	EC2InstanceTypeC7gn4xlarge   EC2InstanceType = "c7gn.4xlarge"
+	EC2InstanceTypeC7gn8xlarge   EC2InstanceType = "c7gn.8xlarge"
+	EC2InstanceTypeC7gn12xlarge  EC2InstanceType = "c7gn.12xlarge"
+	EC2InstanceTypeC7gn16xlarge  EC2InstanceType = "c7gn.16xlarge"
+	EC2InstanceTypeC7iLarge      EC2InstanceType = "c7i.large"
+	EC2InstanceTypeC7iXlarge     EC2InstanceType = "c7i.xlarge"
+	EC2InstanceTypeC7i2xlarge    EC2InstanceType = "c7i.2xlarge"
+	EC2InstanceTypeC7i4xlarge    EC2InstanceType = "c7i.4xlarge"
+	EC2InstanceTypeC7i8xlarge    EC2InstanceType = "c7i.8xlarge"
+	EC2InstanceTypeC7i12xlarge   EC2InstanceType = "c7i.12xlarge"
+	EC2InstanceTypeC7i16xlarge   EC2InstanceType = "c7i.16xlarge"
+	EC2InstanceTypeM6aLarge      EC2InstanceType = "m6a.large"
+	EC2InstanceTypeM6aXlarge     EC2InstanceType = "m6a.xlarge"
+	EC2InstanceTypeM6a2xlarge    EC2InstanceType = "m6a.2xlarge"
+	EC2InstanceTypeM6a4xlarge    EC2InstanceType = "m6a.4xlarge"
+	EC2InstanceTypeM6a8xlarge    EC2InstanceType = "m6a.8xlarge"
+	EC2InstanceTypeM6a12xlarge   EC2InstanceType = "m6a.12xlarge"
+	EC2InstanceTypeM6a16xlarge   EC2InstanceType = "m6a.16xlarge"
+	EC2InstanceTypeM6gdMedium    EC2InstanceType = "m6gd.medium"
+	EC2InstanceTypeM6gdLarge     EC2InstanceType = "m6gd.large"
+	EC2InstanceTypeM6gdXlarge    EC2InstanceType = "m6gd.xlarge"
+	EC2InstanceTypeM6gd2xlarge   EC2InstanceType = "m6gd.2xlarge"
+	EC2InstanceTypeM6gd4xlarge   EC2InstanceType = "m6gd.4xlarge"
+	EC2InstanceTypeM6gd8xlarge   EC2InstanceType = "m6gd.8xlarge"
+	EC2InstanceTypeM6gd12xlarge  EC2InstanceType = "m6gd.12xlarge"
+	EC2InstanceTypeM6gd16xlarge  EC2InstanceType = "m6gd.16xlarge"
+	EC2InstanceTypeM6iLarge      EC2InstanceType = "m6i.large"
+	EC2InstanceTypeM6iXlarge     EC2InstanceType = "m6i.xlarge"
+	EC2InstanceTypeM6i2xlarge    EC2InstanceType = "m6i.2xlarge"
+	EC2InstanceTypeM6i4xlarge    EC2InstanceType = "m6i.4xlarge"
+	EC2InstanceTypeM6i8xlarge    EC2InstanceType = "m6i.8xlarge"
+	EC2InstanceTypeM6i12xlarge   EC2InstanceType = "m6i.12xlarge"
+	EC2InstanceTypeM6i16xlarge   EC2InstanceType = "m6i.16xlarge"
+	EC2InstanceTypeM7aMedium     EC2InstanceType = "m7a.medium"
+	EC2InstanceTypeM7aLarge      EC2InstanceType = "m7a.large"
+	EC2InstanceTypeM7aXlarge     EC2InstanceType = "m7a.xlarge"
+	EC2InstanceTypeM7a2xlarge    EC2InstanceType = "m7a.2xlarge"
+	EC2InstanceTypeM7a4xlarge    EC2InstanceType = "m7a.4xlarge"
+	EC2InstanceTypeM7a8xlarge    EC2InstanceType = "m7a.8xlarge"
+	EC2InstanceTypeM7a12xlarge   EC2InstanceType = "m7a.12xlarge"
+	EC2InstanceTypeM7a16xlarge   EC2InstanceType = "m7a.16xlarge"
+	EC2InstanceTypeM7gdMedium    EC2InstanceType = "m7gd.medium"
+	EC2InstanceTypeM7gdLarge     EC2InstanceType = "m7gd.large"
+	EC2InstanceTypeM7gdXlarge    EC2InstanceType = "m7gd.xlarge"
+	EC2InstanceTypeM7gd2xlarge   EC2InstanceType = "m7gd.2xlarge"
+	EC2InstanceTypeM7gd4xlarge   EC2InstanceType = "m7gd.4xlarge"
+	EC2InstanceTypeM7gd8xlarge   EC2InstanceType = "m7gd.8xlarge"
+	EC2InstanceTypeM7gd12xlarge  EC2InstanceType = "m7gd.12xlarge"
+	EC2InstanceTypeM7gd16xlarge  EC2InstanceType = "m7gd.16xlarge"
+	EC2InstanceTypeM7iLarge      EC2InstanceType = "m7i.large"
+	EC2InstanceTypeM7iXlarge     EC2InstanceType = "m7i.xlarge"
+	EC2InstanceTypeM7i2xlarge    EC2InstanceType = "m7i.2xlarge"
+	EC2InstanceTypeM7i4xlarge    EC2InstanceType = "m7i.4xlarge"
+	EC2InstanceTypeM7i8xlarge    EC2InstanceType = "m7i.8xlarge"
+	EC2InstanceTypeM7i12xlarge   EC2InstanceType = "m7i.12xlarge"
+	EC2InstanceTypeM7i16xlarge   EC2InstanceType = "m7i.16xlarge"
+	EC2InstanceTypeR6gdMedium    EC2InstanceType = "r6gd.medium"
+	EC2InstanceTypeR6gdLarge     EC2InstanceType = "r6gd.large"
+	EC2InstanceTypeR6gdXlarge    EC2InstanceType = "r6gd.xlarge"
+	EC2InstanceTypeR6gd2xlarge   EC2InstanceType = "r6gd.2xlarge"
+	EC2InstanceTypeR6gd4xlarge   EC2InstanceType = "r6gd.4xlarge"
+	EC2InstanceTypeR6gd8xlarge   EC2InstanceType = "r6gd.8xlarge"
+	EC2InstanceTypeR6gd12xlarge  EC2InstanceType = "r6gd.12xlarge"
+	EC2InstanceTypeR6gd16xlarge  EC2InstanceType = "r6gd.16xlarge"
+	EC2InstanceTypeR7aMedium     EC2InstanceType = "r7a.medium"
+	EC2InstanceTypeR7aLarge      EC2InstanceType = "r7a.large"
+	EC2InstanceTypeR7aXlarge     EC2InstanceType = "r7a.xlarge"
+	EC2InstanceTypeR7a2xlarge    EC2InstanceType = "r7a.2xlarge"
+	EC2InstanceTypeR7a4xlarge    EC2InstanceType = "r7a.4xlarge"
+	EC2InstanceTypeR7a8xlarge    EC2InstanceType = "r7a.8xlarge"
+	EC2InstanceTypeR7a12xlarge   EC2InstanceType = "r7a.12xlarge"
+	EC2InstanceTypeR7a16xlarge   EC2InstanceType = "r7a.16xlarge"
+	EC2InstanceTypeR7gdMedium    EC2InstanceType = "r7gd.medium"
+	EC2InstanceTypeR7gdLarge     EC2InstanceType = "r7gd.large"
+	EC2InstanceTypeR7gdXlarge    EC2InstanceType = "r7gd.xlarge"
+	EC2InstanceTypeR7gd2xlarge   EC2InstanceType = "r7gd.2xlarge"
+	EC2InstanceTypeR7gd4xlarge   EC2InstanceType = "r7gd.4xlarge"
+	EC2InstanceTypeR7gd8xlarge   EC2InstanceType = "r7gd.8xlarge"
+	EC2InstanceTypeR7gd12xlarge  EC2InstanceType = "r7gd.12xlarge"
+	EC2InstanceTypeR7gd16xlarge  EC2InstanceType = "r7gd.16xlarge"
+	EC2InstanceTypeR7iLarge      EC2InstanceType = "r7i.large"
+	EC2InstanceTypeR7iXlarge     EC2InstanceType = "r7i.xlarge"
+	EC2InstanceTypeR7i2xlarge    EC2InstanceType = "r7i.2xlarge"
+	EC2InstanceTypeR7i4xlarge    EC2InstanceType = "r7i.4xlarge"
+	EC2InstanceTypeR7i8xlarge    EC2InstanceType = "r7i.8xlarge"
+	EC2InstanceTypeR7i12xlarge   EC2InstanceType = "r7i.12xlarge"
+	EC2InstanceTypeR7i16xlarge   EC2InstanceType = "r7i.16xlarge"
+	EC2InstanceTypeR7i24xlarge   EC2InstanceType = "r7i.24xlarge"
+	EC2InstanceTypeR7i48xlarge   EC2InstanceType = "r7i.48xlarge"
+	EC2InstanceTypeC5adLarge     EC2InstanceType = "c5ad.large"
+	EC2InstanceTypeC5adXlarge    EC2InstanceType = "c5ad.xlarge"
+	EC2InstanceTypeC5ad2xlarge   EC2InstanceType = "c5ad.2xlarge"
+	EC2InstanceTypeC5ad4xlarge   EC2InstanceType = "c5ad.4xlarge"
+	EC2InstanceTypeC5ad8xlarge   EC2InstanceType = "c5ad.8xlarge"
+	EC2InstanceTypeC5ad12xlarge  EC2InstanceType = "c5ad.12xlarge"
+	EC2InstanceTypeC5ad16xlarge  EC2InstanceType = "c5ad.16xlarge"
+	EC2InstanceTypeC5ad24xlarge  EC2InstanceType = "c5ad.24xlarge"
+	EC2InstanceTypeC5nLarge      EC2InstanceType = "c5n.large"
+	EC2InstanceTypeC5nXlarge     EC2InstanceType = "c5n.xlarge"
+	EC2InstanceTypeC5n2xlarge    EC2InstanceType = "c5n.2xlarge"
+	EC2InstanceTypeC5n4xlarge    EC2InstanceType = "c5n.4xlarge"
+	EC2InstanceTypeC5n9xlarge    EC2InstanceType = "c5n.9xlarge"
+	EC2InstanceTypeC5n18xlarge   EC2InstanceType = "c5n.18xlarge"
+	EC2InstanceTypeR5adLarge     EC2InstanceType = "r5ad.large"
+	EC2InstanceTypeR5adXlarge    EC2InstanceType = "r5ad.xlarge"
+	EC2InstanceTypeR5ad2xlarge   EC2InstanceType = "r5ad.2xlarge"
+	EC2InstanceTypeR5ad4xlarge   EC2InstanceType = "r5ad.4xlarge"
+	EC2InstanceTypeR5ad8xlarge   EC2InstanceType = "r5ad.8xlarge"
+	EC2InstanceTypeR5ad12xlarge  EC2InstanceType = "r5ad.12xlarge"
+	EC2InstanceTypeR5ad16xlarge  EC2InstanceType = "r5ad.16xlarge"
+	EC2InstanceTypeR5ad24xlarge  EC2InstanceType = "r5ad.24xlarge"
+	EC2InstanceTypeC6idLarge     EC2InstanceType = "c6id.large"
+	EC2InstanceTypeC6idXlarge    EC2InstanceType = "c6id.xlarge"
+	EC2InstanceTypeC6id2xlarge   EC2InstanceType = "c6id.2xlarge"
+	EC2InstanceTypeC6id4xlarge   EC2InstanceType = "c6id.4xlarge"
+	EC2InstanceTypeC6id8xlarge   EC2InstanceType = "c6id.8xlarge"
+	EC2InstanceTypeC6id12xlarge  EC2InstanceType = "c6id.12xlarge"
+	EC2InstanceTypeC6id16xlarge  EC2InstanceType = "c6id.16xlarge"
+	EC2InstanceTypeC6id24xlarge  EC2InstanceType = "c6id.24xlarge"
+	EC2InstanceTypeC6id32xlarge  EC2InstanceType = "c6id.32xlarge"
+	EC2InstanceTypeC8gMedium     EC2InstanceType = "c8g.medium"
+	EC2InstanceTypeC8gLarge      EC2InstanceType = "c8g.large"
+	EC2InstanceTypeC8gXlarge     EC2InstanceType = "c8g.xlarge"
+	EC2InstanceTypeC8g2xlarge    EC2InstanceType = "c8g.2xlarge"
+	EC2InstanceTypeC8g4xlarge    EC2InstanceType = "c8g.4xlarge"
+	EC2InstanceTypeC8g8xlarge    EC2InstanceType = "c8g.8xlarge"
+	EC2InstanceTypeC8g12xlarge   EC2InstanceType = "c8g.12xlarge"
+	EC2InstanceTypeC8g16xlarge   EC2InstanceType = "c8g.16xlarge"
+	EC2InstanceTypeC8g24xlarge   EC2InstanceType = "c8g.24xlarge"
+	EC2InstanceTypeC8g48xlarge   EC2InstanceType = "c8g.48xlarge"
+	EC2InstanceTypeM5adLarge     EC2InstanceType = "m5ad.large"
+	EC2InstanceTypeM5adXlarge    EC2InstanceType = "m5ad.xlarge"
+	EC2InstanceTypeM5ad2xlarge   EC2InstanceType = "m5ad.2xlarge"
+	EC2InstanceTypeM5ad4xlarge   EC2InstanceType = "m5ad.4xlarge"
+	EC2InstanceTypeM5ad8xlarge   EC2InstanceType = "m5ad.8xlarge"
+	EC2InstanceTypeM5ad12xlarge  EC2InstanceType = "m5ad.12xlarge"
+	EC2InstanceTypeM5ad16xlarge  EC2InstanceType = "m5ad.16xlarge"
+	EC2InstanceTypeM5ad24xlarge  EC2InstanceType = "m5ad.24xlarge"
+	EC2InstanceTypeM5dLarge      EC2InstanceType = "m5d.large"
+	EC2InstanceTypeM5dXlarge     EC2InstanceType = "m5d.xlarge"
+	EC2InstanceTypeM5d2xlarge    EC2InstanceType = "m5d.2xlarge"
+	EC2InstanceTypeM5d4xlarge    EC2InstanceType = "m5d.4xlarge"
+	EC2InstanceTypeM5d8xlarge    EC2InstanceType = "m5d.8xlarge"
+	EC2InstanceTypeM5d12xlarge   EC2InstanceType = "m5d.12xlarge"
+	EC2InstanceTypeM5d16xlarge   EC2InstanceType = "m5d.16xlarge"
+	EC2InstanceTypeM5d24xlarge   EC2InstanceType = "m5d.24xlarge"
+	EC2InstanceTypeM5dnLarge     EC2InstanceType = "m5dn.large"
+	EC2InstanceTypeM5dnXlarge    EC2InstanceType = "m5dn.xlarge"
+	EC2InstanceTypeM5dn2xlarge   EC2InstanceType = "m5dn.2xlarge"
+	EC2InstanceTypeM5dn4xlarge   EC2InstanceType = "m5dn.4xlarge"
+	EC2InstanceTypeM5dn8xlarge   EC2InstanceType = "m5dn.8xlarge"
+	EC2InstanceTypeM5dn12xlarge  EC2InstanceType = "m5dn.12xlarge"
+	EC2InstanceTypeM5dn16xlarge  EC2InstanceType = "m5dn.16xlarge"
+	EC2InstanceTypeM5dn24xlarge  EC2InstanceType = "m5dn.24xlarge"
+	EC2InstanceTypeM5nLarge      EC2InstanceType = "m5n.large"
+	EC2InstanceTypeM5nXlarge     EC2InstanceType = "m5n.xlarge"
+	EC2InstanceTypeM5n2xlarge    EC2InstanceType = "m5n.2xlarge"
+	EC2InstanceTypeM5n4xlarge    EC2InstanceType = "m5n.4xlarge"
+	EC2InstanceTypeM5n8xlarge    EC2InstanceType = "m5n.8xlarge"
+	EC2InstanceTypeM5n12xlarge   EC2InstanceType = "m5n.12xlarge"
+	EC2InstanceTypeM5n16xlarge   EC2InstanceType = "m5n.16xlarge"
+	EC2InstanceTypeM5n24xlarge   EC2InstanceType = "m5n.24xlarge"
+	EC2InstanceTypeM6idLarge     EC2InstanceType = "m6id.large"
+	EC2InstanceTypeM6idXlarge    EC2InstanceType = "m6id.xlarge"
+	EC2InstanceTypeM6id2xlarge   EC2InstanceType = "m6id.2xlarge"
+	EC2InstanceTypeM6id4xlarge   EC2InstanceType = "m6id.4xlarge"
+	EC2InstanceTypeM6id8xlarge   EC2InstanceType = "m6id.8xlarge"
+	EC2InstanceTypeM6id12xlarge  EC2InstanceType = "m6id.12xlarge"
+	EC2InstanceTypeM6id16xlarge  EC2InstanceType = "m6id.16xlarge"
+	EC2InstanceTypeM6id24xlarge  EC2InstanceType = "m6id.24xlarge"
+	EC2InstanceTypeM6id32xlarge  EC2InstanceType = "m6id.32xlarge"
+	EC2InstanceTypeM6idnLarge    EC2InstanceType = "m6idn.large"
+	EC2InstanceTypeM6idnXlarge   EC2InstanceType = "m6idn.xlarge"
+	EC2InstanceTypeM6idn2xlarge  EC2InstanceType = "m6idn.2xlarge"
+	EC2InstanceTypeM6idn4xlarge  EC2InstanceType = "m6idn.4xlarge"
+	EC2InstanceTypeM6idn8xlarge  EC2InstanceType = "m6idn.8xlarge"
+	EC2InstanceTypeM6idn12xlarge EC2InstanceType = "m6idn.12xlarge"
+	EC2InstanceTypeM6idn16xlarge EC2InstanceType = "m6idn.16xlarge"
+	EC2InstanceTypeM6idn24xlarge EC2InstanceType = "m6idn.24xlarge"
+	EC2InstanceTypeM6idn32xlarge EC2InstanceType = "m6idn.32xlarge"
+	EC2InstanceTypeM6inLarge     EC2InstanceType = "m6in.large"
+	EC2InstanceTypeM6inXlarge    EC2InstanceType = "m6in.xlarge"
+	EC2InstanceTypeM6in2xlarge   EC2InstanceType = "m6in.2xlarge"
+	EC2InstanceTypeM6in4xlarge   EC2InstanceType = "m6in.4xlarge"
+	EC2InstanceTypeM6in8xlarge   EC2InstanceType = "m6in.8xlarge"
+	EC2InstanceTypeM6in12xlarge  EC2InstanceType = "m6in.12xlarge"
+	EC2InstanceTypeM6in16xlarge  EC2InstanceType = "m6in.16xlarge"
+	EC2InstanceTypeM6in24xlarge  EC2InstanceType = "m6in.24xlarge"
+	EC2InstanceTypeM6in32xlarge  EC2InstanceType = "m6in.32xlarge"
+	EC2InstanceTypeM8gMedium     EC2InstanceType = "m8g.medium"
+	EC2InstanceTypeM8gLarge      EC2InstanceType = "m8g.large"
+	EC2InstanceTypeM8gXlarge     EC2InstanceType = "m8g.xlarge"
+	EC2InstanceTypeM8g2xlarge    EC2InstanceType = "m8g.2xlarge"
+	EC2InstanceTypeM8g4xlarge    EC2InstanceType = "m8g.4xlarge"
+	EC2InstanceTypeM8g8xlarge    EC2InstanceType = "m8g.8xlarge"
+	EC2InstanceTypeM8g12xlarge   EC2InstanceType = "m8g.12xlarge"
+	EC2InstanceTypeM8g16xlarge   EC2InstanceType = "m8g.16xlarge"
+	EC2InstanceTypeM8g24xlarge   EC2InstanceType = "m8g.24xlarge"
+	EC2InstanceTypeM8g48xlarge   EC2InstanceType = "m8g.48xlarge"
+	EC2InstanceTypeR5dnLarge     EC2InstanceType = "r5dn.large"
+	EC2InstanceTypeR5dnXlarge    EC2InstanceType = "r5dn.xlarge"
+	EC2InstanceTypeR5dn2xlarge   EC2InstanceType = "r5dn.2xlarge"
+	EC2InstanceTypeR5dn4xlarge   EC2InstanceType = "r5dn.4xlarge"
+	EC2InstanceTypeR5dn8xlarge   EC2InstanceType = "r5dn.8xlarge"
+	EC2InstanceTypeR5dn12xlarge  EC2InstanceType = "r5dn.12xlarge"
+	EC2InstanceTypeR5dn16xlarge  EC2InstanceType = "r5dn.16xlarge"
+	EC2InstanceTypeR5dn24xlarge  EC2InstanceType = "r5dn.24xlarge"
+	EC2InstanceTypeR5nLarge      EC2InstanceType = "r5n.large"
+	EC2InstanceTypeR5nXlarge     EC2InstanceType = "r5n.xlarge"
+	EC2InstanceTypeR5n2xlarge    EC2InstanceType = "r5n.2xlarge"
+	EC2InstanceTypeR5n4xlarge    EC2InstanceType = "r5n.4xlarge"
+	EC2InstanceTypeR5n8xlarge    EC2InstanceType = "r5n.8xlarge"
+	EC2InstanceTypeR5n12xlarge   EC2InstanceType = "r5n.12xlarge"
+	EC2InstanceTypeR5n16xlarge   EC2InstanceType = "r5n.16xlarge"
+	EC2InstanceTypeR5n24xlarge   EC2InstanceType = "r5n.24xlarge"
+	EC2InstanceTypeR6aLarge      EC2InstanceType = "r6a.large"
+	EC2InstanceTypeR6aXlarge     EC2InstanceType = "r6a.xlarge"
+	EC2InstanceTypeR6a2xlarge    EC2InstanceType = "r6a.2xlarge"
+	EC2InstanceTypeR6a4xlarge    EC2InstanceType = "r6a.4xlarge"
+	EC2InstanceTypeR6a8xlarge    EC2InstanceType = "r6a.8xlarge"
+	EC2InstanceTypeR6a12xlarge   EC2InstanceType = "r6a.12xlarge"
+	EC2InstanceTypeR6a16xlarge   EC2InstanceType = "r6a.16xlarge"
+	EC2InstanceTypeR6a24xlarge   EC2InstanceType = "r6a.24xlarge"
+	EC2InstanceTypeR6a32xlarge   EC2InstanceType = "r6a.32xlarge"
+	EC2InstanceTypeR6a48xlarge   EC2InstanceType = "r6a.48xlarge"
+	EC2InstanceTypeR6idLarge     EC2InstanceType = "r6id.large"
+	EC2InstanceTypeR6idXlarge    EC2InstanceType = "r6id.xlarge"
+	EC2InstanceTypeR6id2xlarge   EC2InstanceType = "r6id.2xlarge"
+	EC2InstanceTypeR6id4xlarge   EC2InstanceType = "r6id.4xlarge"
+	EC2InstanceTypeR6id8xlarge   EC2InstanceType = "r6id.8xlarge"
+	EC2InstanceTypeR6id12xlarge  EC2InstanceType = "r6id.12xlarge"
+	EC2InstanceTypeR6id16xlarge  EC2InstanceType = "r6id.16xlarge"
+	EC2InstanceTypeR6id24xlarge  EC2InstanceType = "r6id.24xlarge"
+	EC2InstanceTypeR6id32xlarge  EC2InstanceType = "r6id.32xlarge"
+	EC2InstanceTypeR6idnLarge    EC2InstanceType = "r6idn.large"
+	EC2InstanceTypeR6idnXlarge   EC2InstanceType = "r6idn.xlarge"
+	EC2InstanceTypeR6idn2xlarge  EC2InstanceType = "r6idn.2xlarge"
+	EC2InstanceTypeR6idn4xlarge  EC2InstanceType = "r6idn.4xlarge"
+	EC2InstanceTypeR6idn8xlarge  EC2InstanceType = "r6idn.8xlarge"
+	EC2InstanceTypeR6idn12xlarge EC2InstanceType = "r6idn.12xlarge"
+	EC2InstanceTypeR6idn16xlarge EC2InstanceType = "r6idn.16xlarge"
+	EC2InstanceTypeR6idn24xlarge EC2InstanceType = "r6idn.24xlarge"
+	EC2InstanceTypeR6idn32xlarge EC2InstanceType = "r6idn.32xlarge"
+	EC2InstanceTypeR6inLarge     EC2InstanceType = "r6in.large"
+	EC2InstanceTypeR6inXlarge    EC2InstanceType = "r6in.xlarge"
+	EC2InstanceTypeR6in2xlarge   EC2InstanceType = "r6in.2xlarge"
+	EC2InstanceTypeR6in4xlarge   EC2InstanceType = "r6in.4xlarge"
+	EC2InstanceTypeR6in8xlarge   EC2InstanceType = "r6in.8xlarge"
+	EC2InstanceTypeR6in12xlarge  EC2InstanceType = "r6in.12xlarge"
+	EC2InstanceTypeR6in16xlarge  EC2InstanceType = "r6in.16xlarge"
+	EC2InstanceTypeR6in24xlarge  EC2InstanceType = "r6in.24xlarge"
+	EC2InstanceTypeR6in32xlarge  EC2InstanceType = "r6in.32xlarge"
+	EC2InstanceTypeR8gMedium     EC2InstanceType = "r8g.medium"
+	EC2InstanceTypeR8gLarge      EC2InstanceType = "r8g.large"
+	EC2InstanceTypeR8gXlarge     EC2InstanceType = "r8g.xlarge"
+	EC2InstanceTypeR8g2xlarge    EC2InstanceType = "r8g.2xlarge"
+	EC2InstanceTypeR8g4xlarge    EC2InstanceType = "r8g.4xlarge"
+	EC2InstanceTypeR8g8xlarge    EC2InstanceType = "r8g.8xlarge"
+	EC2InstanceTypeR8g12xlarge   EC2InstanceType = "r8g.12xlarge"
+	EC2InstanceTypeR8g16xlarge   EC2InstanceType = "r8g.16xlarge"
+	EC2InstanceTypeR8g24xlarge   EC2InstanceType = "r8g.24xlarge"
+	EC2InstanceTypeR8g48xlarge   EC2InstanceType = "r8g.48xlarge"
+	EC2InstanceTypeM416xlarge    EC2InstanceType = "m4.16xlarge"
+	EC2InstanceTypeC6a32xlarge   EC2InstanceType = "c6a.32xlarge"
+	EC2InstanceTypeC6a48xlarge   EC2InstanceType = "c6a.48xlarge"
+	EC2InstanceTypeC6i32xlarge   EC2InstanceType = "c6i.32xlarge"
+	EC2InstanceTypeR6i24xlarge   EC2InstanceType = "r6i.24xlarge"
+	EC2InstanceTypeR6i32xlarge   EC2InstanceType = "r6i.32xlarge"
+	EC2InstanceTypeC6in24xlarge  EC2InstanceType = "c6in.24xlarge"
+	EC2InstanceTypeC6in32xlarge  EC2InstanceType = "c6in.32xlarge"
+	EC2InstanceTypeC7a24xlarge   EC2InstanceType = "c7a.24xlarge"
+	EC2InstanceTypeC7a32xlarge   EC2InstanceType = "c7a.32xlarge"
+	EC2InstanceTypeC7a48xlarge   EC2InstanceType = "c7a.48xlarge"
+	EC2InstanceTypeC7i24xlarge   EC2InstanceType = "c7i.24xlarge"
+	EC2InstanceTypeC7i48xlarge   EC2InstanceType = "c7i.48xlarge"
+	EC2InstanceTypeM6a24xlarge   EC2InstanceType = "m6a.24xlarge"
+	EC2InstanceTypeM6a32xlarge   EC2InstanceType = "m6a.32xlarge"
+	EC2InstanceTypeM6a48xlarge   EC2InstanceType = "m6a.48xlarge"
+	EC2InstanceTypeM6i24xlarge   EC2InstanceType = "m6i.24xlarge"
+	EC2InstanceTypeM6i32xlarge   EC2InstanceType = "m6i.32xlarge"
+	EC2InstanceTypeM7a24xlarge   EC2InstanceType = "m7a.24xlarge"
+	EC2InstanceTypeM7a32xlarge   EC2InstanceType = "m7a.32xlarge"
+	EC2InstanceTypeM7a48xlarge   EC2InstanceType = "m7a.48xlarge"
+	EC2InstanceTypeM7i24xlarge   EC2InstanceType = "m7i.24xlarge"
+	EC2InstanceTypeM7i48xlarge   EC2InstanceType = "m7i.48xlarge"
+	EC2InstanceTypeR7a24xlarge   EC2InstanceType = "r7a.24xlarge"
+	EC2InstanceTypeR7a32xlarge   EC2InstanceType = "r7a.32xlarge"
+	EC2InstanceTypeR7a48xlarge   EC2InstanceType = "r7a.48xlarge"
 )
 
 // Values returns all known values for EC2InstanceType. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (EC2InstanceType) Values() []EC2InstanceType {
 	return []EC2InstanceType{
 		"t2.micro",
@@ -517,6 +1125,336 @@ func (EC2InstanceType) Values() []EC2InstanceType {
 		"g5g.4xlarge",
 		"g5g.8xlarge",
 		"g5g.16xlarge",
+		"r6i.large",
+		"r6i.xlarge",
+		"r6i.2xlarge",
+		"r6i.4xlarge",
+		"r6i.8xlarge",
+		"r6i.12xlarge",
+		"r6i.16xlarge",
+		"c6gd.medium",
+		"c6gd.large",
+		"c6gd.xlarge",
+		"c6gd.2xlarge",
+		"c6gd.4xlarge",
+		"c6gd.8xlarge",
+		"c6gd.12xlarge",
+		"c6gd.16xlarge",
+		"c6in.large",
+		"c6in.xlarge",
+		"c6in.2xlarge",
+		"c6in.4xlarge",
+		"c6in.8xlarge",
+		"c6in.12xlarge",
+		"c6in.16xlarge",
+		"c7a.medium",
+		"c7a.large",
+		"c7a.xlarge",
+		"c7a.2xlarge",
+		"c7a.4xlarge",
+		"c7a.8xlarge",
+		"c7a.12xlarge",
+		"c7a.16xlarge",
+		"c7gd.medium",
+		"c7gd.large",
+		"c7gd.xlarge",
+		"c7gd.2xlarge",
+		"c7gd.4xlarge",
+		"c7gd.8xlarge",
+		"c7gd.12xlarge",
+		"c7gd.16xlarge",
+		"c7gn.medium",
+		"c7gn.large",
+		"c7gn.xlarge",
+		"c7gn.2xlarge",
+		"c7gn.4xlarge",
+		"c7gn.8xlarge",
+		"c7gn.12xlarge",
+		"c7gn.16xlarge",
+		"c7i.large",
+		"c7i.xlarge",
+		"c7i.2xlarge",
+		"c7i.4xlarge",
+		"c7i.8xlarge",
+		"c7i.12xlarge",
+		"c7i.16xlarge",
+		"m6a.large",
+		"m6a.xlarge",
+		"m6a.2xlarge",
+		"m6a.4xlarge",
+		"m6a.8xlarge",
+		"m6a.12xlarge",
+		"m6a.16xlarge",
+		"m6gd.medium",
+		"m6gd.large",
+		"m6gd.xlarge",
+		"m6gd.2xlarge",
+		"m6gd.4xlarge",
+		"m6gd.8xlarge",
+		"m6gd.12xlarge",
+		"m6gd.16xlarge",
+		"m6i.large",
+		"m6i.xlarge",
+		"m6i.2xlarge",
+		"m6i.4xlarge",
+		"m6i.8xlarge",
+		"m6i.12xlarge",
+		"m6i.16xlarge",
+		"m7a.medium",
+		"m7a.large",
+		"m7a.xlarge",
+		"m7a.2xlarge",
+		"m7a.4xlarge",
+		"m7a.8xlarge",
+		"m7a.12xlarge",
+		"m7a.16xlarge",
+		"m7gd.medium",
+		"m7gd.large",
+		"m7gd.xlarge",
+		"m7gd.2xlarge",
+		"m7gd.4xlarge",
+		"m7gd.8xlarge",
+		"m7gd.12xlarge",
+		"m7gd.16xlarge",
+		"m7i.large",
+		"m7i.xlarge",
+		"m7i.2xlarge",
+		"m7i.4xlarge",
+		"m7i.8xlarge",
+		"m7i.12xlarge",
+		"m7i.16xlarge",
+		"r6gd.medium",
+		"r6gd.large",
+		"r6gd.xlarge",
+		"r6gd.2xlarge",
+		"r6gd.4xlarge",
+		"r6gd.8xlarge",
+		"r6gd.12xlarge",
+		"r6gd.16xlarge",
+		"r7a.medium",
+		"r7a.large",
+		"r7a.xlarge",
+		"r7a.2xlarge",
+		"r7a.4xlarge",
+		"r7a.8xlarge",
+		"r7a.12xlarge",
+		"r7a.16xlarge",
+		"r7gd.medium",
+		"r7gd.large",
+		"r7gd.xlarge",
+		"r7gd.2xlarge",
+		"r7gd.4xlarge",
+		"r7gd.8xlarge",
+		"r7gd.12xlarge",
+		"r7gd.16xlarge",
+		"r7i.large",
+		"r7i.xlarge",
+		"r7i.2xlarge",
+		"r7i.4xlarge",
+		"r7i.8xlarge",
+		"r7i.12xlarge",
+		"r7i.16xlarge",
+		"r7i.24xlarge",
+		"r7i.48xlarge",
+		"c5ad.large",
+		"c5ad.xlarge",
+		"c5ad.2xlarge",
+		"c5ad.4xlarge",
+		"c5ad.8xlarge",
+		"c5ad.12xlarge",
+		"c5ad.16xlarge",
+		"c5ad.24xlarge",
+		"c5n.large",
+		"c5n.xlarge",
+		"c5n.2xlarge",
+		"c5n.4xlarge",
+		"c5n.9xlarge",
+		"c5n.18xlarge",
+		"r5ad.large",
+		"r5ad.xlarge",
+		"r5ad.2xlarge",
+		"r5ad.4xlarge",
+		"r5ad.8xlarge",
+		"r5ad.12xlarge",
+		"r5ad.16xlarge",
+		"r5ad.24xlarge",
+		"c6id.large",
+		"c6id.xlarge",
+		"c6id.2xlarge",
+		"c6id.4xlarge",
+		"c6id.8xlarge",
+		"c6id.12xlarge",
+		"c6id.16xlarge",
+		"c6id.24xlarge",
+		"c6id.32xlarge",
+		"c8g.medium",
+		"c8g.large",
+		"c8g.xlarge",
+		"c8g.2xlarge",
+		"c8g.4xlarge",
+		"c8g.8xlarge",
+		"c8g.12xlarge",
+		"c8g.16xlarge",
+		"c8g.24xlarge",
+		"c8g.48xlarge",
+		"m5ad.large",
+		"m5ad.xlarge",
+		"m5ad.2xlarge",
+		"m5ad.4xlarge",
+		"m5ad.8xlarge",
+		"m5ad.12xlarge",
+		"m5ad.16xlarge",
+		"m5ad.24xlarge",
+		"m5d.large",
+		"m5d.xlarge",
+		"m5d.2xlarge",
+		"m5d.4xlarge",
+		"m5d.8xlarge",
+		"m5d.12xlarge",
+		"m5d.16xlarge",
+		"m5d.24xlarge",
+		"m5dn.large",
+		"m5dn.xlarge",
+		"m5dn.2xlarge",
+		"m5dn.4xlarge",
+		"m5dn.8xlarge",
+		"m5dn.12xlarge",
+		"m5dn.16xlarge",
+		"m5dn.24xlarge",
+		"m5n.large",
+		"m5n.xlarge",
+		"m5n.2xlarge",
+		"m5n.4xlarge",
+		"m5n.8xlarge",
+		"m5n.12xlarge",
+		"m5n.16xlarge",
+		"m5n.24xlarge",
+		"m6id.large",
+		"m6id.xlarge",
+		"m6id.2xlarge",
+		"m6id.4xlarge",
+		"m6id.8xlarge",
+		"m6id.12xlarge",
+		"m6id.16xlarge",
+		"m6id.24xlarge",
+		"m6id.32xlarge",
+		"m6idn.large",
+		"m6idn.xlarge",
+		"m6idn.2xlarge",
+		"m6idn.4xlarge",
+		"m6idn.8xlarge",
+		"m6idn.12xlarge",
+		"m6idn.16xlarge",
+		"m6idn.24xlarge",
+		"m6idn.32xlarge",
+		"m6in.large",
+		"m6in.xlarge",
+		"m6in.2xlarge",
+		"m6in.4xlarge",
+		"m6in.8xlarge",
+		"m6in.12xlarge",
+		"m6in.16xlarge",
+		"m6in.24xlarge",
+		"m6in.32xlarge",
+		"m8g.medium",
+		"m8g.large",
+		"m8g.xlarge",
+		"m8g.2xlarge",
+		"m8g.4xlarge",
+		"m8g.8xlarge",
+		"m8g.12xlarge",
+		"m8g.16xlarge",
+		"m8g.24xlarge",
+		"m8g.48xlarge",
+		"r5dn.large",
+		"r5dn.xlarge",
+		"r5dn.2xlarge",
+		"r5dn.4xlarge",
+		"r5dn.8xlarge",
+		"r5dn.12xlarge",
+		"r5dn.16xlarge",
+		"r5dn.24xlarge",
+		"r5n.large",
+		"r5n.xlarge",
+		"r5n.2xlarge",
+		"r5n.4xlarge",
+		"r5n.8xlarge",
+		"r5n.12xlarge",
+		"r5n.16xlarge",
+		"r5n.24xlarge",
+		"r6a.large",
+		"r6a.xlarge",
+		"r6a.2xlarge",
+		"r6a.4xlarge",
+		"r6a.8xlarge",
+		"r6a.12xlarge",
+		"r6a.16xlarge",
+		"r6a.24xlarge",
+		"r6a.32xlarge",
+		"r6a.48xlarge",
+		"r6id.large",
+		"r6id.xlarge",
+		"r6id.2xlarge",
+		"r6id.4xlarge",
+		"r6id.8xlarge",
+		"r6id.12xlarge",
+		"r6id.16xlarge",
+		"r6id.24xlarge",
+		"r6id.32xlarge",
+		"r6idn.large",
+		"r6idn.xlarge",
+		"r6idn.2xlarge",
+		"r6idn.4xlarge",
+		"r6idn.8xlarge",
+		"r6idn.12xlarge",
+		"r6idn.16xlarge",
+		"r6idn.24xlarge",
+		"r6idn.32xlarge",
+		"r6in.large",
+		"r6in.xlarge",
+		"r6in.2xlarge",
+		"r6in.4xlarge",
+		"r6in.8xlarge",
+		"r6in.12xlarge",
+		"r6in.16xlarge",
+		"r6in.24xlarge",
+		"r6in.32xlarge",
+		"r8g.medium",
+		"r8g.large",
+		"r8g.xlarge",
+		"r8g.2xlarge",
+		"r8g.4xlarge",
+		"r8g.8xlarge",
+		"r8g.12xlarge",
+		"r8g.16xlarge",
+		"r8g.24xlarge",
+		"r8g.48xlarge",
+		"m4.16xlarge",
+		"c6a.32xlarge",
+		"c6a.48xlarge",
+		"c6i.32xlarge",
+		"r6i.24xlarge",
+		"r6i.32xlarge",
+		"c6in.24xlarge",
+		"c6in.32xlarge",
+		"c7a.24xlarge",
+		"c7a.32xlarge",
+		"c7a.48xlarge",
+		"c7i.24xlarge",
+		"c7i.48xlarge",
+		"m6a.24xlarge",
+		"m6a.32xlarge",
+		"m6a.48xlarge",
+		"m6i.24xlarge",
+		"m6i.32xlarge",
+		"m7a.24xlarge",
+		"m7a.32xlarge",
+		"m7a.48xlarge",
+		"m7i.24xlarge",
+		"m7i.48xlarge",
+		"r7a.24xlarge",
+		"r7a.32xlarge",
+		"r7a.48xlarge",
 	}
 }
 
@@ -534,6 +1472,10 @@ const (
 	EventCodeFleetStateActivating                       EventCode = "FLEET_STATE_ACTIVATING"
 	EventCodeFleetStateActive                           EventCode = "FLEET_STATE_ACTIVE"
 	EventCodeFleetStateError                            EventCode = "FLEET_STATE_ERROR"
+	EventCodeFleetStatePending                          EventCode = "FLEET_STATE_PENDING"
+	EventCodeFleetStateCreating                         EventCode = "FLEET_STATE_CREATING"
+	EventCodeFleetStateCreated                          EventCode = "FLEET_STATE_CREATED"
+	EventCodeFleetStateUpdating                         EventCode = "FLEET_STATE_UPDATING"
 	EventCodeFleetInitializationFailed                  EventCode = "FLEET_INITIALIZATION_FAILED"
 	EventCodeFleetBinaryDownloadFailed                  EventCode = "FLEET_BINARY_DOWNLOAD_FAILED"
 	EventCodeFleetValidationLaunchPathNotFound          EventCode = "FLEET_VALIDATION_LAUNCH_PATH_NOT_FOUND"
@@ -549,6 +1491,8 @@ const (
 	EventCodeServerProcessTerminatedUnhealthy           EventCode = "SERVER_PROCESS_TERMINATED_UNHEALTHY"
 	EventCodeServerProcessForceTerminated               EventCode = "SERVER_PROCESS_FORCE_TERMINATED"
 	EventCodeServerProcessProcessExitTimeout            EventCode = "SERVER_PROCESS_PROCESS_EXIT_TIMEOUT"
+	EventCodeServerProcessSdkInitializationFailed       EventCode = "SERVER_PROCESS_SDK_INITIALIZATION_FAILED"
+	EventCodeServerProcessMisconfiguredContainerPort    EventCode = "SERVER_PROCESS_MISCONFIGURED_CONTAINER_PORT"
 	EventCodeGameSessionActivationTimeout               EventCode = "GAME_SESSION_ACTIVATION_TIMEOUT"
 	EventCodeFleetCreationExtractingBuild               EventCode = "FLEET_CREATION_EXTRACTING_BUILD"
 	EventCodeFleetCreationRunningInstaller              EventCode = "FLEET_CREATION_RUNNING_INSTALLER"
@@ -558,11 +1502,28 @@ const (
 	EventCodeFleetVpcPeeringDeleted                     EventCode = "FLEET_VPC_PEERING_DELETED"
 	EventCodeInstanceInterrupted                        EventCode = "INSTANCE_INTERRUPTED"
 	EventCodeInstanceRecycled                           EventCode = "INSTANCE_RECYCLED"
+	EventCodeInstanceReplacedUnhealthy                  EventCode = "INSTANCE_REPLACED_UNHEALTHY"
+	EventCodeFleetCreationCompletedInstaller            EventCode = "FLEET_CREATION_COMPLETED_INSTALLER"
+	EventCodeFleetCreationFailedInstaller               EventCode = "FLEET_CREATION_FAILED_INSTALLER"
+	EventCodeComputeLogUploadFailed                     EventCode = "COMPUTE_LOG_UPLOAD_FAILED"
+	EventCodeGameServerContainerGroupCrashed            EventCode = "GAME_SERVER_CONTAINER_GROUP_CRASHED"
+	EventCodePerInstanceContainerGroupCrashed           EventCode = "PER_INSTANCE_CONTAINER_GROUP_CRASHED"
+	EventCodeGameServerContainerGroupReplacedUnhealthy  EventCode = "GAME_SERVER_CONTAINER_GROUP_REPLACED_UNHEALTHY"
+	EventCodeLocationStatePending                       EventCode = "LOCATION_STATE_PENDING"
+	EventCodeLocationStateCreating                      EventCode = "LOCATION_STATE_CREATING"
+	EventCodeLocationStateCreated                       EventCode = "LOCATION_STATE_CREATED"
+	EventCodeLocationStateActivating                    EventCode = "LOCATION_STATE_ACTIVATING"
+	EventCodeLocationStateActive                        EventCode = "LOCATION_STATE_ACTIVE"
+	EventCodeLocationStateUpdating                      EventCode = "LOCATION_STATE_UPDATING"
+	EventCodeLocationStateError                         EventCode = "LOCATION_STATE_ERROR"
+	EventCodeLocationStateDeleting                      EventCode = "LOCATION_STATE_DELETING"
+	EventCodeLocationStateDeleted                       EventCode = "LOCATION_STATE_DELETED"
 )
 
 // Values returns all known values for EventCode. Note that this can be expanded
-// in the future, and so it is only as up to date as the client. The ordering of
-// this slice is not guaranteed to be stable across updates.
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (EventCode) Values() []EventCode {
 	return []EventCode{
 		"GENERIC_EVENT",
@@ -575,6 +1536,10 @@ func (EventCode) Values() []EventCode {
 		"FLEET_STATE_ACTIVATING",
 		"FLEET_STATE_ACTIVE",
 		"FLEET_STATE_ERROR",
+		"FLEET_STATE_PENDING",
+		"FLEET_STATE_CREATING",
+		"FLEET_STATE_CREATED",
+		"FLEET_STATE_UPDATING",
 		"FLEET_INITIALIZATION_FAILED",
 		"FLEET_BINARY_DOWNLOAD_FAILED",
 		"FLEET_VALIDATION_LAUNCH_PATH_NOT_FOUND",
@@ -590,6 +1555,8 @@ func (EventCode) Values() []EventCode {
 		"SERVER_PROCESS_TERMINATED_UNHEALTHY",
 		"SERVER_PROCESS_FORCE_TERMINATED",
 		"SERVER_PROCESS_PROCESS_EXIT_TIMEOUT",
+		"SERVER_PROCESS_SDK_INITIALIZATION_FAILED",
+		"SERVER_PROCESS_MISCONFIGURED_CONTAINER_PORT",
 		"GAME_SESSION_ACTIVATION_TIMEOUT",
 		"FLEET_CREATION_EXTRACTING_BUILD",
 		"FLEET_CREATION_RUNNING_INSTALLER",
@@ -599,6 +1566,22 @@ func (EventCode) Values() []EventCode {
 		"FLEET_VPC_PEERING_DELETED",
 		"INSTANCE_INTERRUPTED",
 		"INSTANCE_RECYCLED",
+		"INSTANCE_REPLACED_UNHEALTHY",
+		"FLEET_CREATION_COMPLETED_INSTALLER",
+		"FLEET_CREATION_FAILED_INSTALLER",
+		"COMPUTE_LOG_UPLOAD_FAILED",
+		"GAME_SERVER_CONTAINER_GROUP_CRASHED",
+		"PER_INSTANCE_CONTAINER_GROUP_CRASHED",
+		"GAME_SERVER_CONTAINER_GROUP_REPLACED_UNHEALTHY",
+		"LOCATION_STATE_PENDING",
+		"LOCATION_STATE_CREATING",
+		"LOCATION_STATE_CREATED",
+		"LOCATION_STATE_ACTIVATING",
+		"LOCATION_STATE_ACTIVE",
+		"LOCATION_STATE_UPDATING",
+		"LOCATION_STATE_ERROR",
+		"LOCATION_STATE_DELETING",
+		"LOCATION_STATE_DELETED",
 	}
 }
 
@@ -611,8 +1594,9 @@ const (
 )
 
 // Values returns all known values for FilterInstanceStatus. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (FilterInstanceStatus) Values() []FilterInstanceStatus {
 	return []FilterInstanceStatus{
 		"ACTIVE",
@@ -628,8 +1612,9 @@ const (
 )
 
 // Values returns all known values for FleetAction. Note that this can be expanded
-// in the future, and so it is only as up to date as the client. The ordering of
-// this slice is not guaranteed to be stable across updates.
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (FleetAction) Values() []FleetAction {
 	return []FleetAction{
 		"AUTO_SCALING",
@@ -653,8 +1638,9 @@ const (
 )
 
 // Values returns all known values for FleetStatus. Note that this can be expanded
-// in the future, and so it is only as up to date as the client. The ordering of
-// this slice is not guaranteed to be stable across updates.
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (FleetStatus) Values() []FleetStatus {
 	return []FleetStatus{
 		"NEW",
@@ -679,8 +1665,9 @@ const (
 )
 
 // Values returns all known values for FleetType. Note that this can be expanded
-// in the future, and so it is only as up to date as the client. The ordering of
-// this slice is not guaranteed to be stable across updates.
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (FleetType) Values() []FleetType {
 	return []FleetType{
 		"ON_DEMAND",
@@ -697,8 +1684,9 @@ const (
 )
 
 // Values returns all known values for FlexMatchMode. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (FlexMatchMode) Values() []FlexMatchMode {
 	return []FlexMatchMode{
 		"STANDALONE",
@@ -714,8 +1702,9 @@ const (
 )
 
 // Values returns all known values for GameServerClaimStatus. Note that this can
-// be expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (GameServerClaimStatus) Values() []GameServerClaimStatus {
 	return []GameServerClaimStatus{
 		"CLAIMED",
@@ -730,8 +1719,9 @@ const (
 )
 
 // Values returns all known values for GameServerGroupAction. Note that this can
-// be expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (GameServerGroupAction) Values() []GameServerGroupAction {
 	return []GameServerGroupAction{
 		"REPLACE_INSTANCE_TYPES",
@@ -749,6 +1739,7 @@ const (
 
 // Values returns all known values for GameServerGroupDeleteOption. Note that this
 // can be expanded in the future, and so it is only as up to date as the client.
+//
 // The ordering of this slice is not guaranteed to be stable across updates.
 func (GameServerGroupDeleteOption) Values() []GameServerGroupDeleteOption {
 	return []GameServerGroupDeleteOption{
@@ -854,6 +1845,7 @@ const (
 
 // Values returns all known values for GameServerGroupInstanceType. Note that this
 // can be expanded in the future, and so it is only as up to date as the client.
+//
 // The ordering of this slice is not guaranteed to be stable across updates.
 func (GameServerGroupInstanceType) Values() []GameServerGroupInstanceType {
 	return []GameServerGroupInstanceType{
@@ -962,8 +1954,9 @@ const (
 )
 
 // Values returns all known values for GameServerGroupStatus. Note that this can
-// be expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (GameServerGroupStatus) Values() []GameServerGroupStatus {
 	return []GameServerGroupStatus{
 		"NEW",
@@ -984,8 +1977,9 @@ const (
 )
 
 // Values returns all known values for GameServerHealthCheck. Note that this can
-// be expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (GameServerHealthCheck) Values() []GameServerHealthCheck {
 	return []GameServerHealthCheck{
 		"HEALTHY",
@@ -1003,12 +1997,33 @@ const (
 
 // Values returns all known values for GameServerInstanceStatus. Note that this
 // can be expanded in the future, and so it is only as up to date as the client.
+//
 // The ordering of this slice is not guaranteed to be stable across updates.
 func (GameServerInstanceStatus) Values() []GameServerInstanceStatus {
 	return []GameServerInstanceStatus{
 		"ACTIVE",
 		"DRAINING",
 		"SPOT_TERMINATING",
+	}
+}
+
+type GameServerIpProtocolSupported string
+
+// Enum values for GameServerIpProtocolSupported
+const (
+	GameServerIpProtocolSupportedIPv4      GameServerIpProtocolSupported = "IPv4"
+	GameServerIpProtocolSupportedDualStack GameServerIpProtocolSupported = "DUAL_STACK"
+)
+
+// Values returns all known values for GameServerIpProtocolSupported. Note that
+// this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (GameServerIpProtocolSupported) Values() []GameServerIpProtocolSupported {
+	return []GameServerIpProtocolSupported{
+		"IPv4",
+		"DUAL_STACK",
 	}
 }
 
@@ -1022,6 +2037,7 @@ const (
 
 // Values returns all known values for GameServerProtectionPolicy. Note that this
 // can be expanded in the future, and so it is only as up to date as the client.
+//
 // The ordering of this slice is not guaranteed to be stable across updates.
 func (GameServerProtectionPolicy) Values() []GameServerProtectionPolicy {
 	return []GameServerProtectionPolicy{
@@ -1040,6 +2056,7 @@ const (
 
 // Values returns all known values for GameServerUtilizationStatus. Note that this
 // can be expanded in the future, and so it is only as up to date as the client.
+//
 // The ordering of this slice is not guaranteed to be stable across updates.
 func (GameServerUtilizationStatus) Values() []GameServerUtilizationStatus {
 	return []GameServerUtilizationStatus{
@@ -1061,6 +2078,7 @@ const (
 
 // Values returns all known values for GameSessionPlacementState. Note that this
 // can be expanded in the future, and so it is only as up to date as the client.
+//
 // The ordering of this slice is not guaranteed to be stable across updates.
 func (GameSessionPlacementState) Values() []GameSessionPlacementState {
 	return []GameSessionPlacementState{
@@ -1084,8 +2102,9 @@ const (
 )
 
 // Values returns all known values for GameSessionStatus. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (GameSessionStatus) Values() []GameSessionStatus {
 	return []GameSessionStatus{
 		"ACTIVE",
@@ -1100,15 +2119,20 @@ type GameSessionStatusReason string
 
 // Enum values for GameSessionStatusReason
 const (
-	GameSessionStatusReasonInterrupted GameSessionStatusReason = "INTERRUPTED"
+	GameSessionStatusReasonInterrupted                 GameSessionStatusReason = "INTERRUPTED"
+	GameSessionStatusReasonTriggeredOnProcessTerminate GameSessionStatusReason = "TRIGGERED_ON_PROCESS_TERMINATE"
+	GameSessionStatusReasonForceTerminated             GameSessionStatusReason = "FORCE_TERMINATED"
 )
 
 // Values returns all known values for GameSessionStatusReason. Note that this can
-// be expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (GameSessionStatusReason) Values() []GameSessionStatusReason {
 	return []GameSessionStatusReason{
 		"INTERRUPTED",
+		"TRIGGERED_ON_PROCESS_TERMINATE",
+		"FORCE_TERMINATED",
 	}
 }
 
@@ -1121,8 +2145,9 @@ const (
 
 // Values returns all known values for InstanceRoleCredentialsProvider. Note that
 // this can be expanded in the future, and so it is only as up to date as the
-// client. The ordering of this slice is not guaranteed to be stable across
-// updates.
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (InstanceRoleCredentialsProvider) Values() []InstanceRoleCredentialsProvider {
 	return []InstanceRoleCredentialsProvider{
 		"SHARED_CREDENTIAL_FILE",
@@ -1139,8 +2164,9 @@ const (
 )
 
 // Values returns all known values for InstanceStatus. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (InstanceStatus) Values() []InstanceStatus {
 	return []InstanceStatus{
 		"PENDING",
@@ -1158,12 +2184,121 @@ const (
 )
 
 // Values returns all known values for IpProtocol. Note that this can be expanded
-// in the future, and so it is only as up to date as the client. The ordering of
-// this slice is not guaranteed to be stable across updates.
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (IpProtocol) Values() []IpProtocol {
 	return []IpProtocol{
 		"TCP",
 		"UDP",
+	}
+}
+
+type LinuxCapability string
+
+// Enum values for LinuxCapability
+const (
+	LinuxCapabilityAuditControl   LinuxCapability = "AUDIT_CONTROL"
+	LinuxCapabilityAuditWrite     LinuxCapability = "AUDIT_WRITE"
+	LinuxCapabilityBlockSuspend   LinuxCapability = "BLOCK_SUSPEND"
+	LinuxCapabilityChown          LinuxCapability = "CHOWN"
+	LinuxCapabilityDacOverride    LinuxCapability = "DAC_OVERRIDE"
+	LinuxCapabilityDacReadSearch  LinuxCapability = "DAC_READ_SEARCH"
+	LinuxCapabilityFowner         LinuxCapability = "FOWNER"
+	LinuxCapabilityFsetid         LinuxCapability = "FSETID"
+	LinuxCapabilityIpcLock        LinuxCapability = "IPC_LOCK"
+	LinuxCapabilityIpcOwner       LinuxCapability = "IPC_OWNER"
+	LinuxCapabilityKill           LinuxCapability = "KILL"
+	LinuxCapabilityLease          LinuxCapability = "LEASE"
+	LinuxCapabilityLinuxImmutable LinuxCapability = "LINUX_IMMUTABLE"
+	LinuxCapabilityMacAdmin       LinuxCapability = "MAC_ADMIN"
+	LinuxCapabilityMacOverride    LinuxCapability = "MAC_OVERRIDE"
+	LinuxCapabilityMknod          LinuxCapability = "MKNOD"
+	LinuxCapabilityNetAdmin       LinuxCapability = "NET_ADMIN"
+	LinuxCapabilityNetBindService LinuxCapability = "NET_BIND_SERVICE"
+	LinuxCapabilityNetBroadcast   LinuxCapability = "NET_BROADCAST"
+	LinuxCapabilityNetRaw         LinuxCapability = "NET_RAW"
+	LinuxCapabilitySetfcap        LinuxCapability = "SETFCAP"
+	LinuxCapabilitySetgid         LinuxCapability = "SETGID"
+	LinuxCapabilitySetpcap        LinuxCapability = "SETPCAP"
+	LinuxCapabilitySetuid         LinuxCapability = "SETUID"
+	LinuxCapabilitySysAdmin       LinuxCapability = "SYS_ADMIN"
+	LinuxCapabilitySysBoot        LinuxCapability = "SYS_BOOT"
+	LinuxCapabilitySysChroot      LinuxCapability = "SYS_CHROOT"
+	LinuxCapabilitySysModule      LinuxCapability = "SYS_MODULE"
+	LinuxCapabilitySysNice        LinuxCapability = "SYS_NICE"
+	LinuxCapabilitySysPacct       LinuxCapability = "SYS_PACCT"
+	LinuxCapabilitySysPtrace      LinuxCapability = "SYS_PTRACE"
+	LinuxCapabilitySysRawio       LinuxCapability = "SYS_RAWIO"
+	LinuxCapabilitySysResource    LinuxCapability = "SYS_RESOURCE"
+	LinuxCapabilitySysTime        LinuxCapability = "SYS_TIME"
+	LinuxCapabilitySysTtyConfig   LinuxCapability = "SYS_TTY_CONFIG"
+	LinuxCapabilitySyslog         LinuxCapability = "SYSLOG"
+	LinuxCapabilityWakeAlarm      LinuxCapability = "WAKE_ALARM"
+)
+
+// Values returns all known values for LinuxCapability. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (LinuxCapability) Values() []LinuxCapability {
+	return []LinuxCapability{
+		"AUDIT_CONTROL",
+		"AUDIT_WRITE",
+		"BLOCK_SUSPEND",
+		"CHOWN",
+		"DAC_OVERRIDE",
+		"DAC_READ_SEARCH",
+		"FOWNER",
+		"FSETID",
+		"IPC_LOCK",
+		"IPC_OWNER",
+		"KILL",
+		"LEASE",
+		"LINUX_IMMUTABLE",
+		"MAC_ADMIN",
+		"MAC_OVERRIDE",
+		"MKNOD",
+		"NET_ADMIN",
+		"NET_BIND_SERVICE",
+		"NET_BROADCAST",
+		"NET_RAW",
+		"SETFCAP",
+		"SETGID",
+		"SETPCAP",
+		"SETUID",
+		"SYS_ADMIN",
+		"SYS_BOOT",
+		"SYS_CHROOT",
+		"SYS_MODULE",
+		"SYS_NICE",
+		"SYS_PACCT",
+		"SYS_PTRACE",
+		"SYS_RAWIO",
+		"SYS_RESOURCE",
+		"SYS_TIME",
+		"SYS_TTY_CONFIG",
+		"SYSLOG",
+		"WAKE_ALARM",
+	}
+}
+
+type ListComputeInputStatus string
+
+// Enum values for ListComputeInputStatus
+const (
+	ListComputeInputStatusActive   ListComputeInputStatus = "ACTIVE"
+	ListComputeInputStatusImpaired ListComputeInputStatus = "IMPAIRED"
+)
+
+// Values returns all known values for ListComputeInputStatus. Note that this can
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ListComputeInputStatus) Values() []ListComputeInputStatus {
+	return []ListComputeInputStatus{
+		"ACTIVE",
+		"IMPAIRED",
 	}
 }
 
@@ -1176,8 +2311,9 @@ const (
 )
 
 // Values returns all known values for LocationFilter. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (LocationFilter) Values() []LocationFilter {
 	return []LocationFilter{
 		"AWS",
@@ -1193,11 +2329,33 @@ const (
 )
 
 // Values returns all known values for LocationUpdateStatus. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (LocationUpdateStatus) Values() []LocationUpdateStatus {
 	return []LocationUpdateStatus{
 		"PENDING_UPDATE",
+	}
+}
+
+type LogDestination string
+
+// Enum values for LogDestination
+const (
+	LogDestinationNone       LogDestination = "NONE"
+	LogDestinationCloudwatch LogDestination = "CLOUDWATCH"
+	LogDestinationS3         LogDestination = "S3"
+)
+
+// Values returns all known values for LogDestination. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (LogDestination) Values() []LogDestination {
+	return []LogDestination{
+		"NONE",
+		"CLOUDWATCH",
+		"S3",
 	}
 }
 
@@ -1217,8 +2375,9 @@ const (
 
 // Values returns all known values for MatchmakingConfigurationStatus. Note that
 // this can be expanded in the future, and so it is only as up to date as the
-// client. The ordering of this slice is not guaranteed to be stable across
-// updates.
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (MatchmakingConfigurationStatus) Values() []MatchmakingConfigurationStatus {
 	return []MatchmakingConfigurationStatus{
 		"CANCELLED",
@@ -1251,8 +2410,9 @@ const (
 )
 
 // Values returns all known values for MetricName. Note that this can be expanded
-// in the future, and so it is only as up to date as the client. The ordering of
-// this slice is not guaranteed to be stable across updates.
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (MetricName) Values() []MetricName {
 	return []MetricName{
 		"ActivatingGameSessions",
@@ -1279,11 +2439,13 @@ const (
 	OperatingSystemAmazonLinux2    OperatingSystem = "AMAZON_LINUX_2"
 	OperatingSystemWindows2016     OperatingSystem = "WINDOWS_2016"
 	OperatingSystemAmazonLinux2023 OperatingSystem = "AMAZON_LINUX_2023"
+	OperatingSystemWindows2022     OperatingSystem = "WINDOWS_2022"
 )
 
 // Values returns all known values for OperatingSystem. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (OperatingSystem) Values() []OperatingSystem {
 	return []OperatingSystem{
 		"WINDOWS_2012",
@@ -1291,6 +2453,66 @@ func (OperatingSystem) Values() []OperatingSystem {
 		"AMAZON_LINUX_2",
 		"WINDOWS_2016",
 		"AMAZON_LINUX_2023",
+		"WINDOWS_2022",
+	}
+}
+
+type PlacementFallbackStrategy string
+
+// Enum values for PlacementFallbackStrategy
+const (
+	PlacementFallbackStrategyDefaultAfterSinglePass PlacementFallbackStrategy = "DEFAULT_AFTER_SINGLE_PASS"
+	PlacementFallbackStrategyNone                   PlacementFallbackStrategy = "NONE"
+)
+
+// Values returns all known values for PlacementFallbackStrategy. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (PlacementFallbackStrategy) Values() []PlacementFallbackStrategy {
+	return []PlacementFallbackStrategy{
+		"DEFAULT_AFTER_SINGLE_PASS",
+		"NONE",
+	}
+}
+
+type PlayerGatewayMode string
+
+// Enum values for PlayerGatewayMode
+const (
+	PlayerGatewayModeDisabled PlayerGatewayMode = "DISABLED"
+	PlayerGatewayModeEnabled  PlayerGatewayMode = "ENABLED"
+	PlayerGatewayModeRequired PlayerGatewayMode = "REQUIRED"
+)
+
+// Values returns all known values for PlayerGatewayMode. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (PlayerGatewayMode) Values() []PlayerGatewayMode {
+	return []PlayerGatewayMode{
+		"DISABLED",
+		"ENABLED",
+		"REQUIRED",
+	}
+}
+
+type PlayerGatewayStatus string
+
+// Enum values for PlayerGatewayStatus
+const (
+	PlayerGatewayStatusDisabled PlayerGatewayStatus = "DISABLED"
+	PlayerGatewayStatusEnabled  PlayerGatewayStatus = "ENABLED"
+)
+
+// Values returns all known values for PlayerGatewayStatus. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (PlayerGatewayStatus) Values() []PlayerGatewayStatus {
+	return []PlayerGatewayStatus{
+		"DISABLED",
+		"ENABLED",
 	}
 }
 
@@ -1304,6 +2526,7 @@ const (
 
 // Values returns all known values for PlayerSessionCreationPolicy. Note that this
 // can be expanded in the future, and so it is only as up to date as the client.
+//
 // The ordering of this slice is not guaranteed to be stable across updates.
 func (PlayerSessionCreationPolicy) Values() []PlayerSessionCreationPolicy {
 	return []PlayerSessionCreationPolicy{
@@ -1323,8 +2546,9 @@ const (
 )
 
 // Values returns all known values for PlayerSessionStatus. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (PlayerSessionStatus) Values() []PlayerSessionStatus {
 	return []PlayerSessionStatus{
 		"RESERVED",
@@ -1343,8 +2567,9 @@ const (
 )
 
 // Values returns all known values for PolicyType. Note that this can be expanded
-// in the future, and so it is only as up to date as the client. The ordering of
-// this slice is not guaranteed to be stable across updates.
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (PolicyType) Values() []PolicyType {
 	return []PolicyType{
 		"RuleBased",
@@ -1363,8 +2588,9 @@ const (
 )
 
 // Values returns all known values for PriorityType. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (PriorityType) Values() []PriorityType {
 	return []PriorityType{
 		"LATENCY",
@@ -1383,8 +2609,9 @@ const (
 )
 
 // Values returns all known values for ProtectionPolicy. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (ProtectionPolicy) Values() []ProtectionPolicy {
 	return []ProtectionPolicy{
 		"NoProtection",
@@ -1401,8 +2628,9 @@ const (
 )
 
 // Values returns all known values for RoutingStrategyType. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (RoutingStrategyType) Values() []RoutingStrategyType {
 	return []RoutingStrategyType{
 		"SIMPLE",
@@ -1420,8 +2648,9 @@ const (
 )
 
 // Values returns all known values for ScalingAdjustmentType. Note that this can
-// be expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (ScalingAdjustmentType) Values() []ScalingAdjustmentType {
 	return []ScalingAdjustmentType{
 		"ChangeInCapacity",
@@ -1444,8 +2673,9 @@ const (
 )
 
 // Values returns all known values for ScalingStatusType. Note that this can be
-// expanded in the future, and so it is only as up to date as the client. The
-// ordering of this slice is not guaranteed to be stable across updates.
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (ScalingStatusType) Values() []ScalingStatusType {
 	return []ScalingStatusType{
 		"ACTIVE",
@@ -1467,11 +2697,50 @@ const (
 )
 
 // Values returns all known values for SortOrder. Note that this can be expanded
-// in the future, and so it is only as up to date as the client. The ordering of
-// this slice is not guaranteed to be stable across updates.
+// in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
 func (SortOrder) Values() []SortOrder {
 	return []SortOrder{
 		"ASCENDING",
 		"DESCENDING",
+	}
+}
+
+type TerminationMode string
+
+// Enum values for TerminationMode
+const (
+	TerminationModeTriggerOnProcessTerminate TerminationMode = "TRIGGER_ON_PROCESS_TERMINATE"
+	TerminationModeForceTerminate            TerminationMode = "FORCE_TERMINATE"
+)
+
+// Values returns all known values for TerminationMode. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (TerminationMode) Values() []TerminationMode {
+	return []TerminationMode{
+		"TRIGGER_ON_PROCESS_TERMINATE",
+		"FORCE_TERMINATE",
+	}
+}
+
+type ZeroCapacityStrategy string
+
+// Enum values for ZeroCapacityStrategy
+const (
+	ZeroCapacityStrategyManual             ZeroCapacityStrategy = "MANUAL"
+	ZeroCapacityStrategyScaleToAndFromZero ZeroCapacityStrategy = "SCALE_TO_AND_FROM_ZERO"
+)
+
+// Values returns all known values for ZeroCapacityStrategy. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ZeroCapacityStrategy) Values() []ZeroCapacityStrategy {
+	return []ZeroCapacityStrategy{
+		"MANUAL",
+		"SCALE_TO_AND_FROM_ZERO",
 	}
 }

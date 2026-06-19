@@ -6,15 +6,26 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+//	This API works with the following fleet types: EC2
+//
 // Retrieves script records for all Realtime scripts that are associated with the
-// Amazon Web Services account in use. Learn more Amazon GameLift Realtime Servers (https://docs.aws.amazon.com/gamelift/latest/developerguide/realtime-intro.html)
-// Related actions All APIs by task (https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets)
+// Amazon Web Services account in use.
+//
+// # Learn more
+//
+// [Amazon GameLift Servers Amazon GameLift Servers Realtime]
+//
+// # Related actions
+//
+// [All APIs by task]
+//
+// [Amazon GameLift Servers Amazon GameLift Servers Realtime]: https://docs.aws.amazon.com/gamelift/latest/developerguide/realtime-intro.html
+// [All APIs by task]: https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets
 func (c *Client) ListScripts(ctx context.Context, params *ListScriptsInput, optFns ...func(*Options)) (*ListScriptsOutput, error) {
 	if params == nil {
 		params = &ListScriptsInput{}
@@ -38,7 +49,7 @@ type ListScriptsInput struct {
 
 	// A token that indicates the start of the next sequential page of results. Use
 	// the token that is returned with a previous call to this operation. To start at
-	// the beginning of the result set, don't specify a value.
+	// the beginning of the result set, do not specify a value.
 	NextToken *string
 
 	noSmithyDocumentSerde
@@ -64,11 +75,11 @@ func (c *Client) addOperationListScriptsMiddlewares(stack *middleware.Stack, opt
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListScripts{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpListScripts{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListScripts{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpListScripts{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -82,25 +93,28 @@ func (c *Client) addOperationListScriptsMiddlewares(stack *middleware.Stack, opt
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -115,10 +129,19 @@ func (c *Client) addOperationListScriptsMiddlewares(stack *middleware.Stack, opt
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListScripts(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -133,15 +156,17 @@ func (c *Client) addOperationListScriptsMiddlewares(stack *middleware.Stack, opt
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListScriptsAPIClient is a client that implements the ListScripts operation.
-type ListScriptsAPIClient interface {
-	ListScripts(context.Context, *ListScriptsInput, ...func(*Options)) (*ListScriptsOutput, error)
-}
-
-var _ ListScriptsAPIClient = (*Client)(nil)
 
 // ListScriptsPaginatorOptions is the paginator options for ListScripts
 type ListScriptsPaginatorOptions struct {
@@ -207,6 +232,9 @@ func (p *ListScriptsPaginator) NextPage(ctx context.Context, optFns ...func(*Opt
 	}
 	params.Limit = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListScripts(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -225,6 +253,13 @@ func (p *ListScriptsPaginator) NextPage(ctx context.Context, optFns ...func(*Opt
 
 	return result, nil
 }
+
+// ListScriptsAPIClient is a client that implements the ListScripts operation.
+type ListScriptsAPIClient interface {
+	ListScripts(context.Context, *ListScriptsInput, ...func(*Options)) (*ListScriptsOutput, error)
+}
+
+var _ ListScriptsAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opListScripts(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

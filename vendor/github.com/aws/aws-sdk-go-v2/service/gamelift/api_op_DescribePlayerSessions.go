@@ -6,26 +6,39 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Retrieves properties for one or more player sessions. This action can be used
-// in the following ways:
+//	This API works with the following fleet types: EC2, Anywhere, Container
+//
+// Retrieves properties for one or more player sessions.
+//
+// This action can be used in the following ways:
+//
 //   - To retrieve a specific player session, provide the player session ID only.
+//
 //   - To retrieve all player sessions in a game session, provide the game session
 //     ID only.
+//
 //   - To retrieve all player sessions for a specific player, provide a player ID
 //     only.
 //
 // To request player sessions, specify either a player session ID, game session
 // ID, or player ID. You can filter this request by player session status. If you
-// provide a specific PlayerSessionId or PlayerId , Amazon GameLift ignores the
-// filter criteria. Use the pagination parameters to retrieve results as a set of
-// sequential pages. If successful, a PlayerSession object is returned for each
-// session that matches the request. Related actions All APIs by task (https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets)
+// provide a specific PlayerSessionId or PlayerId , Amazon GameLift Servers ignores
+// the filter criteria. Use the pagination parameters to retrieve results as a set
+// of sequential pages.
+//
+// If successful, a PlayerSession object is returned for each session that matches
+// the request.
+//
+// # Related actions
+//
+// [All APIs by task]
+//
+// [All APIs by task]: https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets
 func (c *Client) DescribePlayerSessions(ctx context.Context, params *DescribePlayerSessionsInput, optFns ...func(*Options)) (*DescribePlayerSessionsOutput, error) {
 	if params == nil {
 		params = &DescribePlayerSessionsInput{}
@@ -43,7 +56,10 @@ func (c *Client) DescribePlayerSessions(ctx context.Context, params *DescribePla
 
 type DescribePlayerSessionsInput struct {
 
-	// A unique identifier for the game session to retrieve player sessions for.
+	// An identifier for the game session that is unique across all regions to
+	// retrieve player sessions for. The value is always a full ARN in the following
+	// format: For Home Region game session - arn:aws:gamelift:::gamesession// . For
+	// Remote Location game session - arn:aws:gamelift:::gamesession/// .
 	GameSessionId *string
 
 	// The maximum number of results to return. Use this parameter with NextToken to
@@ -65,13 +81,18 @@ type DescribePlayerSessionsInput struct {
 
 	// Player session status to filter results on. Note that when a PlayerSessionId or
 	// PlayerId is provided in a DescribePlayerSessions request, then the
-	// PlayerSessionStatusFilter has no effect on the response. Possible player session
-	// statuses include the following:
+	// PlayerSessionStatusFilter has no effect on the response.
+	//
+	// Possible player session statuses include the following:
+	//
 	//   - RESERVED -- The player session request has been received, but the player
 	//   has not yet connected to the server process and/or been validated.
+	//
 	//   - ACTIVE -- The player has been validated by the server process and is
 	//   currently connected.
+	//
 	//   - COMPLETED -- The player connection has been dropped.
+	//
 	//   - TIMEDOUT -- A player session request was received, but the player did not
 	//   connect and/or was not validated within the timeout limit (60 seconds).
 	PlayerSessionStatusFilter *string
@@ -100,11 +121,11 @@ func (c *Client) addOperationDescribePlayerSessionsMiddlewares(stack *middleware
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribePlayerSessions{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpDescribePlayerSessions{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribePlayerSessions{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpDescribePlayerSessions{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -118,25 +139,28 @@ func (c *Client) addOperationDescribePlayerSessionsMiddlewares(stack *middleware
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -151,10 +175,19 @@ func (c *Client) addOperationDescribePlayerSessionsMiddlewares(stack *middleware
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribePlayerSessions(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -169,16 +202,17 @@ func (c *Client) addOperationDescribePlayerSessionsMiddlewares(stack *middleware
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribePlayerSessionsAPIClient is a client that implements the
-// DescribePlayerSessions operation.
-type DescribePlayerSessionsAPIClient interface {
-	DescribePlayerSessions(context.Context, *DescribePlayerSessionsInput, ...func(*Options)) (*DescribePlayerSessionsOutput, error)
-}
-
-var _ DescribePlayerSessionsAPIClient = (*Client)(nil)
 
 // DescribePlayerSessionsPaginatorOptions is the paginator options for
 // DescribePlayerSessions
@@ -246,6 +280,9 @@ func (p *DescribePlayerSessionsPaginator) NextPage(ctx context.Context, optFns .
 	}
 	params.Limit = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribePlayerSessions(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -264,6 +301,14 @@ func (p *DescribePlayerSessionsPaginator) NextPage(ctx context.Context, optFns .
 
 	return result, nil
 }
+
+// DescribePlayerSessionsAPIClient is a client that implements the
+// DescribePlayerSessions operation.
+type DescribePlayerSessionsAPIClient interface {
+	DescribePlayerSessions(context.Context, *DescribePlayerSessionsInput, ...func(*Options)) (*DescribePlayerSessionsOutput, error)
+}
+
+var _ DescribePlayerSessionsAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opDescribePlayerSessions(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

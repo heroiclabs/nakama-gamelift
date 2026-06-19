@@ -6,23 +6,29 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is used with the Amazon GameLift FleetIQ solution and game
-// server groups. Reinstates activity on a game server group after it has been
-// suspended. A game server group might be suspended by the SuspendGameServerGroup
-// operation, or it might be suspended involuntarily due to a configuration
-// problem. In the second case, you can manually resume activity on the group once
-// the configuration problem has been resolved. Refer to the game server group
-// status and status reason for more information on why group activity is
-// suspended. To resume activity, specify a game server group ARN and the type of
-// activity to be resumed. If successful, a GameServerGroup object is returned
-// showing that the resumed activity is no longer listed in SuspendedActions .
-// Learn more Amazon GameLift FleetIQ Guide (https://docs.aws.amazon.com/gamelift/latest/fleetiqguide/gsg-intro.html)
+//	This API works with the following fleet types: EC2 (FleetIQ)
+//
+// Reinstates activity on a game server group after it has been suspended. A game
+// server group might be suspended by the SuspendGameServerGroupoperation, or it might be suspended
+// involuntarily due to a configuration problem. In the second case, you can
+// manually resume activity on the group once the configuration problem has been
+// resolved. Refer to the game server group status and status reason for more
+// information on why group activity is suspended.
+//
+// To resume activity, specify a game server group ARN and the type of activity to
+// be resumed. If successful, a GameServerGroup object is returned showing that
+// the resumed activity is no longer listed in SuspendedActions .
+//
+// # Learn more
+//
+// [Amazon GameLift Servers FleetIQ Guide]
+//
+// [Amazon GameLift Servers FleetIQ Guide]: https://docs.aws.amazon.com/gamelift/latest/fleetiqguide/gsg-intro.html
 func (c *Client) ResumeGameServerGroup(ctx context.Context, params *ResumeGameServerGroupInput, optFns ...func(*Options)) (*ResumeGameServerGroupOutput, error) {
 	if params == nil {
 		params = &ResumeGameServerGroupInput{}
@@ -69,11 +75,11 @@ func (c *Client) addOperationResumeGameServerGroupMiddlewares(stack *middleware.
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpResumeGameServerGroup{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpResumeGameServerGroup{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpResumeGameServerGroup{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpResumeGameServerGroup{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -87,25 +93,28 @@ func (c *Client) addOperationResumeGameServerGroupMiddlewares(stack *middleware.
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -120,13 +129,22 @@ func (c *Client) addOperationResumeGameServerGroupMiddlewares(stack *middleware.
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpResumeGameServerGroupValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opResumeGameServerGroup(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -139,6 +157,15 @@ func (c *Client) addOperationResumeGameServerGroupMiddlewares(stack *middleware.
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -96,7 +96,8 @@ latencies := []runtime.FleetUserLatencies{{
     RegionIdentifier:      "us-east-1",
 }}
 
-err = fm.Create(ctx, maxPlayers, playerIds, latencies, metadata, callback)
+createMetadata, err = fm.Create(ctx, maxPlayers, playerIds, latencies, metadata, callback)
+placementId := createMetadata[fleetmanager.PlacementIdKey] // The PlacementIdKey can be used to return the PlacementId of the Game Session creation request.
 ```
 
 ### List

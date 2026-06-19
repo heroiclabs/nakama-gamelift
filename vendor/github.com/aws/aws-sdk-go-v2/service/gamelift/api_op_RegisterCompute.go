@@ -6,28 +6,46 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Registers a compute resource to an Amazon GameLift Anywhere fleet. With
-// Anywhere fleets you can incorporate your own computing hardware into an Amazon
-// GameLift game hosting solution. To register a compute to a fleet, give the
-// compute a name (must be unique within the fleet) and specify the compute
-// resource's DNS name or IP address. Provide the Anywhere fleet ID and a fleet
-// location to associate with the compute being registered. You can optionally
-// include the path to a TLS certificate on the compute resource. If successful,
-// this operation returns the compute details, including an Amazon GameLift SDK
-// endpoint. Game server processes that run on the compute use this endpoint to
-// communicate with the Amazon GameLift service. Each server process includes the
-// SDK endpoint in its call to the Amazon GameLift server SDK action InitSDK() .
-// Learn more
-//   - Create an Anywhere fleet (https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-creating-anywhere.html)
-//   - Test your integration (https://docs.aws.amazon.com/gamelift/latest/developerguide/integration-testing.html)
-//   - Server SDK reference guides (https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-serversdk.html)
-//     (for version 5.x)
+//	This API works with the following fleet types: Anywhere, Container
+//
+// Registers a compute resource in an Amazon GameLift Servers Anywhere fleet.
+//
+// For an Anywhere fleet that's running the Amazon GameLift Servers Agent, the
+// Agent handles all compute registry tasks for you. For an Anywhere fleet that
+// doesn't use the Agent, call this operation to register fleet computes.
+//
+// To register a compute, give the compute a name (must be unique within the
+// fleet) and specify the compute resource's DNS name or IP address. Provide a
+// fleet ID and a fleet location to associate with the compute being registered.
+// You can optionally include the path to a TLS certificate on the compute
+// resource.
+//
+// If successful, this operation returns compute details, including an Amazon
+// GameLift Servers SDK endpoint or Agent endpoint. Game server processes running
+// on the compute can use this endpoint to communicate with the Amazon GameLift
+// Servers service. Each server process includes the SDK endpoint in its call to
+// the Amazon GameLift Servers server SDK action InitSDK() .
+//
+// To view compute details, call [DescribeCompute] with the compute name.
+//
+// # Learn more
+//
+// [Create an Anywhere fleet]
+//
+// [Test your integration]
+//
+// [Server SDK reference guides]
+//   - (for version 5.x)
+//
+// [Test your integration]: https://docs.aws.amazon.com/gamelift/latest/developerguide/integration-testing.html
+// [Server SDK reference guides]: https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-serversdk.html
+// [DescribeCompute]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_DescribeCompute.html
+// [Create an Anywhere fleet]: https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-creating-anywhere.html
 func (c *Client) RegisterCompute(ctx context.Context, params *RegisterComputeInput, optFns ...func(*Options)) (*RegisterComputeOutput, error) {
 	if params == nil {
 		params = &RegisterComputeInput{}
@@ -56,20 +74,22 @@ type RegisterComputeInput struct {
 	// This member is required.
 	FleetId *string
 
-	// The path to a TLS certificate on your compute resource. Amazon GameLift doesn't
-	// validate the path and certificate.
+	// The path to a TLS certificate on your compute resource. Amazon GameLift Servers
+	// doesn't validate the path and certificate.
 	CertificatePath *string
 
-	// The DNS name of the compute resource. Amazon GameLift requires either a DNS
-	// name or IP address.
+	// The DNS name of the compute resource. Amazon GameLift Servers requires either a
+	// DNS name or IP address.
 	DnsName *string
 
-	// The IP address of the compute resource. Amazon GameLift requires either a DNS
-	// name or IP address.
+	// The IP address of the compute resource. Amazon GameLift Servers requires either
+	// a DNS name or IP address. When registering an Anywhere fleet, an IP address is
+	// required.
 	IpAddress *string
 
 	// The name of a custom location to associate with the compute resource being
-	// registered.
+	// registered. This parameter is required when registering a compute for an
+	// Anywhere fleet.
 	Location *string
 
 	noSmithyDocumentSerde
@@ -90,11 +110,11 @@ func (c *Client) addOperationRegisterComputeMiddlewares(stack *middleware.Stack,
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpRegisterCompute{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpRegisterCompute{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpRegisterCompute{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpRegisterCompute{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -108,25 +128,28 @@ func (c *Client) addOperationRegisterComputeMiddlewares(stack *middleware.Stack,
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -141,13 +164,22 @@ func (c *Client) addOperationRegisterComputeMiddlewares(stack *middleware.Stack,
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpRegisterComputeValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opRegisterCompute(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -160,6 +192,15 @@ func (c *Client) addOperationRegisterComputeMiddlewares(stack *middleware.Stack,
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -6,32 +6,51 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Retrieves information about the EC2 instances in an Amazon GameLift managed
-// fleet, including instance ID, connection data, and status. You can use this
-// operation with a multi-location fleet to get location-specific instance
-// information. As an alternative, use the operations ListCompute and
-// DescribeCompute to retrieve information for compute resources, including EC2 and
-// Anywhere fleets. You can call this operation in the following ways:
+//	This API works with the following fleet types:EC2, Container
+//
+// Retrieves information about the EC2 instances in an Amazon GameLift Servers
+// managed fleet, including instance ID, connection data, and status. You can use
+// this operation with a multi-location fleet to get location-specific instance
+// information. As an alternative, use the operations [https://docs.aws.amazon.com/gamelift/latest/apireference/API_ListCompute]and [https://docs.aws.amazon.com/gamelift/latest/apireference/API_DescribeCompute] to retrieve information
+// for compute resources, including EC2 and Anywhere fleets.
+//
+// You can call this operation in the following ways:
+//
 //   - To get information on all instances in a fleet's home Region, specify the
 //     fleet ID.
+//
 //   - To get information on all instances in a fleet's remote location, specify
 //     the fleet ID and location name.
+//
 //   - To get information on a specific instance in a fleet, specify the fleet ID
 //     and instance ID.
 //
 // Use the pagination parameters to retrieve results as a set of sequential pages.
+//
 // If successful, this operation returns Instance objects for each requested
 // instance, listed in no particular order. If you call this operation for an
-// Anywhere fleet, you receive an InvalidRequestException. Learn more Remotely
-// connect to fleet instances (https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-remote-access.html)
-// Debug fleet issues (https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-creating-debug.html)
-// Related actions All APIs by task (https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets)
+// Anywhere fleet, you receive an InvalidRequestException.
+//
+// # Learn more
+//
+// [Remotely connect to fleet instances]
+//
+// [Debug fleet issues]
+//
+// # Related actions
+//
+// [All APIs by task]
+//
+// [https://docs.aws.amazon.com/gamelift/latest/apireference/API_ListCompute]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_ListCompute
+// [Remotely connect to fleet instances]: https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-remote-access.html
+// [Debug fleet issues]: https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-creating-debug.html
+// [https://docs.aws.amazon.com/gamelift/latest/apireference/API_DescribeCompute]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_DescribeCompute
+// [All APIs by task]: https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets
 func (c *Client) DescribeInstances(ctx context.Context, params *DescribeInstancesInput, optFns ...func(*Options)) (*DescribeInstancesOutput, error) {
 	if params == nil {
 		params = &DescribeInstancesInput{}
@@ -95,11 +114,11 @@ func (c *Client) addOperationDescribeInstancesMiddlewares(stack *middleware.Stac
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeInstances{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpDescribeInstances{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeInstances{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpDescribeInstances{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -113,25 +132,28 @@ func (c *Client) addOperationDescribeInstancesMiddlewares(stack *middleware.Stac
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -146,13 +168,22 @@ func (c *Client) addOperationDescribeInstancesMiddlewares(stack *middleware.Stac
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDescribeInstancesValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeInstances(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -167,16 +198,17 @@ func (c *Client) addOperationDescribeInstancesMiddlewares(stack *middleware.Stac
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribeInstancesAPIClient is a client that implements the DescribeInstances
-// operation.
-type DescribeInstancesAPIClient interface {
-	DescribeInstances(context.Context, *DescribeInstancesInput, ...func(*Options)) (*DescribeInstancesOutput, error)
-}
-
-var _ DescribeInstancesAPIClient = (*Client)(nil)
 
 // DescribeInstancesPaginatorOptions is the paginator options for DescribeInstances
 type DescribeInstancesPaginatorOptions struct {
@@ -242,6 +274,9 @@ func (p *DescribeInstancesPaginator) NextPage(ctx context.Context, optFns ...fun
 	}
 	params.Limit = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribeInstances(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -260,6 +295,14 @@ func (p *DescribeInstancesPaginator) NextPage(ctx context.Context, optFns ...fun
 
 	return result, nil
 }
+
+// DescribeInstancesAPIClient is a client that implements the DescribeInstances
+// operation.
+type DescribeInstancesAPIClient interface {
+	DescribeInstances(context.Context, *DescribeInstancesInput, ...func(*Options)) (*DescribeInstancesOutput, error)
+}
+
+var _ DescribeInstancesAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opDescribeInstances(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

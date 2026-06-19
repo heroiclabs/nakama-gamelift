@@ -6,13 +6,23 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Lists all custom and Amazon Web Services locations.
+//	This API works with the following fleet types: EC2, Anywhere, Container
+//
+// Lists all custom and Amazon Web Services locations where Amazon GameLift
+// Servers can host game servers. This operation also returns UDP ping beacon
+// information for locations, which you can use to measure network latency between
+// player devices and potential hosting locations.
+//
+// # Learn more
+//
+// [Service locations]
+//
+// [Service locations]: https://docs.aws.amazon.com/gamelift/latest/developerguide/gamelift-regions.html
 func (c *Client) ListLocations(ctx context.Context, params *ListLocationsInput, optFns ...func(*Options)) (*ListLocationsOutput, error) {
 	if params == nil {
 		params = &ListLocationsInput{}
@@ -30,7 +40,10 @@ func (c *Client) ListLocations(ctx context.Context, params *ListLocationsInput, 
 
 type ListLocationsInput struct {
 
-	// Filters the list for AWS or CUSTOM locations.
+	// Filters the list for AWS or CUSTOM locations. Use this parameter to narrow down
+	// results to only Amazon Web Services-managed locations (Amazon EC2 or container)
+	// or only your custom locations (such as an Amazon GameLift Servers Anywhere
+	// fleet).
 	Filters []types.LocationFilter
 
 	// The maximum number of results to return. Use this parameter with NextToken to
@@ -47,7 +60,9 @@ type ListLocationsInput struct {
 
 type ListLocationsOutput struct {
 
-	// A collection of locations.
+	// A collection of locations, including both Amazon Web Services and custom
+	// locations. Each location includes a name and ping beacon information that can be
+	// used to measure network latency between player devices and the location.
 	Locations []types.LocationModel
 
 	// A token that indicates where to resume retrieving results on the next call to
@@ -65,11 +80,11 @@ func (c *Client) addOperationListLocationsMiddlewares(stack *middleware.Stack, o
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListLocations{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpListLocations{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListLocations{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpListLocations{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -83,25 +98,28 @@ func (c *Client) addOperationListLocationsMiddlewares(stack *middleware.Stack, o
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -116,10 +134,19 @@ func (c *Client) addOperationListLocationsMiddlewares(stack *middleware.Stack, o
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListLocations(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -134,15 +161,17 @@ func (c *Client) addOperationListLocationsMiddlewares(stack *middleware.Stack, o
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListLocationsAPIClient is a client that implements the ListLocations operation.
-type ListLocationsAPIClient interface {
-	ListLocations(context.Context, *ListLocationsInput, ...func(*Options)) (*ListLocationsOutput, error)
-}
-
-var _ ListLocationsAPIClient = (*Client)(nil)
 
 // ListLocationsPaginatorOptions is the paginator options for ListLocations
 type ListLocationsPaginatorOptions struct {
@@ -208,6 +237,9 @@ func (p *ListLocationsPaginator) NextPage(ctx context.Context, optFns ...func(*O
 	}
 	params.Limit = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListLocations(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -226,6 +258,13 @@ func (p *ListLocationsPaginator) NextPage(ctx context.Context, optFns ...func(*O
 
 	return result, nil
 }
+
+// ListLocationsAPIClient is a client that implements the ListLocations operation.
+type ListLocationsAPIClient interface {
+	ListLocations(context.Context, *ListLocationsInput, ...func(*Options)) (*ListLocationsOutput, error)
+}
+
+var _ ListLocationsAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opListLocations(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

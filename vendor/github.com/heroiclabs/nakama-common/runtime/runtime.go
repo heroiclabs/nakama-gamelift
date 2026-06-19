@@ -157,11 +157,15 @@ const (
 
 	// Tick rate defined for this match. Only applicable to server authoritative multiplayer.
 	RUNTIME_CTX_MATCH_TICK_RATE = "match_tick_rate"
+
+	// Trace identifier serves to distinguish requests for debugging purposes.
+	RUNTIME_CTX_TRACE_ID = "trace_id"
 )
 
 var (
-	ErrStorageRejectedVersion    = errors.New("Storage write rejected - version check failed.")
-	ErrStorageRejectedPermission = errors.New("Storage write rejected - permission denied.")
+	ErrStorageRejectedVersion       = errors.New("Storage write rejected - version check failed.")
+	ErrStorageRejectedPermission    = errors.New("Storage write rejected - permission denied.")
+	ErrStorageWriteExhaustedRetries = errors.New("Storage write retries exhausted.")
 
 	ErrChannelIDInvalid     = errors.New("invalid channel id")
 	ErrChannelCursorInvalid = errors.New("invalid channel cursor")
@@ -200,6 +204,7 @@ var (
 	ErrPartyAcceptRequest            = errors.New("party could not accept request")
 	ErrPartyRemove                   = errors.New("party could not remove")
 	ErrPartyRemoveSelf               = errors.New("party cannot remove self")
+	ErrPartyLabelTooLong             = errors.New("party label too long")
 
 	ErrGracePeriodExpired = errors.New("grace period expired")
 
@@ -352,6 +357,9 @@ type Initializer interface {
 	// RegisterMatchmakerOverride
 	RegisterMatchmakerOverride(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, candidateMatches [][]MatchmakerEntry) (matches [][]MatchmakerEntry)) error
 
+	// RegisterMatchmakerProcessor
+	RegisterMatchmakerProcessor(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, entries []MatchmakerEntry) (matches [][]MatchmakerEntry)) error
+
 	// RegisterMatch
 	RegisterMatch(name string, fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule) (Match, error)) error
 
@@ -365,16 +373,16 @@ type Initializer interface {
 	RegisterLeaderboardReset(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, leaderboard *api.Leaderboard, reset int64) error) error
 
 	// RegisterPurchaseNotificationApple
-	RegisterPurchaseNotificationApple(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, purchase *api.ValidatedPurchase, providerPayload string) error) error
+	RegisterPurchaseNotificationApple(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, notificationType NotificationType, purchase *api.ValidatedPurchase, payload *AppleNotificationData) error) error
 
 	// RegisterSubscriptionNotificationApple
-	RegisterSubscriptionNotificationApple(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, subscription *api.ValidatedSubscription, providerPayload string) error) error
+	RegisterSubscriptionNotificationApple(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, notificationType NotificationType, subscription *api.ValidatedSubscription, payload *AppleNotificationData) error) error
 
 	// RegisterPurchaseNotificationGoogle
-	RegisterPurchaseNotificationGoogle(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, purchase *api.ValidatedPurchase, providerPayload string) error) error
+	RegisterPurchaseNotificationGoogle(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, notificationType NotificationType, purchase *api.ValidatedPurchase, providerPayload *PurchaseV2GoogleResponse) error) error
 
 	// RegisterSubscriptionNotificationGoogle
-	RegisterSubscriptionNotificationGoogle(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, subscription *api.ValidatedSubscription, providerPayload string) error) error
+	RegisterSubscriptionNotificationGoogle(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, notificationType NotificationType, subscription *api.ValidatedSubscription, providerPayload *SubscriptionV2GoogleResponse) error) error
 
 	// RegisterBeforeGetAccount is used to register a function invoked when the server receives the relevant request.
 	RegisterBeforeGetAccount(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule) error) error
@@ -858,6 +866,12 @@ type Initializer interface {
 	// RegisterAfterGetUsers can be used to perform additional logic after retrieving users.
 	RegisterAfterGetUsers(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, out *api.Users, in *api.GetUsersRequest) error) error
 
+	// RegisterBeforeListParties can be used to perform additional logic before retrieving parties.
+	RegisterBeforeListParties(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, in *api.ListPartiesRequest) (*api.ListPartiesRequest, error)) error
+
+	// RegisterAfterListParties can be used to perform additiona logic after retrieving parties.
+	RegisterAfterListParties(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, out *api.PartyList, in *api.ListPartiesRequest) error) error
+
 	// RegisterEvent can be used to define a function handler that triggers when custom events are received or generated.
 	RegisterEvent(fn func(ctx context.Context, logger Logger, evt *api.Event)) error
 
@@ -882,6 +896,9 @@ type Initializer interface {
 
 	// RegisterHttp attaches a new HTTP handler to a specified path on the main client API server endpoint.
 	RegisterHttp(pathPattern string, handler func(http.ResponseWriter, *http.Request), methods ...string) error
+
+	// RegisterConsoleHttp attaches a new HTTP handler to a specified path on the main console API server endpoint.
+	RegisterConsoleHttp(pathPattern string, handler func(http.ResponseWriter, *http.Request), methods ...string) error
 }
 
 type PresenceReason uint8
@@ -914,6 +931,7 @@ type MatchmakerEntry interface {
 	GetTicket() string
 	GetProperties() map[string]interface{}
 	GetPartyId() string
+	GetCreateTime() int64
 }
 
 type MatchData interface {
@@ -1061,11 +1079,12 @@ type NakamaModule interface {
 	AuthenticateTokenGenerate(userID, username string, exp int64, vars map[string]string) (string, int64, error)
 
 	AccountGetId(ctx context.Context, userID string) (*api.Account, error)
-	AccountsGetId(ctx context.Context, userIDs []string) ([]*api.Account, error)
+	AccountsGetId(ctx context.Context, userIDs, deviceIDs []string) ([]*api.Account, error)
 	AccountUpdateId(ctx context.Context, userID, username string, metadata map[string]interface{}, displayName, timezone, location, langTag, avatarUrl string) error
 
 	AccountDeleteId(ctx context.Context, userID string, recorded bool) error
 	AccountExportId(ctx context.Context, userID string) (string, error)
+	AccountImportId(ctx context.Context, data, userID string) (*api.Account, error)
 
 	UsersGetId(ctx context.Context, userIDs []string, facebookIDs []string) ([]*api.User, error)
 	UsersGetUsername(ctx context.Context, usernames []string) ([]*api.User, error)
@@ -1134,6 +1153,7 @@ type NakamaModule interface {
 	StorageList(ctx context.Context, callerID, userID, collection string, limit int, cursor string) ([]*api.StorageObject, string, error)
 	StorageRead(ctx context.Context, reads []*StorageRead) ([]*api.StorageObject, error)
 	StorageWrite(ctx context.Context, writes []*StorageWrite) ([]*api.StorageObjectAck, error)
+	StorageWriteRetry(ctx context.Context, reads []*StorageRead, updateFn func(objects []*api.StorageObject) ([]*StorageWrite, error), maxRetries int) ([]*api.StorageObjectAck, error)
 	StorageDelete(ctx context.Context, deletes []*StorageDelete) error
 	StorageIndexList(ctx context.Context, callerID, indexName, query string, limit int, order []string, cursor string) (*api.StorageObjects, string, error)
 
@@ -1214,6 +1234,8 @@ type NakamaModule interface {
 	ChannelMessageUpdate(ctx context.Context, channelID, messageID string, content map[string]interface{}, senderId, senderUsername string, persist bool) (*rtapi.ChannelMessageAck, error)
 	ChannelMessageRemove(ctx context.Context, channelId, messageId string, senderId, senderUsername string, persist bool) (*rtapi.ChannelMessageAck, error)
 	ChannelMessagesList(ctx context.Context, channelId string, limit int, forward bool, cursor string) (messages []*api.ChannelMessage, nextCursor string, prevCursor string, err error)
+
+	PartyList(ctx context.Context, limit int, open *bool, showHidden bool, query, cursor string) ([]*api.Party, string, error)
 
 	StatusFollow(sessionID string, userIDs []string) error
 	StatusUnfollow(sessionID string, userIDs []string) error
@@ -1312,7 +1334,7 @@ type FleetManager interface {
 	// If a list of userIds is optionally provided, the new instance (on successful creation) will reserve slots
 	// for the respective clients to connect, and the callback will contain the required []*SessionInfo.
 	// Latencies is optional and its support depends on the Fleet Manager provider.
-	Create(ctx context.Context, maxPlayers int, userIds []string, latencies []FleetUserLatencies, metadata map[string]any, callback FmCreateCallbackFn) (err error)
+	Create(ctx context.Context, maxPlayers int, userIds []string, latencies []FleetUserLatencies, metadata map[string]any, callback FmCreateCallbackFn) (map[string]string, error)
 
 	// Join reserves a number of player slots in the target instance. These slots are reserved for a minute, after which,
 	// if clients do not connect to the instance to claim them, the returned SessionInfo will become invalid and the
@@ -1334,15 +1356,83 @@ Satori runtime integration definitions.
 */
 type Satori interface {
 	Authenticate(ctx context.Context, id string, defaultProperties, customProperties map[string]string, noSession bool, ipAddress ...string) (*Properties, error)
+	IdentityDelete(ctx context.Context, id string) error
 	PropertiesGet(ctx context.Context, id string) (*Properties, error)
 	PropertiesUpdate(ctx context.Context, id string, properties *PropertiesUpdate) error
 	EventsPublish(ctx context.Context, id string, events []*Event, ipAddress ...string) error
-	ExperimentsList(ctx context.Context, id string, names ...string) (*ExperimentList, error)
-	FlagsList(ctx context.Context, id string, names ...string) (*FlagList, error)
-	LiveEventsList(ctx context.Context, id string, names ...string) (*LiveEventList, error)
-	MessagesList(ctx context.Context, id string, limit int, forward bool, cursor string) (*MessageList, error)
+	ServerEventsPublish(ctx context.Context, events []*Event, ipAddress ...string) error
+	ExperimentsList(ctx context.Context, id string, names, labels []string) (*ExperimentList, error)
+	FlagsList(ctx context.Context, id string, names, labels []string) (*FlagList, error)
+	FlagsOverridesList(ctx context.Context, id string, names, labels []string) (*FlagOverridesList, error)
+	LiveEventsList(ctx context.Context, id string, names, labels []string, pastRunCount, futureRunCount int32, startTimeSec, endTimeSec int64) (*LiveEventList, error)
+	LiveEventJoin(ctx context.Context, id, liveEventId string) error
+	MessagesList(ctx context.Context, id string, limit int, forward bool, cursor string, messageIDs []string) (*MessageList, error)
 	MessageUpdate(ctx context.Context, id, messageId string, readTime, consumeTime int64) error
 	MessageDelete(ctx context.Context, id, messageId string) error
+	ConsoleDirectMessageSend(ctx context.Context, templateId string, recipientIDs []string, integrations []SatoriMessageIntegration, persist bool, channels map[SatoriMessageIntegration]*SatoriMessageIntegrationChannels, templateOverride *SatoriMessageTemplateOverride) (*SatoriMessageSendResults, error)
+}
+
+type SatoriMessageIntegration int
+
+const (
+	SatoriMessageIntegrationUnknown SatoriMessageIntegration = 0
+	// The variant for Google's Firebase Cloud Messaging.
+	SatoriMessageIntegrationFCM SatoriMessageIntegration = 1
+	// The variant for Apple's Message system.
+	SatoriMessageIntegrationAPNS SatoriMessageIntegration = 2
+	// The variant for Facebook App-to-User Notifications.
+	SatoriMessageIntegrationFacebookNotification SatoriMessageIntegration = 3
+	// The variant for OneSignal Notifications.
+	SatoriMessageIntegrationOneSignalNotification SatoriMessageIntegration = 4
+	// The variant for Webhook Notifications.
+	SatoriMessageIntegrationWebhookNotification SatoriMessageIntegration = 5
+)
+
+type SatoriMessageIntegrationChannel int
+
+const (
+	SatoriMessageIntegrationChannelDefault SatoriMessageIntegrationChannel = 0
+	// Push notification.
+	SatoriMessageIntegrationChannelPush SatoriMessageIntegrationChannel = 1
+	// Email.
+	SatoriMessageIntegrationChannelEmail SatoriMessageIntegrationChannel = 2
+)
+
+type SatoriMessageIntegrationChannels struct {
+	Channels []SatoriMessageIntegrationChannel `json:"channels,omitempty"`
+}
+
+type SatoriMessageTemplateOverride struct {
+	// Message title.
+	Title string `json:"title,omitempty"`
+	// Message template contents.
+	Value string `json:"value,omitempty"`
+	// Image URL.
+	ImageURL string `json:"image_url,omitempty"`
+	// JSON-encoded metadata.
+	JsonMetadata string `json:"json_metadata,omitempty"`
+	// Optional language-specific override template values.
+	Variants map[string]*SatoriMessageTemplateOverride `json:"variants,omitempty"`
+}
+
+type SatoriMessageSendResults struct {
+	DeliveryResults []*SatoriMessageSendResult `json:"delivery_results,omitempty"`
+}
+
+type SatoriMessageSendResult struct {
+	RecipientID        string                                `json:"recipient_id,omitempty"`
+	IntegrationResults []*SatoriMessageSendIntegrationResult `json:"integration_results,omitempty"`
+}
+
+type SatoriMessageSendIntegrationResult struct {
+	IntegrationType SatoriMessageIntegration        `json:"integration_type,omitempty"`
+	Success         bool                            `json:"success,omitempty"`
+	ErrorMessage    string                          `json:"error_message,omitempty"`
+	ChannelType     SatoriMessageIntegrationChannel `json:"channel_type,omitempty"`
+}
+
+type SatoriLabeled interface {
+	GetLabels() []string
 }
 
 type Properties struct {
@@ -1362,11 +1452,15 @@ type Events struct {
 }
 
 type Event struct {
-	Name      string            `json:"name,omitempty"`
-	Id        string            `json:"id,omitempty"`
-	Metadata  map[string]string `json:"metadata,omitempty"`
-	Value     string            `json:"value,omitempty"`
-	Timestamp int64             `json:"-"`
+	Name             string            `json:"name,omitempty"`
+	Id               string            `json:"id,omitempty"`
+	Metadata         map[string]string `json:"metadata,omitempty"`
+	Value            string            `json:"value,omitempty"`
+	IdentityId       string            `json:"identity_id,omitempty"`
+	SessionId        string            `json:"session_id,omitempty"`
+	SessionIssuedAt  int64             `json:"session_issued_at,omitempty"`
+	SessionExpiresAt int64             `json:"session_expires_at,omitempty"`
+	Timestamp        int64             `json:"-"`
 }
 
 type ExperimentList struct {
@@ -1374,35 +1468,157 @@ type ExperimentList struct {
 }
 
 type Experiment struct {
-	Name  string `json:"name,omitempty"`
-	Value string `json:"value,omitempty"`
+	Name      string   `json:"name,omitempty"`
+	Value     string   `json:"value,omitempty"`
+	Labels    []string `json:"labels,omitempty"`
+	FlagNames []string `json:"flag_names,omitempty"`
+}
+
+func (e *Experiment) GetLabels() []string {
+	return e.Labels
 }
 
 type FlagList struct {
 	Flags []*Flag `json:"flags,omitempty"`
 }
 
-type Flag struct {
-	Name             string `json:"name,omitempty"`
-	Value            string `json:"value,omitempty"`
-	ConditionChanged bool   `json:"condition_changed,omitempty"`
+type FlagOverridesList struct {
+	Flags []*FlagOverrides `json:"flags,omitempty"`
 }
 
-type LiveEventList struct {
-	LiveEvents []*LiveEvent `json:"live_events,omitempty"`
+type FlagOverrides struct {
+	FlagName string   `json:"flag_name,omitempty"`
+	Labels   []string `json:"labels,omitempty"`
+	// The list of configuration that affect the value of the flag.
+	Overrides []*FlagOverride `json:"overrides,omitempty"`
+}
+
+func (fo *FlagOverrides) GetLabels() []string {
+	return fo.Labels
+}
+
+type FlagOverride struct {
+	Type          OverrideType `json:"type,omitempty"`
+	Name          string       `json:"name,omitempty"`
+	VariantName   string       `json:"variant_name,omitempty"`
+	Value         string       `json:"value,omitempty"`
+	CreateTimeSec int64        `json:"create_time_sec,string,omitempty"`
+}
+
+type OverrideType int
+
+const (
+	FlagOverrideTypeFlag                       OverrideType = 0
+	FlagOverrideTypeFlagVariant                OverrideType = 1
+	FlagOverrideTypeLiveEventFlag              OverrideType = 2
+	FlagOverrideTypeLiveEventFlagVariant       OverrideType = 3
+	FlagOverrideTypeExperimentPhaseVariantFlag OverrideType = 4
+)
+
+func (ot OverrideType) String() string {
+	switch ot {
+	case FlagOverrideTypeFlag:
+		return "FLAG"
+	case FlagOverrideTypeFlagVariant:
+		return "FLAG_VARIANT"
+	case FlagOverrideTypeLiveEventFlag:
+		return "LIVE_EVENT_FLAG"
+	case FlagOverrideTypeLiveEventFlagVariant:
+		return "LIVE_EVENT_FLAG_VARIANT"
+	case FlagOverrideTypeExperimentPhaseVariantFlag:
+		return "EXPERIMENT_PHASE_VARIANT_FLAG"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+type Flag struct {
+	Name              string   `json:"name,omitempty"`
+	Value             string   `json:"value,omitempty"`
+	Labels            []string `json:"labels,omitempty"`
+	ConditionChanged  bool     `json:"condition_changed,omitempty"`
+	ValueChangeReason *struct {
+		Type        FlagType `json:"type,omitempty"`
+		Name        string   `json:"name,omitempty"`
+		VariantName string   `json:"variant_name,omitempty"`
+	} `json:"change_reason,omitempty"`
+}
+
+func (f *Flag) GetLabels() []string {
+	return f.Labels
+}
+
+type FlagType int
+
+const (
+	FlagTypeUnknown       FlagType = 0
+	FlagTypeFlagVariant   FlagType = 1
+	FlagTypeLiveEventFlag FlagType = 2
+	FlagTypeExperiment    FlagType = 3
+)
+
+func (ft FlagType) String() string {
+	switch ft {
+	case FlagTypeUnknown:
+		return "UNKNOWN"
+	case FlagTypeFlagVariant:
+		return "FLAG_VARIANT"
+	case FlagTypeLiveEventFlag:
+		return "LIVE_EVENT"
+	case FlagTypeExperiment:
+		return "EXPERIMENT"
+	default:
+		return "UNKNOWN"
+	}
 }
 
 type LiveEvent struct {
-	Name               string `json:"name,omitempty"`
-	Description        string `json:"description,omitempty"`
-	Value              string `json:"value,omitempty"`
-	ActiveStartTimeSec int64  `json:"active_start_time_sec,string,omitempty"`
-	ActiveEndTimeSec   int64  `json:"active_end_time_sec,string,omitempty"`
-	Id                 string `json:"id,omitempty"`
-	StartTimeSec       int64  `json:"start_time_sec,string,omitempty"`
-	EndTimeSec         int64  `json:"end_time_sec,string,omitempty"`
-	DurationSec        int64  `json:"duration_sec,string,omitempty"`
-	ResetCronExpr      string `json:"reset_cron,omitempty"`
+	Name               string          `json:"name,omitempty"`
+	Description        string          `json:"description,omitempty"`
+	Value              string          `json:"value,omitempty"`
+	Labels             []string        `json:"labels,omitempty"`
+	ActiveStartTimeSec int64           `json:"active_start_time_sec,string,omitempty"`
+	ActiveEndTimeSec   int64           `json:"active_end_time_sec,string,omitempty"`
+	Id                 string          `json:"id,omitempty"`
+	StartTimeSec       int64           `json:"start_time_sec,string,omitempty"`
+	EndTimeSec         int64           `json:"end_time_sec,string,omitempty"`
+	DurationSec        int64           `json:"duration_sec,string,omitempty"`
+	ResetCronExpr      string          `json:"reset_cron,omitempty"`
+	Status             LiveEventStatus `json:"status,omitempty"`
+	FlagNames          []string        `json:"flag_names,omitempty"`
+}
+
+type LiveEventList struct {
+	LiveEvents             []*LiveEvent `json:"live_events,omitempty"`
+	ExplicitJoinLiveEvents []*LiveEvent `json:"explicit_join_live_events"`
+}
+
+type LiveEventStatus int
+
+const (
+	LiveEventUnknown    LiveEventStatus = 0
+	LiveEventActive     LiveEventStatus = 1
+	LiveEventUpcoming   LiveEventStatus = 2
+	LiveEventTerminated LiveEventStatus = 3
+)
+
+func (ls LiveEventStatus) String() string {
+	switch ls {
+	case LiveEventUnknown:
+		return "UNKNOWN"
+	case LiveEventActive:
+		return "ACTIVE"
+	case LiveEventUpcoming:
+		return "UPCOMING"
+	case LiveEventTerminated:
+		return "TERMINATED"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+func (le *LiveEvent) GetLabels() []string {
+	return le.Labels
 }
 
 type MessageList struct {
@@ -1429,4 +1645,484 @@ type Message struct {
 type MessageUpdate struct {
 	ReadTime    int64 `json:"read_time,omitempty"`
 	ConsumeTime int64 `json:"consume_time,omitempty"`
+}
+
+/*
+IAP Notifications.
+*/
+type AppleNotificationData struct {
+	AppAppleId               int                               `json:"appAppleId"`               // The unique identifier of the app that the notification applies to. This property is available for apps that users download from the App Store. It isn’t present in the sandbox environment.
+	BundleId                 string                            `json:"bundleId"`                 // The bundle identifier of the app.
+	BundleVersion            string                            `json:"bundleVersion"`            // The version of the build that identifies an iteration of the bundle.
+	ConsumptionRequestReason string                            `json:"consumptionRequestReason"` // The reason the customer requested the refund. This field appears only for CONSUMPTION_REQUEST notifications, which the server sends when a customer initiates a refund request for a consumable in-app purchase or auto-renewable subscription.
+	Environment              string                            `json:"string"`                   // The server environment that the notification applies to, either sandbox or production.
+	SignedRenewalInfo        string                            `json:"signedRenewalInfo"`        // Subscription renewal information signed by the App Store, in JSON Web Signature (JWS) format. This field appears only for notifications that apply to auto-renewable subscriptions.
+	SignedTransactionInfo    string                            `json:"signedTransactionInfo"`    // Transaction information signed by the App Store, in JSON Web Signature (JWS) format.
+	Status                   AppleSubscriptionStatus           `json:"status"`                   // The status of an auto-renewable subscription as of the signedDate in the responseBodyV2DecodedPayload. This field appears only for notifications sent for auto-renewable subscriptions. https://developer.apple.com/documentation/appstoreservernotifications/status
+	RenewalInfo              *AppleNotificationRenewalInfo     `json:"renewalInfo"`
+	TransactionInfo          *AppleNotificationTransactionInfo `json:"transactionInfo"`
+}
+
+type AppleSubscriptionStatus int32
+
+const (
+	AppleSubActive             AppleSubscriptionStatus = 1 // The auto-renewable subscription is active.
+	AppleSubExpired            AppleSubscriptionStatus = 2 // The auto-renewable subscription is expired.
+	AppleSubBillingRetryPeriod AppleSubscriptionStatus = 3 // The auto-renewable subscription is in a billing retry period.
+	AppleSubBillingGracePeriod AppleSubscriptionStatus = 4 // The auto-renewable subscription is in a Billing Grace Period.
+	AppleSubRevoked            AppleSubscriptionStatus = 5 // The auto-renewable subscription is revoked.
+)
+
+func (s AppleSubscriptionStatus) String() string {
+	switch s {
+	case AppleSubActive:
+		return "ACTIVE"
+	case AppleSubExpired:
+		return "EXPIRED"
+	case AppleSubBillingRetryPeriod:
+		return "BILLING_RETRY_PERIOD"
+	case AppleSubBillingGracePeriod:
+		return "BILLING_GRACE_PERIOD"
+	case AppleSubRevoked:
+		return "REVOKED"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// Reference: https://developer.apple.com/documentation/appstoreserverapi/jwstransactiondecodedpayload
+type AppleNotificationTransactionInfo struct {
+	AppAccountToken             string                `json:"appAccountToken"`             // A UUID you create at the time of purchase that associates the transaction with a customer on your own service. If your app doesn’t provide an appAccountToken, this field is omitted.
+	AppTransactionId            string                `json:"appTransactionId"`            // The unique identifier of the app download transaction.
+	BundleId                    string                `json:"bundleId"`                    // The bundle identifier of the app.
+	Currency                    string                `json:"currency"`                    // The three-letter ISO 4217 currency code associated with the price parameter. This value is present only if price is present.
+	Environment                 string                `json:"environment"`                 // The server environment, either sandbox or production.
+	ExpiresDate                 int64                 `json:"expiresDate"`                 // The UNIX time, in milliseconds, that the subscription expires or renews.
+	InAppOwnershipType          string                `json:"inAppOwnershipType"`          // A string that describes whether the transaction was purchased by the customer, or is available to them through Family Sharing. Possible Values: FAMILY_SHARED | PURCHASED.
+	IsUpgraded                  bool                  `json:"isUpgraded"`                  // A Boolean value that indicates whether the customer upgraded to another subscription.
+	OfferDiscountType           string                `json:"offerDiscountType"`           // The payment mode you configure for the subscription offer, such as Free Trial, Pay As You Go, or Pay Up Front.
+	OfferIdentifier             string                `json:"offerIdentifier"`             // The identifier that contains the offer code or the promotional offer identifier.
+	OfferPeriod                 string                `json:"offerPeriod"`                 // The duration of the offer applied to the transaction.
+	OfferType                   AppleOfferType        `json:"offerType"`                   // A value that represents the promotional offer type.
+	OriginalPurchaseDate        int64                 `json:"originalPurchaseDate"`        // The UNIX time, in milliseconds, that represents the purchase date of the original transaction identifier.
+	OriginalTransactionId       string                `json:"originalTransactionId"`       // The transaction identifier of the original purchase.
+	Price                       int64                 `json:"price"`                       // An integer value that represents the price multiplied by 1000 of the in-app purchase or subscription offer you configured in App Store Connect and that the system records at the time of the purchase.
+	ProductId                   string                `json:"productId"`                   // The unique identifier of the product.
+	PurchaseDate                int64                 `json:"purchaseDate"`                // The UNIX time, in milliseconds, that the App Store charged the customer’s account for a purchase, restored product, subscription, or subscription renewal after a lapse.
+	Quantity                    int32                 `json:"quantity"`                    // The number of consumable products the customer purchased.
+	RevocationDate              int64                 `json:"revocationDate"`              // The UNIX time, in milliseconds, that the App Store refunded the transaction or revoked it from Family Sharing.
+	RevocationReason            AppleRevocationReason `json:"revocationReason"`            // The reason for a refunded transaction.
+	SignedDate                  int64                 `json:"signedDate"`                  // The UNIX time, in milliseconds, that the App Store signed the JSON Web Signature (JWS) data.
+	Storefront                  string                `json:"storefront"`                  // The three-letter code that represents the country or region associated with the App Store storefront for the purchase.
+	StorefrontId                string                `json:"storefrontId"`                //  An Apple-defined value that uniquely identifies the App Store storefront associated with the purchase.
+	SubscriptionGroupIdentifier string                `json:"subscriptionGroupIdentifier"` // The identifier of the subscription group to which the subscription belongs.
+	TransactionId               string                `json:"transactionId"`               // The unique identifier of the transaction.
+	TransactionReason           string                `json:"transactionReason"`           // The cause of a purchase transaction, which indicates whether it’s a customer’s purchase or a renewal for an auto-renewable subscription that the system initiates. Values: PURCHASE | RENEWAL.
+	Type                        string                `json:"type"`                        // The type of the in-app purchase. Values: Auto-Renewable Subscription | Non-Consumable | Consumable | Non-Renewing Subscription.
+	WebOrderLineItemId          string                `json:"webOrderLineItemId"`          // The unique identifier of subscription-purchase events across devices, including renewals.
+}
+
+// Reference: https://developer.apple.com/documentation/appstoreserverapi/jwsrenewalinfodecodedpayload
+type AppleNotificationRenewalInfo struct {
+	AppAccountToken             string                   `json:"appAccountToken"`             // A UUID you create at the time of purchase that associates the transaction with a customer on your own service. If your app doesn’t provide an appAccountToken, this field is omitted.
+	AppTransactionId            string                   `json:"appTransactionId"`            // The unique identifier of the app download transaction.
+	AutoRenewProductId          string                   `json:"autoRenewProductId"`          // The identifier of the product that renews at the next billing period.
+	AutoRenewStatus             AppleAutoRenewStatus     `json:"autoRenewStatus"`             // A value that indicates whether the subscription renews at the end of the current billing period. Possible Values: 1 (true) | 0 (false).
+	EligibleWinBackOfferIds     []string                 `json:"eligibleWinBackOfferIds"`     // The list of win-back offer IDs that the customer is eligible for.
+	Environment                 string                   `json:"environment"`                 // The server environment, either sandbox or production.
+	ExpirationIntent            AppleExpirationIntent    `json:"expirationIntent"`            // The reason the subscription expired.
+	GracePeriodExpiresDate      int64                    `json:"gracePeriodExpiresDate"`      // The time when the Billing Grace Period for subscription renewals expires.
+	IsInBillingRetryPeriod      bool                     `json:"isInBillingRetryPeriod"`      // A Boolean value that indicates whether the App Store is attempting to automatically renew the expired subscription.
+	OfferDiscountType           string                   `json:"offerDiscountType"`           // The payment mode for subscription offers on an auto-renewable subscription. Possible values: FREE_TRIAL | PAY_AS_YOU_GO | PAY_UP_FRONT.
+	OfferIdentifier             string                   `json:"offerIdentifier"`             // The identifier that contains the offer code or the promotional offer identifier.
+	OfferType                   AppleOfferType           `json:"offerType"`                   // A value that represents the promotional offer type.
+	OriginalTransactionId       string                   `json:"originalTransactionId"`       // The transaction identifier of the original purchase.
+	PriceIncreaseStatus         ApplePriceIncreaseStatus `json:"priceIncreaseStatus"`         // A value that indicates whether the customer has agreed to a recent price increase. Possible Values: 1 (true) | 0 (false).
+	ProductId                   string                   `json:"productId"`                   // The unique identifier of the product.
+	RecentSubscriptionStartDate int64                    `json:"recentSubscriptionStartDate"` // The UNIX time, in milliseconds, that the current subscription period for the customer’s most recent subscription purchase or renewal began.
+	RenewalDate                 int64                    `json:"renewalDate"`                 // The UNIX time, in milliseconds, that the subscription will renew or has renewed.
+	RenewalPrice                int64                    `json:"renewalPrice"`                // The renewal price, in milliunits, of the auto-renewable subscription that renews at the next billing period.
+	SignedDate                  int64                    `json:"signedDate"`                  // The UNIX time, in milliseconds, that the App Store signed the JSON Web Signature (JWS) data.
+	SubscriptionGroupId         string                   `json:"subscriptionGroupId"`         // The identifier of the subscription group to which the subscription belongs.
+}
+
+type ApplePriceIncreaseStatus int32
+
+const (
+	ApplePriceIncreaseStatusNotAgreed ApplePriceIncreaseStatus = 0 // The customer has not yet agreed to the price increase.
+	ApplePriceIncreaseStatusAgreed    ApplePriceIncreaseStatus = 1 // The customer has agreed to the price increase.
+)
+
+func (s ApplePriceIncreaseStatus) String() string {
+	switch s {
+	case ApplePriceIncreaseStatusNotAgreed:
+		return "NOT_AGREED"
+	case ApplePriceIncreaseStatusAgreed:
+		return "AGREED"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+type AppleExpirationIntent int32
+
+const (
+	AppleSubscriptionCancelled          AppleExpirationIntent = 1
+	AppleSubscriptionBillingError       AppleExpirationIntent = 2
+	AppleSubscriptionPriceIncrease      AppleExpirationIntent = 3
+	AppleSubscriptionProductUnavailable AppleExpirationIntent = 4
+	AppleSubscriptionUnknownError       AppleExpirationIntent = 5
+)
+
+func (s AppleExpirationIntent) String() string {
+	switch s {
+	case AppleSubscriptionCancelled:
+		return "CANCELLED"
+	case AppleSubscriptionBillingError:
+		return "BILLING_ERROR"
+	case AppleSubscriptionPriceIncrease:
+		return "PRICE_INCREASE"
+	case AppleSubscriptionProductUnavailable:
+		return "PRODUCT_UNAVAILABLE"
+	case AppleSubscriptionUnknownError:
+		return "UNKNOWN_ERROR"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+type AppleAutoRenewStatus int32
+
+const (
+	AppleAutoRenewStatusOff AppleAutoRenewStatus = 0 // The customer has turned off auto-renewal for their subscription.
+	AppleAutoRenewStatusOn  AppleAutoRenewStatus = 1 // The customer has turned on auto-renewal for their subscription.
+)
+
+func (s AppleAutoRenewStatus) String() string {
+	switch s {
+	case AppleAutoRenewStatusOff:
+		return "OFF"
+	case AppleAutoRenewStatusOn:
+		return "ON"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+type AppleOfferType int32
+
+const (
+	IntroductoryOffer     AppleOfferType = 1
+	PromotionalOffer      AppleOfferType = 2
+	SubscriptionOfferCode AppleOfferType = 3
+	WinBackOffer          AppleOfferType = 4
+)
+
+func (s AppleOfferType) String() string {
+	switch s {
+	case IntroductoryOffer:
+		return "INTRODUCTORY_OFFER"
+	case PromotionalOffer:
+		return "PROMOTIONAL_OFFER"
+	case SubscriptionOfferCode:
+		return "SubscriptionOfferCode"
+	case WinBackOffer:
+		return "WIN_BACK"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// Apple Notification types
+const (
+	AppleNotifConsumptionRequest   = "CONSUMPTION_REQUEST"
+	AppleNotifDidChangeRenewalPref = "DID_CHANGE_RENEWAL_PREF"
+)
+
+type AppleRevocationReason int32
+
+const (
+	OtherReasons      AppleRevocationReason = 0 // The App Store refunded the transaction on behalf of the customer for other reasons, for example, an accidental purchase.
+	AppPerceivedIssue AppleRevocationReason = 1 // The App Store refunded the transaction on behalf of the customer due to an actual or perceived issue within your app.
+)
+
+type NotificationType int
+
+const (
+	IAPNotificationSubscribed NotificationType = 1
+	IAPNotificationRenewed    NotificationType = 2
+	IAPNotificationExpired    NotificationType = 3
+	IAPNotificationCancelled  NotificationType = 4
+	IAPNotificationRefunded   NotificationType = 5
+)
+
+func (nt NotificationType) String() string {
+	switch nt {
+	case IAPNotificationSubscribed:
+		return "SUBSCRIBED"
+	case IAPNotificationRenewed:
+		return "RENEWED"
+	case IAPNotificationExpired:
+		return "EXPIRED"
+	case IAPNotificationCancelled:
+		return "CANCELLED"
+	case IAPNotificationRefunded:
+		return "REFUNDED"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// Reference: https://developer.android.com/google/play/billing/rtdn-reference
+type GoogleDeveloperNotificationData struct {
+	Version                    string                            `json:"version"`
+	PackageName                string                            `json:"packageName"`
+	EventTimeMillis            string                            `json:"eventTimeMillis"`
+	OneTimeProductNotification *GoogleOneTimeProductNotification `json:"oneTimeProductNotification"`
+	SubscriptionNotification   *GoogleSubscriptionNotification   `json:"subscriptionNotification"`
+	VoidedPurchaseNotification *GoogleVoidedPurchaseNotification `json:"voidedPurchaseNotification"`
+	TestNotification           map[string]string                 `json:"testNotification"`
+}
+
+type GoogleOneTimeProductNotification struct {
+	Version          string `json:"version"`
+	NotificationType int    `json:"notificationType"`
+	PurchaseToken    string `json:"purchaseToken"`
+	Sku              string `json:"sku"`
+}
+
+type GoogleSubscriptionNotification struct {
+	Version          string                             `json:"version"`
+	NotificationType GoogleSubscriptionNotificationType `json:"notificationType"`
+	PurchaseToken    string                             `json:"purchaseToken"`
+}
+
+type GoogleSubscriptionNotificationType int
+
+const (
+	GoogleSubscriptionRecovered               GoogleSubscriptionNotificationType = 1
+	GoogleSubscriptionRenewed                 GoogleSubscriptionNotificationType = 2
+	GoogleSubscriptionCanceled                GoogleSubscriptionNotificationType = 3
+	GoogleSubscriptionPurchased               GoogleSubscriptionNotificationType = 4
+	GoogleSubscriptionOnHold                  GoogleSubscriptionNotificationType = 5
+	GoogleSubscriptionInGracePeriod           GoogleSubscriptionNotificationType = 6
+	GoogleSubscriptionRestarted               GoogleSubscriptionNotificationType = 7
+	GoogleSubscriptionPriceChangeConfirmed    GoogleSubscriptionNotificationType = 8 // Deprecated
+	GoogleSubscriptionDeferred                GoogleSubscriptionNotificationType = 9
+	GoogleSubscriptionPaused                  GoogleSubscriptionNotificationType = 10
+	GoogleSubscriptionPauseScheduleChanged    GoogleSubscriptionNotificationType = 11
+	GoogleSubscriptionRevoked                 GoogleSubscriptionNotificationType = 12
+	GoogleSubscriptionExpired                 GoogleSubscriptionNotificationType = 13
+	GoogleSubscriptionPendingPurchaseCanceled GoogleSubscriptionNotificationType = 20
+	GoogleSubscriptionPriceChangeUpdated      GoogleSubscriptionNotificationType = 19
+)
+
+func (nt GoogleSubscriptionNotificationType) String() string {
+	switch nt {
+	case GoogleSubscriptionRecovered:
+		return "SUBSCRIBED"
+	case GoogleSubscriptionRenewed:
+		return "RENEWED"
+	case GoogleSubscriptionCanceled:
+		return "CANCELED"
+	case GoogleSubscriptionPurchased:
+		return "PURCHASED"
+	case GoogleSubscriptionOnHold:
+		return "ON_HOLD"
+	case GoogleSubscriptionInGracePeriod:
+		return "IN_GRACE_PERIOD"
+	case GoogleSubscriptionRestarted:
+		return "RESTARTED"
+	case GoogleSubscriptionPriceChangeConfirmed:
+		return "PRICE_CHANGE_CONFIRMED"
+	case GoogleSubscriptionDeferred:
+		return "DEFERRED"
+	case GoogleSubscriptionPaused:
+		return "PAUSED"
+	case GoogleSubscriptionPauseScheduleChanged:
+		return "PAUSE_SCHEDULE_CHANGED"
+	case GoogleSubscriptionRevoked:
+		return "REVOKED"
+	case GoogleSubscriptionExpired:
+		return "EXPIRED"
+	case GoogleSubscriptionPendingPurchaseCanceled:
+		return "PENDING_PURCHASE_CANCELED"
+	case GoogleSubscriptionPriceChangeUpdated:
+		return "PRICE_CHANGE_UPDATED"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+type GoogleVoidedPurchaseNotification struct {
+	PurchaseToken string            `json:"purchaseToken"`
+	OrderId       string            `json:"orderId"`
+	ProductType   GoogleProductType `json:"productType"`
+	RefundType    GoogleRefundType  `json:"refundType"`
+}
+
+type GoogleProductType int
+
+const (
+	GoogleProductTypeSubscription GoogleProductType = 1
+	GoogleProductTypeOneTime      GoogleProductType = 2
+)
+
+type GoogleRefundType int
+
+const (
+	GoogleRefundTypeFullRefund                 GoogleProductType = 1
+	GoogleRefundTypeQuantityBasedPartialRefund GoogleProductType = 2
+)
+
+type SubscriptionV2GoogleResponse struct {
+	Kind       string `json:"kind"`
+	RegionCode string `json:"regionCode"`
+	LineItems  []struct {
+		ProductId               string    `json:"productId"`
+		ExpiryTime              time.Time `json:"expiryTime"`
+		LatestSuccessfulOrderId string    `json:"latestSuccessfulOrderId"`
+		AutoRenewingPlan        struct {
+			AutoRenewEnabled bool `json:"autoRenewEnabled"`
+			RecurringPrice   struct {
+				Units        string `json:"units"`
+				Nanos        int64  `json:"nanos"`
+				CurrencyCode string `json:"currencyCode"`
+			} `json:"recurringPrice"`
+			PriceChangeDetails struct {
+				NewPrice struct {
+					Units        string `json:"units"`
+					Nanos        int64  `json:"nanos"`
+					CurrencyCode string `json:"currencyCode"`
+				} `json:"newPrice"`
+				PriceChangeMode            int       `json:"priceChangeMode"`
+				PriceChangeState           int       `json:"priceChangeState"`
+				ExpectedNewPriceChargeTime time.Time `json:"expectedNewPriceChargeTime"`
+			} `json:"priceChangeDetails"`
+			InstallmentDetails struct {
+				InitialCommittedPaymentsCount    int      `json:"initialCommittedPaymentsCount"`
+				SubsequentCommittedPaymentsCount int      `json:"subsequentCommittedPaymentsCount"`
+				RemainingCommittedPaymentsCount  int      `json:"remainingCommittedPaymentsCount"`
+				PendingCancellation              struct{} `json:"pendingCancellation"`
+			} `json:"installmentDetails"`
+			PriceStepUpConsentDetails struct {
+				State               int       `json:"state"`
+				ConsentDeadlineTime time.Time `json:"consentDeadlineTime"`
+				NewPrice            struct {
+					Units        string `json:"units"`
+					Nanos        int64  `json:"nanos"`
+					CurrencyCode string `json:"currencyCode"`
+				} `json:"newPrice"`
+			} `json:"priceStepUpConsentDetails"`
+		} `json:"autoRenewingPlan"`
+		PrepaidPlan struct {
+			AllowExtendAfterTime time.Time `json:"allowExtendAfterTime"`
+		} `json:"prepaidPlan"`
+		OfferDetails struct {
+			BasePlanId string   `json:"basePlanId"`
+			OfferId    string   `json:"offerId"`
+			OfferTags  []string `json:"offerTags"`
+		} `json:"offerDetails"`
+		DeferredItemReplacement struct {
+			ProductId string `json:"productId"`
+		} `json:"DeferredItemReplacement"`
+		DeferredItemRemoval struct{} `json:"deferredItemRemoval"`
+		SignupPromotion     struct {
+			OneTimeCode struct {
+				PromotionCode string `json:"promotionCode"`
+			} `json:"oneTimeCode"`
+			VanityCode struct {
+				PromotionType string `json:"promotionType"`
+			} `json:"promotionType"`
+		} `json:"signupPromotion"`
+	} `json:"lineItems"`
+	StartTime           time.Time `json:"startTime"`
+	SubscriptionState   string    `json:"subscriptionState"`
+	LatestOrderId       string    `json:"latestOrderId"` // Deprecated: use lineItems.latestSuccessfulOrderId
+	LinkedPurchaseToken string    `json:"linkedPurchaseToken"`
+	PausedStateContext  struct {
+		AutoResumeTime time.Time `json:"autoResumeTime"`
+	} `json:"pausedStateContext"`
+	CancelStateContext struct {
+		UserInitiatedCancellation struct {
+			CancelSurveyResult struct {
+				Reason          int    `json:"reason"`
+				ReasonUserInput string `json:"reasonUserInput"`
+			} `json:"cancelSurveyResult"`
+		} `json:"userInitiatedCancellation"`
+		SystemInitiatedCancellation    struct{} `json:"systemInitiatedCancellation"`
+		DeveloperInitiatedCancellation struct{} `json:"developerInitiatedCancellation"`
+		ReplacementCancellation        struct{} `json:"replacementCancellation"`
+	} `json:"cancelStateContext"`
+	TestPurchase               *struct{} `json:"testPurchase"`
+	AcknowledgementState       string    `json:"acknowledgementState"`
+	ExternalAccountIdentifiers struct {
+		ExternalAccountId           string `json:"externalAccountId"`
+		ObfuscatedExternalAccountId string `json:"obfuscatedExternalAccountId"`
+		ObfuscatedExternalProfileId string `json:"obfuscatedExternalProfileId"`
+	} `json:"externalAccountIdentifiers"`
+	SubscribeWithGoogleInfo struct {
+		ProfileId    string `json:"profileId"`
+		ProfileName  string `json:"profileName"`
+		EmailAddress string `json:"emailAddress"`
+		GivenName    string `json:"givenName"`
+		FamilyName   string `json:"familyName"`
+	} `json:"subscribeWithGoogleInfo"`
+}
+
+func (s *SubscriptionV2GoogleResponse) GetObfuscatedExternalAccountId() string {
+	return s.ExternalAccountIdentifiers.ObfuscatedExternalAccountId
+}
+
+func (s *SubscriptionV2GoogleResponse) GetObfuscatedExternalProfileId() string {
+	return s.ExternalAccountIdentifiers.ObfuscatedExternalProfileId
+}
+
+const (
+	SubscriptionGoogleStateUnspecified             = "SUBSCRIPTION_STATE_UNSPECIFIED"
+	SubscriptionGoogleStatePending                 = "SUBSCRIPTION_STATE_PENDING"
+	SubscriptionGoogleStateActive                  = "SUBSCRIPTION_STATE_ACTIVE"
+	SubscriptionGoogleStatePaused                  = "SUBSCRIPTION_STATE_PAUSED"
+	SubscriptionGoogleStateInGracePeriod           = "SUBSCRIPTION_STATE_IN_GRACE_PERIOD"
+	SubscriptionGoogleStateOnHold                  = "SUBSCRIPTION_STATE_ON_HOLD"
+	SubscriptionGoogleStateCanceled                = "SUBSCRIPTION_STATE_CANCELED"
+	SubscriptionGoogleStateExpired                 = "SUBSCRIPTION_STATE_EXPIRED"
+	SubscriptionGoogleStatePendingPurchaseCanceled = "SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED"
+)
+
+type PurchaseV2GoogleResponse struct {
+	ProductLineItem []struct {
+		ProductId           string `json:"productId"`
+		ProductOfferDetails struct {
+			OfferTags          []string `json:"offerTags"`
+			OfferId            string   `json:"offerId"`
+			PurchaseOptionId   string   `json:"purchaseOptionId"`
+			RentOfferDetails   struct{} `json:"rentOfferDetails"`
+			OfferToken         string   `json:"offerToken"`
+			Quantity           int      `json:"quantity"`
+			RefundableQuantity int      `json:"refundableQuantity"`
+			ConsumptionState   string   `json:"consumptionState"`
+		} `json:"productOfferDetails"`
+	} `json:"productLineItem"`
+	Kind                 string `json:"kind"`
+	PurchaseStateContext struct {
+		PurchaseState string `json:"purchaseState"`
+	} `json:"purchaseStateContext"`
+	TestPurchaseContext *struct {
+		FopType string `json:"fopType"`
+	} `json:"testPurchaseContext"`
+	OrderId                     string    `json:"orderId"`
+	ObfuscatedExternalAccountId string    `json:"obfuscatedExternalAccountId"`
+	ObfuscatedExternalProfileId string    `json:"obfuscatedExternalProfileId"`
+	RegionCode                  string    `json:"regionCode"`
+	PurchaseCompletionTime      time.Time `json:"purchaseCompletionTime"`
+	AcknowledgementState        string    `json:"acknowledgementState"`
+}
+
+func (p *PurchaseV2GoogleResponse) GetObfuscatedExternalAccountId() string {
+	return p.ObfuscatedExternalAccountId
+}
+
+func (p *PurchaseV2GoogleResponse) GetObfuscatedExternalProfileId() string {
+	return p.ObfuscatedExternalProfileId
 }
