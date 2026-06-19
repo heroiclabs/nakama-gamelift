@@ -6,20 +6,27 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+//	This API works with the following fleet types: EC2, Anywhere, Container
+//
 // Retrieves information, including current status, about a game session placement
-// request. To get game session placement details, specify the placement ID. This
-// operation is not designed to be continually called to track game session status.
-// This practice can cause you to exceed your API limit, which results in errors.
-// Instead, you must configure configure an Amazon Simple Notification Service
-// (SNS) topic to receive notifications from FlexMatch or queues. Continuously
-// polling with DescribeGameSessionPlacement should only be used for games in
-// development with low game session usage.
+// request.
+//
+// To get game session placement details, specify the placement ID.
+//
+// This operation is not designed to be continually called to track game session
+// status. This practice can cause you to exceed your API limit, which results in
+// errors. Instead, you must configure an Amazon Simple Notification Service (SNS)
+// topic to receive notifications from FlexMatch or queues. Continuously polling
+// with DescribeGameSessionPlacement should only be used for games in development
+// with low game session usage. For a reference implementation of event-based game
+// session placement tracking, see [Event-based game session placement guidance]in the Amazon GameLift Toolkit.
+//
+// [Event-based game session placement guidance]: https://github.com/amazon-gamelift/amazon-gamelift-toolkit/tree/main/event-based-session-placement
 func (c *Client) DescribeGameSessionPlacement(ctx context.Context, params *DescribeGameSessionPlacementInput, optFns ...func(*Options)) (*DescribeGameSessionPlacementOutput, error) {
 	if params == nil {
 		params = &DescribeGameSessionPlacementInput{}
@@ -60,11 +67,11 @@ func (c *Client) addOperationDescribeGameSessionPlacementMiddlewares(stack *midd
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeGameSessionPlacement{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpDescribeGameSessionPlacement{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeGameSessionPlacement{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpDescribeGameSessionPlacement{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -78,25 +85,28 @@ func (c *Client) addOperationDescribeGameSessionPlacementMiddlewares(stack *midd
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -111,13 +121,22 @@ func (c *Client) addOperationDescribeGameSessionPlacementMiddlewares(stack *midd
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDescribeGameSessionPlacementValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeGameSessionPlacement(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -130,6 +149,15 @@ func (c *Client) addOperationDescribeGameSessionPlacementMiddlewares(stack *midd
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

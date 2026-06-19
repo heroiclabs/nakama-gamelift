@@ -6,33 +6,50 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Creates a new script record for your Realtime Servers script. Realtime scripts
-// are JavaScript that provide configuration settings and optional custom game
-// logic for your game. The script is deployed when you create a Realtime Servers
-// fleet to host your game sessions. Script logic is executed during an active game
-// session. To create a new script record, specify a script name and provide the
-// script file(s). The script files and all dependencies must be zipped into a
-// single file. You can pull the zip file from either of these locations:
+//	This API works with the following fleet types: EC2, Anywhere
+//
+// Creates a new script record for your Amazon GameLift Servers Realtime script.
+// Realtime scripts are JavaScript that provide configuration settings and optional
+// custom game logic for your game. The script is deployed when you create a Amazon
+// GameLift Servers Realtime fleet to host your game sessions. Script logic is
+// executed during an active game session.
+//
+// To create a new script record, specify a script name and provide the script
+// file(s). The script files and all dependencies must be zipped into a single
+// file. You can pull the zip file from either of these locations:
+//
 //   - A locally available directory. Use the ZipFile parameter for this option.
+//
 //   - An Amazon Simple Storage Service (Amazon S3) bucket under your Amazon Web
 //     Services account. Use the StorageLocation parameter for this option. You'll need
 //     to have an Identity Access Management (IAM) role that allows the Amazon GameLift
-//     service to access your S3 bucket.
+//     Servers service to access your S3 bucket.
 //
 // If the call is successful, a new script record is created with a unique script
 // ID. If the script file is provided as a local file, the file is uploaded to an
-// Amazon GameLift-owned S3 bucket and the script record's storage location
+// Amazon GameLift Servers-owned S3 bucket and the script record's storage location
 // reflects this location. If the script file is provided as an S3 bucket, Amazon
-// GameLift accesses the file at this storage location as needed for deployment.
-// Learn more Amazon GameLift Realtime Servers (https://docs.aws.amazon.com/gamelift/latest/developerguide/realtime-intro.html)
-// Set Up a Role for Amazon GameLift Access (https://docs.aws.amazon.com/gamelift/latest/developerguide/setting-up-role.html)
-// Related actions All APIs by task (https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets)
+// GameLift Servers accesses the file at this storage location as needed for
+// deployment.
+//
+// # Learn more
+//
+// [Amazon GameLift Servers Amazon GameLift Servers Realtime]
+//
+// [Set Up a Role for Amazon GameLift Servers Access]
+//
+// # Related actions
+//
+// [All APIs by task]
+//
+// [Set Up a Role for Amazon GameLift Servers Access]: https://docs.aws.amazon.com/gamelift/latest/developerguide/setting-up-role.html
+// [Amazon GameLift Servers Amazon GameLift Servers Realtime]: https://docs.aws.amazon.com/gamelift/latest/developerguide/realtime-intro.html
+// [All APIs by task]: https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets
 func (c *Client) CreateScript(ctx context.Context, params *CreateScriptInput, optFns ...func(*Options)) (*CreateScriptOutput, error) {
 	if params == nil {
 		params = &CreateScriptInput{}
@@ -50,40 +67,56 @@ func (c *Client) CreateScript(ctx context.Context, params *CreateScriptInput, op
 
 type CreateScriptInput struct {
 
-	// A descriptive label that is associated with a script. Script names don't need
-	// to be unique. You can use UpdateScript (https://docs.aws.amazon.com/gamelift/latest/apireference/API_UpdateScript.html)
-	// to change this value later.
+	// A descriptive label that is associated with a script. Script names do not need
+	// to be unique. You can use [UpdateScript]to change this value later.
+	//
+	// [UpdateScript]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_UpdateScript.html
 	Name *string
+
+	// The Node.js version used for execution of your Realtime script. The valid
+	// values are 10.x | 24.x . By default, NodeJsVersion is 10.x . This value cannot
+	// be updated later.
+	//
+	// Node.js 10 will reach end of support on September 30, 2026. See more details in
+	// the [Node.js 10 FAQs]. For migration guidance, see [Migrating from Node.js 10 to 24].
+	//
+	// [Migrating from Node.js 10 to 24]: https://docs.aws.amazon.com/gamelift/latest/realtimeguide/realtime-script.html#realtime-script-nodejs-migration
+	// [Node.js 10 FAQs]: http://aws.amazon.com/gamelift/faq/nodejs10/
+	NodeJsVersion *string
 
 	// The location of the Amazon S3 bucket where a zipped file containing your
 	// Realtime scripts is stored. The storage location must specify the Amazon S3
 	// bucket name, the zip file name (the "key"), and a role ARN that allows Amazon
-	// GameLift to access the Amazon S3 storage location. The S3 bucket must be in the
-	// same Region where you want to create a new script. By default, Amazon GameLift
-	// uploads the latest version of the zip file; if you have S3 object versioning
-	// turned on, you can use the ObjectVersion parameter to specify an earlier
-	// version.
+	// GameLift Servers to access the Amazon S3 storage location. The S3 bucket must be
+	// in the same Region where you want to create a new script. By default, Amazon
+	// GameLift Servers uploads the latest version of the zip file; if you have S3
+	// object versioning turned on, you can use the ObjectVersion parameter to specify
+	// an earlier version.
 	StorageLocation *types.S3Location
 
 	// A list of labels to assign to the new script resource. Tags are
 	// developer-defined key-value pairs. Tagging Amazon Web Services resources are
 	// useful for resource management, access management and cost allocation. For more
-	// information, see Tagging Amazon Web Services Resources (https://docs.aws.amazon.com/general/latest/gr/aws_tagging.html)
-	// in the Amazon Web Services General Reference. Once the resource is created, you
-	// can use TagResource (https://docs.aws.amazon.com/gamelift/latest/apireference/API_TagResource.html)
-	// , UntagResource (https://docs.aws.amazon.com/gamelift/latest/apireference/API_UntagResource.html)
-	// , and ListTagsForResource (https://docs.aws.amazon.com/gamelift/latest/apireference/API_ListTagsForResource.html)
-	// to add, remove, and view tags. The maximum tag limit may be lower than stated.
-	// See the Amazon Web Services General Reference for actual tagging limits.
+	// information, see [Tagging Amazon Web Services Resources]in the Amazon Web Services General Reference. Once the
+	// resource is created, you can use [TagResource], [UntagResource], and [ListTagsForResource] to add, remove, and view tags. The
+	// maximum tag limit may be lower than stated. See the Amazon Web Services General
+	// Reference for actual tagging limits.
+	//
+	// [Tagging Amazon Web Services Resources]: https://docs.aws.amazon.com/general/latest/gr/aws_tagging.html
+	// [TagResource]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_TagResource.html
+	// [UntagResource]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_UntagResource.html
+	// [ListTagsForResource]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_ListTagsForResource.html
 	Tags []types.Tag
 
-	// Version information associated with a build or script. Version strings don't
-	// need to be unique. You can use UpdateScript (https://docs.aws.amazon.com/gamelift/latest/apireference/API_UpdateScript.html)
-	// to change this value later.
+	// Version information that is associated with a build or script. Version strings
+	// do not need to be unique. You can use [UpdateScript]to change this value later.
+	//
+	// [UpdateScript]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_UpdateScript.html
 	Version *string
 
 	// A data object containing your Realtime scripts and dependencies as a zip file.
 	// The zip file can have one or multiple files. Maximum size of a zip file is 5 MB.
+	//
 	// When using the Amazon Web Services CLI tool to create a script, this parameter
 	// is set to the zip file name. It must be prepended with the string "fileb://" to
 	// indicate that the file data is a binary object. For example: --zip-file
@@ -100,7 +133,7 @@ type CreateScriptOutput struct {
 	// uploaded from an S3 bucket under your account, the storage location reflects the
 	// information that was provided in the CreateScript request; (2) If the script
 	// file was uploaded from a local zip file, the storage location reflects an S3
-	// location controls by the Amazon GameLift service.
+	// location controls by the Amazon GameLift Servers service.
 	Script *types.Script
 
 	// Metadata pertaining to the operation's result.
@@ -113,11 +146,11 @@ func (c *Client) addOperationCreateScriptMiddlewares(stack *middleware.Stack, op
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpCreateScript{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpCreateScript{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpCreateScript{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpCreateScript{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -131,25 +164,28 @@ func (c *Client) addOperationCreateScriptMiddlewares(stack *middleware.Stack, op
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -164,13 +200,22 @@ func (c *Client) addOperationCreateScriptMiddlewares(stack *middleware.Stack, op
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpCreateScriptValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opCreateScript(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -183,6 +228,15 @@ func (c *Client) addOperationCreateScriptMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

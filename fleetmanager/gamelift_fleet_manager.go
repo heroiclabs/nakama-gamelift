@@ -25,6 +25,7 @@ const (
 )
 
 const (
+	PlacementIdKey     = "PlacementId"
 	GameSessionDataKey = "GameSessionData"
 	GamePropertiesKey  = "GameProperties"
 	GameSessionNameKey = "GameSessionName"
@@ -35,7 +36,7 @@ const (
 	RpcIdDeleteInstanceInfo = "delete_instance_info"
 )
 
-var _ runtime.FleetManagerInitializer = &GameLiftFleetManager{}
+var _ runtime.FleetManagerInitializer = (*GameLiftFleetManager)(nil)
 
 type GameLiftFleetManager struct {
 	ctx             context.Context
@@ -181,7 +182,7 @@ func (fm *GameLiftFleetManager) Init(nk runtime.NakamaModule, callbackHandler ru
 	return nil
 }
 
-func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, userIds []string, latencies []runtime.FleetUserLatencies, metadata map[string]any, callback runtime.FmCreateCallbackFn) error {
+func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, userIds []string, latencies []runtime.FleetUserLatencies, metadata map[string]any, callback runtime.FmCreateCallbackFn) (map[string]string, error) {
 	var desiredPlayerSessions []types.DesiredPlayerSession
 	if len(userIds) > 0 {
 		desiredPlayerSessions = make([]types.DesiredPlayerSession, 0, len(userIds))
@@ -224,7 +225,7 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 			}
 			gameProperties = props
 		} else {
-			return errors.New("invalid metadata key 'GameProperties' value: must be map[string]string")
+			return nil, errors.New("invalid metadata key 'GameProperties' value: must be map[string]string")
 		}
 	}
 
@@ -264,7 +265,7 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 
 	placementOutput, err := fm.glService.StartGameSessionPlacement(ctx, placementInput)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	switch placementOutput.GameSessionPlacement.Status {
@@ -277,14 +278,16 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 	case types.GameSessionPlacementStateTimedOut:
 		fallthrough
 	case types.GameSessionPlacementStateFailed:
-		return errors.New("failed to start game session placement")
+		return nil, errors.New("failed to start game session placement")
 	}
 
 	if callback != nil {
 		fm.callbackHandler.SetCallback(placementId, callback)
 	}
 
-	return nil
+	createMetadata := map[string]string{PlacementIdKey: *placementOutput.GameSessionPlacement.PlacementId}
+
+	return createMetadata, nil
 }
 
 func (fm *GameLiftFleetManager) Get(ctx context.Context, id string) (instance *runtime.InstanceInfo, err error) {

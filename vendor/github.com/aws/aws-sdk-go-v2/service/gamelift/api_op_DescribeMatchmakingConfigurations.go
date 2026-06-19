@@ -6,20 +6,30 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Retrieves the details of FlexMatch matchmaking configurations. This operation
-// offers the following options: (1) retrieve all matchmaking configurations, (2)
-// retrieve configurations for a specified list, or (3) retrieve all configurations
-// that use a specified rule set name. When requesting multiple items, use the
-// pagination parameters to retrieve results as a set of sequential pages. If
-// successful, a configuration is returned for each requested name. When specifying
-// a list of names, only configurations that currently exist are returned. Learn
-// more Setting up FlexMatch matchmakers (https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/matchmaker-build.html)
+//	This API works with the following fleet types: EC2, Anywhere, Container
+//
+// Retrieves the details of FlexMatch matchmaking configurations.
+//
+// This operation offers the following options: (1) retrieve all matchmaking
+// configurations, (2) retrieve configurations for a specified list, or (3)
+// retrieve all configurations that use a specified rule set name. When requesting
+// multiple items, use the pagination parameters to retrieve results as a set of
+// sequential pages.
+//
+// If successful, a configuration is returned for each requested name. When
+// specifying a list of names, only configurations that currently exist are
+// returned.
+//
+// # Learn more
+//
+// [Setting up FlexMatch matchmakers]
+//
+// [Setting up FlexMatch matchmakers]: https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/matchmaker-build.html
 func (c *Client) DescribeMatchmakingConfigurations(ctx context.Context, params *DescribeMatchmakingConfigurationsInput, optFns ...func(*Options)) (*DescribeMatchmakingConfigurationsOutput, error) {
 	if params == nil {
 		params = &DescribeMatchmakingConfigurationsInput{}
@@ -79,11 +89,11 @@ func (c *Client) addOperationDescribeMatchmakingConfigurationsMiddlewares(stack 
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeMatchmakingConfigurations{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpDescribeMatchmakingConfigurations{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeMatchmakingConfigurations{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpDescribeMatchmakingConfigurations{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -97,25 +107,28 @@ func (c *Client) addOperationDescribeMatchmakingConfigurationsMiddlewares(stack 
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -130,10 +143,19 @@ func (c *Client) addOperationDescribeMatchmakingConfigurationsMiddlewares(stack 
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeMatchmakingConfigurations(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -148,16 +170,17 @@ func (c *Client) addOperationDescribeMatchmakingConfigurationsMiddlewares(stack 
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribeMatchmakingConfigurationsAPIClient is a client that implements the
-// DescribeMatchmakingConfigurations operation.
-type DescribeMatchmakingConfigurationsAPIClient interface {
-	DescribeMatchmakingConfigurations(context.Context, *DescribeMatchmakingConfigurationsInput, ...func(*Options)) (*DescribeMatchmakingConfigurationsOutput, error)
-}
-
-var _ DescribeMatchmakingConfigurationsAPIClient = (*Client)(nil)
 
 // DescribeMatchmakingConfigurationsPaginatorOptions is the paginator options for
 // DescribeMatchmakingConfigurations
@@ -226,6 +249,9 @@ func (p *DescribeMatchmakingConfigurationsPaginator) NextPage(ctx context.Contex
 	}
 	params.Limit = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribeMatchmakingConfigurations(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -244,6 +270,14 @@ func (p *DescribeMatchmakingConfigurationsPaginator) NextPage(ctx context.Contex
 
 	return result, nil
 }
+
+// DescribeMatchmakingConfigurationsAPIClient is a client that implements the
+// DescribeMatchmakingConfigurations operation.
+type DescribeMatchmakingConfigurationsAPIClient interface {
+	DescribeMatchmakingConfigurations(context.Context, *DescribeMatchmakingConfigurationsInput, ...func(*Options)) (*DescribeMatchmakingConfigurationsOutput, error)
+}
+
+var _ DescribeMatchmakingConfigurationsAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opDescribeMatchmakingConfigurations(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

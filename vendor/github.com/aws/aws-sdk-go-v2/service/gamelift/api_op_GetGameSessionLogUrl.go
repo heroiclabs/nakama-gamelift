@@ -6,18 +6,24 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+//	This API works with the following fleet types: EC2
+//
 // Retrieves the location of stored game session logs for a specified game session
-// on Amazon GameLift managed fleets. When a game session is terminated, Amazon
-// GameLift automatically stores the logs in Amazon S3 and retains them for 14
-// days. Use this URL to download the logs. See the Amazon Web Services Service
-// Limits (https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html#limits_gamelift)
-// page for maximum log file sizes. Log files that exceed this limit are not saved.
-// All APIs by task (https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets)
+// on Amazon GameLift Servers managed fleets. When a game session is terminated,
+// Amazon GameLift Servers automatically stores the logs in Amazon S3 and retains
+// them for 14 days. Use this URL to download the logs.
+//
+// See the [Amazon Web Services Service Limits] page for maximum log file sizes. Log files that exceed this limit are
+// not saved.
+//
+// [All APIs by task]
+//
+// [Amazon Web Services Service Limits]: https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html#limits_gamelift
+// [All APIs by task]: https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets
 func (c *Client) GetGameSessionLogUrl(ctx context.Context, params *GetGameSessionLogUrlInput, optFns ...func(*Options)) (*GetGameSessionLogUrlOutput, error) {
 	if params == nil {
 		params = &GetGameSessionLogUrlInput{}
@@ -35,7 +41,10 @@ func (c *Client) GetGameSessionLogUrl(ctx context.Context, params *GetGameSessio
 
 type GetGameSessionLogUrlInput struct {
 
-	// A unique identifier for the game session to get logs for.
+	// An identifier for the game session that is unique across all regions to get
+	// logs for. The value is always a full ARN in the following format: For Home
+	// Region game session - arn:aws:gamelift:::gamesession// . For Remote Location
+	// game session - arn:aws:gamelift:::gamesession/// .
 	//
 	// This member is required.
 	GameSessionId *string
@@ -61,11 +70,11 @@ func (c *Client) addOperationGetGameSessionLogUrlMiddlewares(stack *middleware.S
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpGetGameSessionLogUrl{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpGetGameSessionLogUrl{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpGetGameSessionLogUrl{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpGetGameSessionLogUrl{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -79,25 +88,28 @@ func (c *Client) addOperationGetGameSessionLogUrlMiddlewares(stack *middleware.S
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -112,13 +124,22 @@ func (c *Client) addOperationGetGameSessionLogUrlMiddlewares(stack *middleware.S
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetGameSessionLogUrlValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetGameSessionLogUrl(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -131,6 +152,15 @@ func (c *Client) addOperationGetGameSessionLogUrlMiddlewares(stack *middleware.S
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

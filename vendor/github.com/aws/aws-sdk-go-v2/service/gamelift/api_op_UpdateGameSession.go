@@ -6,15 +6,23 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Updates the mutable properties of a game session. To update a game session,
-// specify the game session ID and the values you want to change. If successful,
-// the updated GameSession object is returned. All APIs by task (https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets)
+//	This API works with the following fleet types: EC2, Anywhere, Container
+//
+// Updates the mutable properties of a game session.
+//
+// To update a game session, specify the game session ID and the values you want
+// to change.
+//
+// If successful, the updated GameSession object is returned.
+//
+// [All APIs by task]
+//
+// [All APIs by task]: https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets
 func (c *Client) UpdateGameSession(ctx context.Context, params *UpdateGameSessionInput, optFns ...func(*Options)) (*UpdateGameSessionOutput, error) {
 	if params == nil {
 		params = &UpdateGameSessionInput{}
@@ -32,7 +40,10 @@ func (c *Client) UpdateGameSession(ctx context.Context, params *UpdateGameSessio
 
 type UpdateGameSessionInput struct {
 
-	// A unique identifier for the game session to update.
+	// An identifier for the game session that is unique across all regions to update.
+	// The value is always a full ARN in the following format: For Home Region game
+	// session - arn:aws:gamelift:::gamesession// . For Remote Location game session -
+	// arn:aws:gamelift:::gamesession/// .
 	//
 	// This member is required.
 	GameSessionId *string
@@ -41,8 +52,18 @@ type UpdateGameSessionInput struct {
 	// example: {"Key": "difficulty", "Value": "novice"} . You can use this parameter
 	// to modify game properties in an active game session. This action adds new
 	// properties and modifies existing properties. There is no way to delete
-	// properties. For an example, see Update the value of a game property (https://docs.aws.amazon.com/gamelift/latest/developerguide/gamelift-sdk-client-api.html#game-properties-update)
-	// .
+	// properties. For an example, see [Update the value of a game property].
+	//
+	//   - Avoid using periods (".") in property keys if you plan to search for game
+	//   sessions by properties. Property keys containing periods cannot be searched and
+	//   will be filtered out from search results due to search index limitations.
+	//
+	//   - If you use SearchGameSessions API, there is a limit of 500 game property
+	//   keys across all game sessions and all fleets per region. If the limit is
+	//   exceeded, there will potentially be game session entries missing from
+	//   SearchGameSessions API results.
+	//
+	// [Update the value of a game property]: https://docs.aws.amazon.com/gamelift/latest/developerguide/gamelift-sdk-client-api.html#game-properties-update
 	GameProperties []types.GameProperty
 
 	// The maximum number of players that can be connected simultaneously to the game
@@ -57,8 +78,9 @@ type UpdateGameSessionInput struct {
 	PlayerSessionCreationPolicy types.PlayerSessionCreationPolicy
 
 	// Game session protection policy to apply to this game session only.
-	//   - NoProtection -- The game session can be terminated during a scale-down
-	//   event.
+	//
+	//   - NoProtection -- The game session can be terminated during a scale-down event.
+	//
 	//   - FullProtection -- If the game session is in an ACTIVE status, it cannot be
 	//   terminated during a scale-down event.
 	ProtectionPolicy types.ProtectionPolicy
@@ -81,11 +103,11 @@ func (c *Client) addOperationUpdateGameSessionMiddlewares(stack *middleware.Stac
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpUpdateGameSession{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpUpdateGameSession{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpUpdateGameSession{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpUpdateGameSession{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -99,25 +121,28 @@ func (c *Client) addOperationUpdateGameSessionMiddlewares(stack *middleware.Stac
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -132,13 +157,22 @@ func (c *Client) addOperationUpdateGameSessionMiddlewares(stack *middleware.Stac
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpUpdateGameSessionValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opUpdateGameSession(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -151,6 +185,15 @@ func (c *Client) addOperationUpdateGameSessionMiddlewares(stack *middleware.Stac
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

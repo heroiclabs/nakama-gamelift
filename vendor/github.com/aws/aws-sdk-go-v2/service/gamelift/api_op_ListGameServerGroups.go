@@ -6,12 +6,13 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+//	This API works with the following fleet types: EC2 (FleetIQ)
+//
 // Lists a game server groups.
 func (c *Client) ListGameServerGroups(ctx context.Context, params *ListGameServerGroupsInput, optFns ...func(*Options)) (*ListGameServerGroupsOutput, error) {
 	if params == nil {
@@ -59,11 +60,11 @@ func (c *Client) addOperationListGameServerGroupsMiddlewares(stack *middleware.S
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListGameServerGroups{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpListGameServerGroups{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListGameServerGroups{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpListGameServerGroups{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -77,25 +78,28 @@ func (c *Client) addOperationListGameServerGroupsMiddlewares(stack *middleware.S
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -110,10 +114,19 @@ func (c *Client) addOperationListGameServerGroupsMiddlewares(stack *middleware.S
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListGameServerGroups(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -128,16 +141,17 @@ func (c *Client) addOperationListGameServerGroupsMiddlewares(stack *middleware.S
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListGameServerGroupsAPIClient is a client that implements the
-// ListGameServerGroups operation.
-type ListGameServerGroupsAPIClient interface {
-	ListGameServerGroups(context.Context, *ListGameServerGroupsInput, ...func(*Options)) (*ListGameServerGroupsOutput, error)
-}
-
-var _ ListGameServerGroupsAPIClient = (*Client)(nil)
 
 // ListGameServerGroupsPaginatorOptions is the paginator options for
 // ListGameServerGroups
@@ -203,6 +217,9 @@ func (p *ListGameServerGroupsPaginator) NextPage(ctx context.Context, optFns ...
 	}
 	params.Limit = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListGameServerGroups(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -221,6 +238,14 @@ func (p *ListGameServerGroupsPaginator) NextPage(ctx context.Context, optFns ...
 
 	return result, nil
 }
+
+// ListGameServerGroupsAPIClient is a client that implements the
+// ListGameServerGroups operation.
+type ListGameServerGroupsAPIClient interface {
+	ListGameServerGroups(context.Context, *ListGameServerGroupsInput, ...func(*Options)) (*ListGameServerGroupsOutput, error)
+}
+
+var _ ListGameServerGroupsAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opListGameServerGroups(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

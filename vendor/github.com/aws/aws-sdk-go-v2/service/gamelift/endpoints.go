@@ -14,8 +14,11 @@ import (
 	internalendpoints "github.com/aws/aws-sdk-go-v2/service/gamelift/internal/endpoints"
 	smithyauth "github.com/aws/smithy-go/auth"
 	smithyendpoints "github.com/aws/smithy-go/endpoints"
+	"github.com/aws/smithy-go/endpoints/private/bdd"
+	"github.com/aws/smithy-go/endpoints/private/rulesfn"
 	"github.com/aws/smithy-go/middleware"
 	"github.com/aws/smithy-go/ptr"
+	"github.com/aws/smithy-go/tracing"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"net/http"
 	"net/url"
@@ -216,6 +219,19 @@ func resolveBaseEndpoint(cfg aws.Config, o *Options) {
 	}
 }
 
+func bindRegion(region string) (*string, error) {
+	if region == "" {
+		return nil, nil
+	}
+	if !rulesfn.IsValidHostLabel(region, true) {
+		return nil, fmt.Errorf("invalid input region %s", region)
+	}
+
+	return aws.String(endpoints.MapFIPSRegion(region)), nil
+}
+
+var _ = rulesfn.StringSlice(nil)
+
 // EndpointParameters provides the parameters that influence how endpoints are
 // resolved.
 type EndpointParameters struct {
@@ -281,10 +297,139 @@ func (p EndpointParameters) WithDefaults() EndpointParameters {
 	return p
 }
 
+const bddRoot int32 = 2
+
+var bddNodes = [39]int32{
+	-1, 1, -1, 0, 12, 3, 1, 4, 100000011, 2, 5, 100000011, 3, 8, 6, 4, 7, 100000010, 5, 100000008, 100000009, 4, 10, 9, 6, 100000006, 100000007, 5, 11, 100000005, 6, 100000004, 100000005, 3, 100000001, 13, 4, 100000002, 100000003}
+
+type conditionContext struct {
+	PartitionResult *awsrulesfn.PartitionConfig
+}
+
+func evalCondition(idx int, params *EndpointParameters, c *conditionContext) bool {
+	switch idx {
+	case 0:
+		return params.Endpoint != nil
+	case 1:
+		return params.Region != nil
+	case 2:
+		if v := awsrulesfn.GetPartition(*params.Region); v != nil {
+			c.PartitionResult = v
+			return true
+		}
+		return false
+	case 3:
+		return *params.UseFIPS == true
+	case 4:
+		return *params.UseDualStack == true
+	case 5:
+		return c.PartitionResult.SupportsDualStack == true
+	case 6:
+		return c.PartitionResult.SupportsFIPS == true
+	}
+	return false
+}
+
+func resolveResult(idx int32, params *EndpointParameters, c *conditionContext) (smithyendpoints.Endpoint, error) {
+	switch idx {
+	case 0:
+		return smithyendpoints.Endpoint{}, fmt.Errorf("endpoint resolution failed: no matching rule")
+	case 1:
+		return smithyendpoints.Endpoint{}, fmt.Errorf("endpoint rule error, %s", "Invalid Configuration: FIPS and custom endpoint are not supported")
+	case 2:
+		return smithyendpoints.Endpoint{}, fmt.Errorf("endpoint rule error, %s", "Invalid Configuration: Dualstack and custom endpoint are not supported")
+	case 3:
+		uriString := *params.Endpoint
+		uri, err := url.Parse(uriString)
+		if err != nil {
+			return smithyendpoints.Endpoint{}, fmt.Errorf("Failed to parse uri: %s", uriString)
+		}
+		return smithyendpoints.Endpoint{
+			URI:     *uri,
+			Headers: http.Header{},
+		}, nil
+	case 4:
+		uriString := func() string {
+			var out strings.Builder
+			out.WriteString("https://gamelift-fips.")
+			out.WriteString(*params.Region)
+			out.WriteString(".")
+			out.WriteString(c.PartitionResult.DualStackDnsSuffix)
+			return out.String()
+		}()
+		uri, err := url.Parse(uriString)
+		if err != nil {
+			return smithyendpoints.Endpoint{}, fmt.Errorf("Failed to parse uri: %s", uriString)
+		}
+		return smithyendpoints.Endpoint{
+			URI:     *uri,
+			Headers: http.Header{},
+		}, nil
+	case 5:
+		return smithyendpoints.Endpoint{}, fmt.Errorf("endpoint rule error, %s", "FIPS and DualStack are enabled, but this partition does not support one or both")
+	case 6:
+		uriString := func() string {
+			var out strings.Builder
+			out.WriteString("https://gamelift-fips.")
+			out.WriteString(*params.Region)
+			out.WriteString(".")
+			out.WriteString(c.PartitionResult.DnsSuffix)
+			return out.String()
+		}()
+		uri, err := url.Parse(uriString)
+		if err != nil {
+			return smithyendpoints.Endpoint{}, fmt.Errorf("Failed to parse uri: %s", uriString)
+		}
+		return smithyendpoints.Endpoint{
+			URI:     *uri,
+			Headers: http.Header{},
+		}, nil
+	case 7:
+		return smithyendpoints.Endpoint{}, fmt.Errorf("endpoint rule error, %s", "FIPS is enabled but this partition does not support FIPS")
+	case 8:
+		uriString := func() string {
+			var out strings.Builder
+			out.WriteString("https://gamelift.")
+			out.WriteString(*params.Region)
+			out.WriteString(".")
+			out.WriteString(c.PartitionResult.DualStackDnsSuffix)
+			return out.String()
+		}()
+		uri, err := url.Parse(uriString)
+		if err != nil {
+			return smithyendpoints.Endpoint{}, fmt.Errorf("Failed to parse uri: %s", uriString)
+		}
+		return smithyendpoints.Endpoint{
+			URI:     *uri,
+			Headers: http.Header{},
+		}, nil
+	case 9:
+		return smithyendpoints.Endpoint{}, fmt.Errorf("endpoint rule error, %s", "DualStack is enabled but this partition does not support DualStack")
+	case 10:
+		uriString := func() string {
+			var out strings.Builder
+			out.WriteString("https://gamelift.")
+			out.WriteString(*params.Region)
+			out.WriteString(".")
+			out.WriteString(c.PartitionResult.DnsSuffix)
+			return out.String()
+		}()
+		uri, err := url.Parse(uriString)
+		if err != nil {
+			return smithyendpoints.Endpoint{}, fmt.Errorf("Failed to parse uri: %s", uriString)
+		}
+		return smithyendpoints.Endpoint{
+			URI:     *uri,
+			Headers: http.Header{},
+		}, nil
+	case 11:
+		return smithyendpoints.Endpoint{}, fmt.Errorf("endpoint rule error, %s", "Invalid Configuration: Missing Region")
+	}
+	return smithyendpoints.Endpoint{}, fmt.Errorf("endpoint rule error, invalid result index: %d", idx)
+}
+
 // EndpointResolverV2 provides the interface for resolving service endpoints.
 type EndpointResolverV2 interface {
-	// ResolveEndpoint attempts to resolve the endpoint with the provided options,
-	// returning the endpoint if found. Otherwise an error is returned.
 	ResolveEndpoint(ctx context.Context, params EndpointParameters) (
 		smithyendpoints.Endpoint, error,
 	)
@@ -308,141 +453,27 @@ func (r *resolver) ResolveEndpoint(
 	if err = params.ValidateRequired(); err != nil {
 		return endpoint, fmt.Errorf("endpoint parameters are not valid, %w", err)
 	}
-	_UseDualStack := *params.UseDualStack
-	_UseFIPS := *params.UseFIPS
 
-	if exprVal := params.Endpoint; exprVal != nil {
-		_Endpoint := *exprVal
-		_ = _Endpoint
-		if _UseFIPS == true {
-			return endpoint, fmt.Errorf("endpoint rule error, %s", "Invalid Configuration: FIPS and custom endpoint are not supported")
-		}
-		if _UseDualStack == true {
-			return endpoint, fmt.Errorf("endpoint rule error, %s", "Invalid Configuration: Dualstack and custom endpoint are not supported")
-		}
-		uriString := _Endpoint
-
-		uri, err := url.Parse(uriString)
-		if err != nil {
-			return endpoint, fmt.Errorf("Failed to parse uri: %s", uriString)
-		}
-
-		return smithyendpoints.Endpoint{
-			URI:     *uri,
-			Headers: http.Header{},
-		}, nil
-	}
-	if exprVal := params.Region; exprVal != nil {
-		_Region := *exprVal
-		_ = _Region
-		if exprVal := awsrulesfn.GetPartition(_Region); exprVal != nil {
-			_PartitionResult := *exprVal
-			_ = _PartitionResult
-			if _UseFIPS == true {
-				if _UseDualStack == true {
-					if true == _PartitionResult.SupportsFIPS {
-						if true == _PartitionResult.SupportsDualStack {
-							uriString := func() string {
-								var out strings.Builder
-								out.WriteString("https://gamelift-fips.")
-								out.WriteString(_Region)
-								out.WriteString(".")
-								out.WriteString(_PartitionResult.DualStackDnsSuffix)
-								return out.String()
-							}()
-
-							uri, err := url.Parse(uriString)
-							if err != nil {
-								return endpoint, fmt.Errorf("Failed to parse uri: %s", uriString)
-							}
-
-							return smithyendpoints.Endpoint{
-								URI:     *uri,
-								Headers: http.Header{},
-							}, nil
-						}
-					}
-					return endpoint, fmt.Errorf("endpoint rule error, %s", "FIPS and DualStack are enabled, but this partition does not support one or both")
-				}
-			}
-			if _UseFIPS == true {
-				if _PartitionResult.SupportsFIPS == true {
-					uriString := func() string {
-						var out strings.Builder
-						out.WriteString("https://gamelift-fips.")
-						out.WriteString(_Region)
-						out.WriteString(".")
-						out.WriteString(_PartitionResult.DnsSuffix)
-						return out.String()
-					}()
-
-					uri, err := url.Parse(uriString)
-					if err != nil {
-						return endpoint, fmt.Errorf("Failed to parse uri: %s", uriString)
-					}
-
-					return smithyendpoints.Endpoint{
-						URI:     *uri,
-						Headers: http.Header{},
-					}, nil
-				}
-				return endpoint, fmt.Errorf("endpoint rule error, %s", "FIPS is enabled but this partition does not support FIPS")
-			}
-			if _UseDualStack == true {
-				if true == _PartitionResult.SupportsDualStack {
-					uriString := func() string {
-						var out strings.Builder
-						out.WriteString("https://gamelift.")
-						out.WriteString(_Region)
-						out.WriteString(".")
-						out.WriteString(_PartitionResult.DualStackDnsSuffix)
-						return out.String()
-					}()
-
-					uri, err := url.Parse(uriString)
-					if err != nil {
-						return endpoint, fmt.Errorf("Failed to parse uri: %s", uriString)
-					}
-
-					return smithyendpoints.Endpoint{
-						URI:     *uri,
-						Headers: http.Header{},
-					}, nil
-				}
-				return endpoint, fmt.Errorf("endpoint rule error, %s", "DualStack is enabled but this partition does not support DualStack")
-			}
-			uriString := func() string {
-				var out strings.Builder
-				out.WriteString("https://gamelift.")
-				out.WriteString(_Region)
-				out.WriteString(".")
-				out.WriteString(_PartitionResult.DnsSuffix)
-				return out.String()
-			}()
-
-			uri, err := url.Parse(uriString)
-			if err != nil {
-				return endpoint, fmt.Errorf("Failed to parse uri: %s", uriString)
-			}
-
-			return smithyendpoints.Endpoint{
-				URI:     *uri,
-				Headers: http.Header{},
-			}, nil
-		}
-		return endpoint, fmt.Errorf("Endpoint resolution failed. Invalid operation or environment input.")
-	}
-	return endpoint, fmt.Errorf("endpoint rule error, %s", "Invalid Configuration: Missing Region")
+	c := &conditionContext{}
+	ref := bdd.Evaluate(bddNodes[:], bddRoot, func(idx int) bool {
+		return evalCondition(idx, &params, c)
+	})
+	return resolveResult(ref, &params, c)
 }
 
 type endpointParamsBinder interface {
 	bindEndpointParams(*EndpointParameters)
 }
 
-func bindEndpointParams(input interface{}, options Options) *EndpointParameters {
+func bindEndpointParams(ctx context.Context, input interface{}, options Options) (*EndpointParameters, error) {
 	params := &EndpointParameters{}
 
-	params.Region = aws.String(endpoints.MapFIPSRegion(options.Region))
+	region, err := bindRegion(options.Region)
+	if err != nil {
+		return nil, err
+	}
+	params.Region = region
+
 	params.UseDualStack = aws.Bool(options.EndpointOptions.UseDualStackEndpoint == aws.DualStackEndpointStateEnabled)
 	params.UseFIPS = aws.Bool(options.EndpointOptions.UseFIPSEndpoint == aws.FIPSEndpointStateEnabled)
 	params.Endpoint = options.BaseEndpoint
@@ -451,7 +482,7 @@ func bindEndpointParams(input interface{}, options Options) *EndpointParameters 
 		b.bindEndpointParams(params)
 	}
 
-	return params
+	return params, nil
 }
 
 type resolveEndpointV2Middleware struct {
@@ -465,6 +496,9 @@ func (*resolveEndpointV2Middleware) ID() string {
 func (m *resolveEndpointV2Middleware) HandleFinalize(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
 	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
+	_, span := tracing.StartSpan(ctx, "ResolveEndpoint")
+	defer span.End()
+
 	if awsmiddleware.GetRequiresLegacyEndpoints(ctx) {
 		return next.HandleFinalize(ctx, in)
 	}
@@ -478,11 +512,19 @@ func (m *resolveEndpointV2Middleware) HandleFinalize(ctx context.Context, in mid
 		return out, metadata, fmt.Errorf("expected endpoint resolver to not be nil")
 	}
 
-	params := bindEndpointParams(getOperationInput(ctx), m.options)
-	endpt, err := m.options.EndpointResolverV2.ResolveEndpoint(ctx, *params)
+	params, err := bindEndpointParams(ctx, getOperationInput(ctx), m.options)
+	if err != nil {
+		return out, metadata, fmt.Errorf("failed to bind endpoint params, %w", err)
+	}
+	endpt, err := timeOperationMetric(ctx, "client.call.resolve_endpoint_duration",
+		func() (smithyendpoints.Endpoint, error) {
+			return m.options.EndpointResolverV2.ResolveEndpoint(ctx, *params)
+		})
 	if err != nil {
 		return out, metadata, fmt.Errorf("failed to resolve service endpoint, %w", err)
 	}
+
+	span.SetProperty("client.call.resolved_endpoint", endpt.URI.String())
 
 	if endpt.URI.RawPath == "" && req.URL.RawPath != "" {
 		endpt.URI.RawPath = endpt.URI.Path
@@ -505,5 +547,6 @@ func (m *resolveEndpointV2Middleware) HandleFinalize(ctx context.Context, in mid
 		rscheme.SignerProperties.SetAll(&o.SignerProperties)
 	}
 
+	span.End()
 	return next.HandleFinalize(ctx, in)
 }

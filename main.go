@@ -18,9 +18,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
+
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/heroiclabs/nakama-gamelift/fleetmanager"
-	"time"
 )
 
 // noinspection GoUnusedExportedFunction

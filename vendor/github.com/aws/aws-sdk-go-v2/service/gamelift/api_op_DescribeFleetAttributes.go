@@ -6,26 +6,39 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Retrieves core fleet-wide properties, including the computing hardware and
-// deployment configuration for all instances in the fleet. This operation can be
-// used in the following ways:
-//   - To get attributes for one or more specific fleets, provide a list of fleet
-//     IDs or fleet ARNs.
+//	This API works with the following fleet types: EC2, Anywhere
+//
+// Retrieves core fleet-wide properties for fleets in an Amazon Web Services
+// Region. Properties include the computing hardware and deployment configuration
+// for instances in the fleet.
+//
+// You can use this operation in the following ways:
+//
+//   - To get attributes for specific fleets, provide a list of fleet IDs or fleet
+//     ARNs.
+//
 //   - To get attributes for all fleets, do not provide a fleet identifier.
 //
 // When requesting attributes for multiple fleets, use the pagination parameters
-// to retrieve results as a set of sequential pages. If successful, a
-// FleetAttributes object is returned for each fleet requested, unless the fleet
-// identifier is not found. Some API operations limit the number of fleet IDs that
-// allowed in one request. If a request exceeds this limit, the request fails and
-// the error message contains the maximum allowed number. Learn more Setting up
-// Amazon GameLift fleets (https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-intro.html)
+// to retrieve results as a set of sequential pages.
+//
+// If successful, a FleetAttributes object is returned for each fleet requested,
+// unless the fleet identifier is not found.
+//
+// Some API operations limit the number of fleet IDs that allowed in one request.
+// If a request exceeds this limit, the request fails and the error message
+// contains the maximum allowed number.
+//
+// # Learn more
+//
+// [Setting up Amazon GameLift Servers fleets]
+//
+// [Setting up Amazon GameLift Servers fleets]: https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-intro.html
 func (c *Client) DescribeFleetAttributes(ctx context.Context, params *DescribeFleetAttributesInput, optFns ...func(*Options)) (*DescribeFleetAttributesOutput, error) {
 	if params == nil {
 		params = &DescribeFleetAttributesInput{}
@@ -83,11 +96,11 @@ func (c *Client) addOperationDescribeFleetAttributesMiddlewares(stack *middlewar
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeFleetAttributes{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpDescribeFleetAttributes{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeFleetAttributes{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpDescribeFleetAttributes{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -101,25 +114,28 @@ func (c *Client) addOperationDescribeFleetAttributesMiddlewares(stack *middlewar
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -134,10 +150,19 @@ func (c *Client) addOperationDescribeFleetAttributesMiddlewares(stack *middlewar
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeFleetAttributes(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -152,16 +177,17 @@ func (c *Client) addOperationDescribeFleetAttributesMiddlewares(stack *middlewar
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribeFleetAttributesAPIClient is a client that implements the
-// DescribeFleetAttributes operation.
-type DescribeFleetAttributesAPIClient interface {
-	DescribeFleetAttributes(context.Context, *DescribeFleetAttributesInput, ...func(*Options)) (*DescribeFleetAttributesOutput, error)
-}
-
-var _ DescribeFleetAttributesAPIClient = (*Client)(nil)
 
 // DescribeFleetAttributesPaginatorOptions is the paginator options for
 // DescribeFleetAttributes
@@ -230,6 +256,9 @@ func (p *DescribeFleetAttributesPaginator) NextPage(ctx context.Context, optFns 
 	}
 	params.Limit = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribeFleetAttributes(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -248,6 +277,14 @@ func (p *DescribeFleetAttributesPaginator) NextPage(ctx context.Context, optFns 
 
 	return result, nil
 }
+
+// DescribeFleetAttributesAPIClient is a client that implements the
+// DescribeFleetAttributes operation.
+type DescribeFleetAttributesAPIClient interface {
+	DescribeFleetAttributes(context.Context, *DescribeFleetAttributesInput, ...func(*Options)) (*DescribeFleetAttributesOutput, error)
+}
+
+var _ DescribeFleetAttributesAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opDescribeFleetAttributes(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

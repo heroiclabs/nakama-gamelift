@@ -6,23 +6,35 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+//	This API works with the following fleet types: EC2, Anywhere, Container
+//
 // Retrieves one or more matchmaking tickets. Use this operation to retrieve
 // ticket information, including--after a successful match is made--connection
-// information for the resulting new game session. To request matchmaking tickets,
-// provide a list of up to 10 ticket IDs. If the request is successful, a ticket
-// object is returned for each requested ID that currently exists. This operation
-// is not designed to be continually called to track matchmaking ticket status.
-// This practice can cause you to exceed your API limit, which results in errors.
-// Instead, as a best practice, set up an Amazon Simple Notification Service to
-// receive notifications, and provide the topic ARN in the matchmaking
-// configuration. Learn more Add FlexMatch to a game client (https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/match-client.html)
-// Set Up FlexMatch event notification (https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/match-notification.html)
+// information for the resulting new game session.
+//
+// To request matchmaking tickets, provide a list of up to 10 ticket IDs. If the
+// request is successful, a ticket object is returned for each requested ID that
+// currently exists.
+//
+// This operation is not designed to be continually called to track matchmaking
+// ticket status. This practice can cause you to exceed your API limit, which
+// results in errors. Instead, as a best practice, set up an Amazon Simple
+// Notification Service to receive notifications, and provide the topic ARN in the
+// matchmaking configuration.
+//
+// # Learn more
+//
+// [Add FlexMatch to a game client]
+//
+// [Set Up FlexMatch event notification]
+//
+// [Set Up FlexMatch event notification]: https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/match-notification.html
+// [Add FlexMatch to a game client]: https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/match-client.html
 func (c *Client) DescribeMatchmaking(ctx context.Context, params *DescribeMatchmakingInput, optFns ...func(*Options)) (*DescribeMatchmakingOutput, error) {
 	if params == nil {
 		params = &DescribeMatchmakingInput{}
@@ -64,11 +76,11 @@ func (c *Client) addOperationDescribeMatchmakingMiddlewares(stack *middleware.St
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeMatchmaking{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpDescribeMatchmaking{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeMatchmaking{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpDescribeMatchmaking{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -82,25 +94,28 @@ func (c *Client) addOperationDescribeMatchmakingMiddlewares(stack *middleware.St
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -115,13 +130,22 @@ func (c *Client) addOperationDescribeMatchmakingMiddlewares(stack *middleware.St
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDescribeMatchmakingValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeMatchmaking(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -134,6 +158,15 @@ func (c *Client) addOperationDescribeMatchmakingMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

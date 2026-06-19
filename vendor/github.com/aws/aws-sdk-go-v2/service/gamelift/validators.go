@@ -90,6 +90,46 @@ func (m *validateOpCreateBuild) HandleInitialize(ctx context.Context, in middlew
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpCreateContainerFleet struct {
+}
+
+func (*validateOpCreateContainerFleet) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpCreateContainerFleet) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*CreateContainerFleetInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpCreateContainerFleetInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpCreateContainerGroupDefinition struct {
+}
+
+func (*validateOpCreateContainerGroupDefinition) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpCreateContainerGroupDefinition) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*CreateContainerGroupDefinitionInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpCreateContainerGroupDefinitionInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpCreateFleet struct {
 }
 
@@ -385,6 +425,46 @@ func (m *validateOpDeleteBuild) HandleInitialize(ctx context.Context, in middlew
 		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
 	}
 	if err := validateOpDeleteBuildInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpDeleteContainerFleet struct {
+}
+
+func (*validateOpDeleteContainerFleet) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpDeleteContainerFleet) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*DeleteContainerFleetInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpDeleteContainerFleetInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpDeleteContainerGroupDefinition struct {
+}
+
+func (*validateOpDeleteContainerGroupDefinition) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpDeleteContainerGroupDefinition) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*DeleteContainerGroupDefinitionInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpDeleteContainerGroupDefinitionInput(input); err != nil {
 		return out, metadata, err
 	}
 	return next.HandleInitialize(ctx, in)
@@ -705,6 +785,86 @@ func (m *validateOpDescribeCompute) HandleInitialize(ctx context.Context, in mid
 		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
 	}
 	if err := validateOpDescribeComputeInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpDescribeContainerFleet struct {
+}
+
+func (*validateOpDescribeContainerFleet) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpDescribeContainerFleet) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*DescribeContainerFleetInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpDescribeContainerFleetInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpDescribeContainerGroupDefinition struct {
+}
+
+func (*validateOpDescribeContainerGroupDefinition) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpDescribeContainerGroupDefinition) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*DescribeContainerGroupDefinitionInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpDescribeContainerGroupDefinitionInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpDescribeContainerGroupPortMappings struct {
+}
+
+func (*validateOpDescribeContainerGroupPortMappings) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpDescribeContainerGroupPortMappings) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*DescribeContainerGroupPortMappingsInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpDescribeContainerGroupPortMappingsInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpDescribeFleetDeployment struct {
+}
+
+func (*validateOpDescribeFleetDeployment) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpDescribeFleetDeployment) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*DescribeFleetDeploymentInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpDescribeFleetDeploymentInput(input); err != nil {
 		return out, metadata, err
 	}
 	return next.HandleInitialize(ctx, in)
@@ -1070,6 +1230,26 @@ func (m *validateOpGetInstanceAccess) HandleInitialize(ctx context.Context, in m
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpGetPlayerConnectionDetails struct {
+}
+
+func (*validateOpGetPlayerConnectionDetails) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpGetPlayerConnectionDetails) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*GetPlayerConnectionDetailsInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpGetPlayerConnectionDetailsInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpListCompute struct {
 }
 
@@ -1085,6 +1265,26 @@ func (m *validateOpListCompute) HandleInitialize(ctx context.Context, in middlew
 		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
 	}
 	if err := validateOpListComputeInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpListContainerGroupDefinitionVersions struct {
+}
+
+func (*validateOpListContainerGroupDefinitionVersions) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpListContainerGroupDefinitionVersions) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*ListContainerGroupDefinitionVersionsInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpListContainerGroupDefinitionVersionsInput(input); err != nil {
 		return out, metadata, err
 	}
 	return next.HandleInitialize(ctx, in)
@@ -1430,6 +1630,26 @@ func (m *validateOpTagResource) HandleInitialize(ctx context.Context, in middlew
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpTerminateGameSession struct {
+}
+
+func (*validateOpTerminateGameSession) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpTerminateGameSession) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*TerminateGameSessionInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpTerminateGameSessionInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpUntagResource struct {
 }
 
@@ -1485,6 +1705,46 @@ func (m *validateOpUpdateBuild) HandleInitialize(ctx context.Context, in middlew
 		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
 	}
 	if err := validateOpUpdateBuildInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpUpdateContainerFleet struct {
+}
+
+func (*validateOpUpdateContainerFleet) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpUpdateContainerFleet) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*UpdateContainerFleetInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpUpdateContainerFleetInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpUpdateContainerGroupDefinition struct {
+}
+
+func (*validateOpUpdateContainerGroupDefinition) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpUpdateContainerGroupDefinition) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*UpdateContainerGroupDefinitionInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpUpdateContainerGroupDefinitionInput(input); err != nil {
 		return out, metadata, err
 	}
 	return next.HandleInitialize(ctx, in)
@@ -1726,6 +1986,14 @@ func addOpCreateBuildValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpCreateBuild{}, middleware.After)
 }
 
+func addOpCreateContainerFleetValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpCreateContainerFleet{}, middleware.After)
+}
+
+func addOpCreateContainerGroupDefinitionValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpCreateContainerGroupDefinition{}, middleware.After)
+}
+
 func addOpCreateFleetValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpCreateFleet{}, middleware.After)
 }
@@ -1784,6 +2052,14 @@ func addOpDeleteAliasValidationMiddleware(stack *middleware.Stack) error {
 
 func addOpDeleteBuildValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpDeleteBuild{}, middleware.After)
+}
+
+func addOpDeleteContainerFleetValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpDeleteContainerFleet{}, middleware.After)
+}
+
+func addOpDeleteContainerGroupDefinitionValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpDeleteContainerGroupDefinition{}, middleware.After)
 }
 
 func addOpDeleteFleetValidationMiddleware(stack *middleware.Stack) error {
@@ -1848,6 +2124,22 @@ func addOpDescribeBuildValidationMiddleware(stack *middleware.Stack) error {
 
 func addOpDescribeComputeValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpDescribeCompute{}, middleware.After)
+}
+
+func addOpDescribeContainerFleetValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpDescribeContainerFleet{}, middleware.After)
+}
+
+func addOpDescribeContainerGroupDefinitionValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpDescribeContainerGroupDefinition{}, middleware.After)
+}
+
+func addOpDescribeContainerGroupPortMappingsValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpDescribeContainerGroupPortMappings{}, middleware.After)
+}
+
+func addOpDescribeFleetDeploymentValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpDescribeFleetDeployment{}, middleware.After)
 }
 
 func addOpDescribeFleetEventsValidationMiddleware(stack *middleware.Stack) error {
@@ -1922,8 +2214,16 @@ func addOpGetInstanceAccessValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpGetInstanceAccess{}, middleware.After)
 }
 
+func addOpGetPlayerConnectionDetailsValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpGetPlayerConnectionDetails{}, middleware.After)
+}
+
 func addOpListComputeValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpListCompute{}, middleware.After)
+}
+
+func addOpListContainerGroupDefinitionVersionsValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpListContainerGroupDefinitionVersions{}, middleware.After)
 }
 
 func addOpListGameServersValidationMiddleware(stack *middleware.Stack) error {
@@ -1994,6 +2294,10 @@ func addOpTagResourceValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpTagResource{}, middleware.After)
 }
 
+func addOpTerminateGameSessionValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpTerminateGameSession{}, middleware.After)
+}
+
 func addOpUntagResourceValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpUntagResource{}, middleware.After)
 }
@@ -2004,6 +2308,14 @@ func addOpUpdateAliasValidationMiddleware(stack *middleware.Stack) error {
 
 func addOpUpdateBuildValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpUpdateBuild{}, middleware.After)
+}
+
+func addOpUpdateContainerFleetValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpUpdateContainerFleet{}, middleware.After)
+}
+
+func addOpUpdateContainerGroupDefinitionValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpUpdateContainerGroupDefinition{}, middleware.After)
 }
 
 func addOpUpdateFleetAttributesValidationMiddleware(stack *middleware.Stack) error {
@@ -2080,6 +2392,198 @@ func validateCertificateConfiguration(v *types.CertificateConfiguration) error {
 	}
 }
 
+func validateConnectionPortRange(v *types.ConnectionPortRange) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ConnectionPortRange"}
+	if v.FromPort == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("FromPort"))
+	}
+	if v.ToPort == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("ToPort"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateContainerDependency(v *types.ContainerDependency) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ContainerDependency"}
+	if v.ContainerName == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("ContainerName"))
+	}
+	if len(v.Condition) == 0 {
+		invalidParams.Add(smithy.NewErrParamRequired("Condition"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateContainerDependencyList(v []types.ContainerDependency) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ContainerDependencyList"}
+	for i := range v {
+		if err := validateContainerDependency(&v[i]); err != nil {
+			invalidParams.AddNested(fmt.Sprintf("[%d]", i), err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateContainerEnvironment(v *types.ContainerEnvironment) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ContainerEnvironment"}
+	if v.Name == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Name"))
+	}
+	if v.Value == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Value"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateContainerEnvironmentList(v []types.ContainerEnvironment) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ContainerEnvironmentList"}
+	for i := range v {
+		if err := validateContainerEnvironment(&v[i]); err != nil {
+			invalidParams.AddNested(fmt.Sprintf("[%d]", i), err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateContainerHealthCheck(v *types.ContainerHealthCheck) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ContainerHealthCheck"}
+	if v.Command == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Command"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateContainerMountPoint(v *types.ContainerMountPoint) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ContainerMountPoint"}
+	if v.InstancePath == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("InstancePath"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateContainerMountPointList(v []types.ContainerMountPoint) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ContainerMountPointList"}
+	for i := range v {
+		if err := validateContainerMountPoint(&v[i]); err != nil {
+			invalidParams.AddNested(fmt.Sprintf("[%d]", i), err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateContainerPortConfiguration(v *types.ContainerPortConfiguration) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ContainerPortConfiguration"}
+	if v.ContainerPortRanges == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("ContainerPortRanges"))
+	} else if v.ContainerPortRanges != nil {
+		if err := validateContainerPortRangeList(v.ContainerPortRanges); err != nil {
+			invalidParams.AddNested("ContainerPortRanges", err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateContainerPortRange(v *types.ContainerPortRange) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ContainerPortRange"}
+	if v.FromPort == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("FromPort"))
+	}
+	if v.ToPort == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("ToPort"))
+	}
+	if len(v.Protocol) == 0 {
+		invalidParams.Add(smithy.NewErrParamRequired("Protocol"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateContainerPortRangeList(v []types.ContainerPortRange) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ContainerPortRangeList"}
+	for i := range v {
+		if err := validateContainerPortRange(&v[i]); err != nil {
+			invalidParams.AddNested(fmt.Sprintf("[%d]", i), err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateGameProperty(v *types.GameProperty) error {
 	if v == nil {
 		return nil
@@ -2107,6 +2611,49 @@ func validateGamePropertyList(v []types.GameProperty) error {
 		if err := validateGameProperty(&v[i]); err != nil {
 			invalidParams.AddNested(fmt.Sprintf("[%d]", i), err.(smithy.InvalidParamsError))
 		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateGameServerContainerDefinitionInput(v *types.GameServerContainerDefinitionInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "GameServerContainerDefinitionInput"}
+	if v.ContainerName == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("ContainerName"))
+	}
+	if v.DependsOn != nil {
+		if err := validateContainerDependencyList(v.DependsOn); err != nil {
+			invalidParams.AddNested("DependsOn", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.MountPoints != nil {
+		if err := validateContainerMountPointList(v.MountPoints); err != nil {
+			invalidParams.AddNested("MountPoints", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.EnvironmentOverride != nil {
+		if err := validateContainerEnvironmentList(v.EnvironmentOverride); err != nil {
+			invalidParams.AddNested("EnvironmentOverride", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.ImageUri == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("ImageUri"))
+	}
+	if v.PortConfiguration == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("PortConfiguration"))
+	} else if v.PortConfiguration != nil {
+		if err := validateContainerPortConfiguration(v.PortConfiguration); err != nil {
+			invalidParams.AddNested("PortConfiguration", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.ServerSdkVersion == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("ServerSdkVersion"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams
@@ -2239,6 +2786,21 @@ func validateLocationConfigurationList(v []types.LocationConfiguration) error {
 	}
 }
 
+func validatePriorityConfigurationOverride(v *types.PriorityConfigurationOverride) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "PriorityConfigurationOverride"}
+	if v.LocationOrder == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("LocationOrder"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateRuntimeConfiguration(v *types.RuntimeConfiguration) error {
 	if v == nil {
 		return nil
@@ -2281,6 +2843,66 @@ func validateServerProcessList(v []types.ServerProcess) error {
 	invalidParams := smithy.InvalidParamsError{Context: "ServerProcessList"}
 	for i := range v {
 		if err := validateServerProcess(&v[i]); err != nil {
+			invalidParams.AddNested(fmt.Sprintf("[%d]", i), err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateSupportContainerDefinitionInput(v *types.SupportContainerDefinitionInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "SupportContainerDefinitionInput"}
+	if v.ContainerName == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("ContainerName"))
+	}
+	if v.DependsOn != nil {
+		if err := validateContainerDependencyList(v.DependsOn); err != nil {
+			invalidParams.AddNested("DependsOn", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.MountPoints != nil {
+		if err := validateContainerMountPointList(v.MountPoints); err != nil {
+			invalidParams.AddNested("MountPoints", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.EnvironmentOverride != nil {
+		if err := validateContainerEnvironmentList(v.EnvironmentOverride); err != nil {
+			invalidParams.AddNested("EnvironmentOverride", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.HealthCheck != nil {
+		if err := validateContainerHealthCheck(v.HealthCheck); err != nil {
+			invalidParams.AddNested("HealthCheck", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.ImageUri == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("ImageUri"))
+	}
+	if v.PortConfiguration != nil {
+		if err := validateContainerPortConfiguration(v.PortConfiguration); err != nil {
+			invalidParams.AddNested("PortConfiguration", err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateSupportContainerDefinitionInputList(v []types.SupportContainerDefinitionInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "SupportContainerDefinitionInputList"}
+	for i := range v {
+		if err := validateSupportContainerDefinitionInput(&v[i]); err != nil {
 			invalidParams.AddNested(fmt.Sprintf("[%d]", i), err.(smithy.InvalidParamsError))
 		}
 	}
@@ -2420,6 +3042,80 @@ func validateOpCreateBuildInput(v *CreateBuildInput) error {
 		return nil
 	}
 	invalidParams := smithy.InvalidParamsError{Context: "CreateBuildInput"}
+	if v.Tags != nil {
+		if err := validateTagList(v.Tags); err != nil {
+			invalidParams.AddNested("Tags", err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpCreateContainerFleetInput(v *CreateContainerFleetInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "CreateContainerFleetInput"}
+	if v.FleetRoleArn == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("FleetRoleArn"))
+	}
+	if v.InstanceConnectionPortRange != nil {
+		if err := validateConnectionPortRange(v.InstanceConnectionPortRange); err != nil {
+			invalidParams.AddNested("InstanceConnectionPortRange", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.InstanceInboundPermissions != nil {
+		if err := validateIpPermissionsList(v.InstanceInboundPermissions); err != nil {
+			invalidParams.AddNested("InstanceInboundPermissions", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.Locations != nil {
+		if err := validateLocationConfigurationList(v.Locations); err != nil {
+			invalidParams.AddNested("Locations", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.Tags != nil {
+		if err := validateTagList(v.Tags); err != nil {
+			invalidParams.AddNested("Tags", err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpCreateContainerGroupDefinitionInput(v *CreateContainerGroupDefinitionInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "CreateContainerGroupDefinitionInput"}
+	if v.Name == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Name"))
+	}
+	if v.TotalMemoryLimitMebibytes == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("TotalMemoryLimitMebibytes"))
+	}
+	if v.TotalVcpuLimit == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("TotalVcpuLimit"))
+	}
+	if v.GameServerContainerDefinition != nil {
+		if err := validateGameServerContainerDefinitionInput(v.GameServerContainerDefinition); err != nil {
+			invalidParams.AddNested("GameServerContainerDefinition", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.SupportContainerDefinitions != nil {
+		if err := validateSupportContainerDefinitionInputList(v.SupportContainerDefinitions); err != nil {
+			invalidParams.AddNested("SupportContainerDefinitions", err.(smithy.InvalidParamsError))
+		}
+	}
+	if len(v.OperatingSystem) == 0 {
+		invalidParams.Add(smithy.NewErrParamRequired("OperatingSystem"))
+	}
 	if v.Tags != nil {
 		if err := validateTagList(v.Tags); err != nil {
 			invalidParams.AddNested("Tags", err.(smithy.InvalidParamsError))
@@ -2782,6 +3478,36 @@ func validateOpDeleteBuildInput(v *DeleteBuildInput) error {
 	}
 }
 
+func validateOpDeleteContainerFleetInput(v *DeleteContainerFleetInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "DeleteContainerFleetInput"}
+	if v.FleetId == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("FleetId"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpDeleteContainerGroupDefinitionInput(v *DeleteContainerGroupDefinitionInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "DeleteContainerGroupDefinitionInput"}
+	if v.Name == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Name"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateOpDeleteFleetInput(v *DeleteFleetInput) error {
 	if v == nil {
 		return nil
@@ -3035,6 +3761,69 @@ func validateOpDescribeComputeInput(v *DescribeComputeInput) error {
 	}
 	if v.ComputeName == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("ComputeName"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpDescribeContainerFleetInput(v *DescribeContainerFleetInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "DescribeContainerFleetInput"}
+	if v.FleetId == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("FleetId"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpDescribeContainerGroupDefinitionInput(v *DescribeContainerGroupDefinitionInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "DescribeContainerGroupDefinitionInput"}
+	if v.Name == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Name"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpDescribeContainerGroupPortMappingsInput(v *DescribeContainerGroupPortMappingsInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "DescribeContainerGroupPortMappingsInput"}
+	if v.FleetId == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("FleetId"))
+	}
+	if len(v.ContainerGroupType) == 0 {
+		invalidParams.Add(smithy.NewErrParamRequired("ContainerGroupType"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpDescribeFleetDeploymentInput(v *DescribeFleetDeploymentInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "DescribeFleetDeploymentInput"}
+	if v.FleetId == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("FleetId"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams
@@ -3331,6 +4120,24 @@ func validateOpGetInstanceAccessInput(v *GetInstanceAccessInput) error {
 	}
 }
 
+func validateOpGetPlayerConnectionDetailsInput(v *GetPlayerConnectionDetailsInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "GetPlayerConnectionDetailsInput"}
+	if v.GameSessionId == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("GameSessionId"))
+	}
+	if v.PlayerIds == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("PlayerIds"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateOpListComputeInput(v *ListComputeInput) error {
 	if v == nil {
 		return nil
@@ -3338,6 +4145,21 @@ func validateOpListComputeInput(v *ListComputeInput) error {
 	invalidParams := smithy.InvalidParamsError{Context: "ListComputeInput"}
 	if v.FleetId == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("FleetId"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpListContainerGroupDefinitionVersionsInput(v *ListContainerGroupDefinitionVersionsInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ListContainerGroupDefinitionVersionsInput"}
+	if v.Name == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Name"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams
@@ -3526,6 +4348,11 @@ func validateOpStartGameSessionPlacementInput(v *StartGameSessionPlacementInput)
 	if v.MaximumPlayerSessionCount == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("MaximumPlayerSessionCount"))
 	}
+	if v.PriorityConfigurationOverride != nil {
+		if err := validatePriorityConfigurationOverride(v.PriorityConfigurationOverride); err != nil {
+			invalidParams.AddNested("PriorityConfigurationOverride", err.(smithy.InvalidParamsError))
+		}
+	}
 	if invalidParams.Len() > 0 {
 		return invalidParams
 	} else {
@@ -3657,6 +4484,24 @@ func validateOpTagResourceInput(v *TagResourceInput) error {
 	}
 }
 
+func validateOpTerminateGameSessionInput(v *TerminateGameSessionInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "TerminateGameSessionInput"}
+	if v.GameSessionId == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("GameSessionId"))
+	}
+	if len(v.TerminationMode) == 0 {
+		invalidParams.Add(smithy.NewErrParamRequired("TerminationMode"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateOpUntagResourceInput(v *UntagResourceInput) error {
 	if v == nil {
 		return nil
@@ -3697,6 +4542,61 @@ func validateOpUpdateBuildInput(v *UpdateBuildInput) error {
 	invalidParams := smithy.InvalidParamsError{Context: "UpdateBuildInput"}
 	if v.BuildId == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("BuildId"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpUpdateContainerFleetInput(v *UpdateContainerFleetInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "UpdateContainerFleetInput"}
+	if v.FleetId == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("FleetId"))
+	}
+	if v.InstanceConnectionPortRange != nil {
+		if err := validateConnectionPortRange(v.InstanceConnectionPortRange); err != nil {
+			invalidParams.AddNested("InstanceConnectionPortRange", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.InstanceInboundPermissionAuthorizations != nil {
+		if err := validateIpPermissionsList(v.InstanceInboundPermissionAuthorizations); err != nil {
+			invalidParams.AddNested("InstanceInboundPermissionAuthorizations", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.InstanceInboundPermissionRevocations != nil {
+		if err := validateIpPermissionsList(v.InstanceInboundPermissionRevocations); err != nil {
+			invalidParams.AddNested("InstanceInboundPermissionRevocations", err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpUpdateContainerGroupDefinitionInput(v *UpdateContainerGroupDefinitionInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "UpdateContainerGroupDefinitionInput"}
+	if v.Name == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Name"))
+	}
+	if v.GameServerContainerDefinition != nil {
+		if err := validateGameServerContainerDefinitionInput(v.GameServerContainerDefinition); err != nil {
+			invalidParams.AddNested("GameServerContainerDefinition", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.SupportContainerDefinitions != nil {
+		if err := validateSupportContainerDefinitionInputList(v.SupportContainerDefinitions); err != nil {
+			invalidParams.AddNested("SupportContainerDefinitions", err.(smithy.InvalidParamsError))
+		}
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

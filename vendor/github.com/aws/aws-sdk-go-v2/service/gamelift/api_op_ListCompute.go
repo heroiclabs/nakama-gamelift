@@ -6,19 +6,36 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Retrieves the compute resources in an Amazon GameLift fleet. You can request
-// information for either managed EC2 fleets or Anywhere fleets. To request a list
-// of computes, specify the fleet ID. You can filter the result set by location.
-// Use the pagination parameters to retrieve results in a set of sequential pages.
-// If successful, this operation returns the compute resource for the requested
-// fleet. For managed EC2 fleets, it returns a list of EC2 instances. For Anywhere
-// fleets, it returns a list of registered compute names.
+//	This API works with the following fleet types: EC2, Anywhere, Container
+//
+// Retrieves information on the compute resources in an Amazon GameLift Servers
+// fleet. Use the pagination parameters to retrieve results in a set of sequential
+// pages.
+//
+// Request options
+//
+//   - Retrieve a list of all computes in a fleet. Specify a fleet ID.
+//
+//   - Retrieve a list of all computes in a specific fleet location. Specify a
+//     fleet ID and location.
+//
+// # Results
+//
+// If successful, this operation returns information on a set of computes.
+// Depending on the type of fleet, the result includes the following information:
+//
+//   - For a managed EC2 fleet (compute type EC2 ), this operation returns
+//     information about the EC2 instance. Compute names are EC2 instance IDs.
+//
+//   - For an Anywhere fleet (compute type ANYWHERE ), this operation returns
+//     compute names and details from when the compute was registered with
+//     RegisterCompute . This includes GameLiftServiceSdkEndpoint or
+//     GameLiftAgentEndpoint .
 func (c *Client) ListCompute(ctx context.Context, params *ListComputeInput, optFns ...func(*Options)) (*ListComputeOutput, error) {
 	if params == nil {
 		params = &ListComputeInput{}
@@ -41,11 +58,28 @@ type ListComputeInput struct {
 	// This member is required.
 	FleetId *string
 
+	// The status of computes in a managed container fleet, based on the success of
+	// the latest update deployment.
+	//
+	//   - ACTIVE -- The compute is deployed with the correct container definitions. It
+	//   is ready to process game servers and host game sessions.
+	//
+	//   - IMPAIRED -- An update deployment to the compute failed, and the compute is
+	//   deployed with incorrect container definitions.
+	ComputeStatus types.ListComputeInputStatus
+
+	// For computes in a managed container fleet, the name of the deployed container
+	// group definition.
+	ContainerGroupDefinitionName *string
+
 	// The maximum number of results to return. Use this parameter with NextToken to
 	// get results as a set of sequential pages.
 	Limit *int32
 
-	// The name of a location to retrieve compute resources for.
+	// The name of a location to retrieve compute resources for. For an Amazon
+	// GameLift Servers Anywhere fleet, use a custom location. For a managed fleet,
+	// provide a Amazon Web Services Region or Local Zone code (for example: us-west-2
+	// or us-west-2-lax-1 ).
 	Location *string
 
 	// A token that indicates the start of the next sequential page of results. Use
@@ -76,11 +110,11 @@ func (c *Client) addOperationListComputeMiddlewares(stack *middleware.Stack, opt
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListCompute{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpListCompute{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListCompute{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpListCompute{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -94,25 +128,28 @@ func (c *Client) addOperationListComputeMiddlewares(stack *middleware.Stack, opt
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -127,13 +164,22 @@ func (c *Client) addOperationListComputeMiddlewares(stack *middleware.Stack, opt
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpListComputeValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListCompute(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -148,15 +194,17 @@ func (c *Client) addOperationListComputeMiddlewares(stack *middleware.Stack, opt
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListComputeAPIClient is a client that implements the ListCompute operation.
-type ListComputeAPIClient interface {
-	ListCompute(context.Context, *ListComputeInput, ...func(*Options)) (*ListComputeOutput, error)
-}
-
-var _ ListComputeAPIClient = (*Client)(nil)
 
 // ListComputePaginatorOptions is the paginator options for ListCompute
 type ListComputePaginatorOptions struct {
@@ -222,6 +270,9 @@ func (p *ListComputePaginator) NextPage(ctx context.Context, optFns ...func(*Opt
 	}
 	params.Limit = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListCompute(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -240,6 +291,13 @@ func (p *ListComputePaginator) NextPage(ctx context.Context, optFns ...func(*Opt
 
 	return result, nil
 }
+
+// ListComputeAPIClient is a client that implements the ListCompute operation.
+type ListComputeAPIClient interface {
+	ListCompute(context.Context, *ListComputeInput, ...func(*Options)) (*ListComputeOutput, error)
+}
+
+var _ ListComputeAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opListCompute(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

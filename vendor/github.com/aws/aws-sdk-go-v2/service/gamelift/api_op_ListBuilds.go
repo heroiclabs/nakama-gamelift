@@ -6,18 +6,28 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+//	This API works with the following fleet types: EC2
+//
 // Retrieves build resources for all builds associated with the Amazon Web
 // Services account in use. You can limit results to builds that are in a specific
 // status by using the Status parameter. Use the pagination parameters to retrieve
-// results in a set of sequential pages. Build resources are not listed in any
-// particular order. Learn more Upload a Custom Server Build (https://docs.aws.amazon.com/gamelift/latest/developerguide/gamelift-build-intro.html)
-// All APIs by task (https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets)
+// results in
+//
+// Build resources are not listed in any particular order.
+//
+// # Learn more
+//
+// [Upload a Custom Server Build]
+//
+// [All APIs by task]
+//
+// [Upload a Custom Server Build]: https://docs.aws.amazon.com/gamelift/latest/developerguide/gamelift-build-intro.html
+// [All APIs by task]: https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets
 func (c *Client) ListBuilds(ctx context.Context, params *ListBuildsInput, optFns ...func(*Options)) (*ListBuildsOutput, error) {
 	if params == nil {
 		params = &ListBuildsInput{}
@@ -41,16 +51,21 @@ type ListBuildsInput struct {
 
 	// A token that indicates the start of the next sequential page of results. Use
 	// the token that is returned with a previous call to this operation. To start at
-	// the beginning of the result set, don't specify a value.
+	// the beginning of the result set, do not specify a value.
 	NextToken *string
 
 	// Build status to filter results by. To retrieve all builds, leave this parameter
-	// empty. Possible build statuses include the following:
+	// empty.
+	//
+	// Possible build statuses include the following:
+	//
 	//   - INITIALIZED -- A new build has been defined, but no files have been
 	//   uploaded. You cannot create fleets for builds that are in this status. When a
 	//   build is successfully created, the build status is set to this value.
+	//
 	//   - READY -- The game build has been successfully uploaded. You can now create
 	//   new fleets for this build.
+	//
 	//   - FAILED -- The game build upload failed. You cannot create new fleets for
 	//   this build.
 	Status types.BuildStatus
@@ -78,11 +93,11 @@ func (c *Client) addOperationListBuildsMiddlewares(stack *middleware.Stack, opti
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListBuilds{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpListBuilds{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListBuilds{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpListBuilds{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -96,25 +111,28 @@ func (c *Client) addOperationListBuildsMiddlewares(stack *middleware.Stack, opti
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -129,10 +147,19 @@ func (c *Client) addOperationListBuildsMiddlewares(stack *middleware.Stack, opti
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListBuilds(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -147,15 +174,17 @@ func (c *Client) addOperationListBuildsMiddlewares(stack *middleware.Stack, opti
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListBuildsAPIClient is a client that implements the ListBuilds operation.
-type ListBuildsAPIClient interface {
-	ListBuilds(context.Context, *ListBuildsInput, ...func(*Options)) (*ListBuildsOutput, error)
-}
-
-var _ ListBuildsAPIClient = (*Client)(nil)
 
 // ListBuildsPaginatorOptions is the paginator options for ListBuilds
 type ListBuildsPaginatorOptions struct {
@@ -221,6 +250,9 @@ func (p *ListBuildsPaginator) NextPage(ctx context.Context, optFns ...func(*Opti
 	}
 	params.Limit = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListBuilds(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -239,6 +271,13 @@ func (p *ListBuildsPaginator) NextPage(ctx context.Context, optFns ...func(*Opti
 
 	return result, nil
 }
+
+// ListBuildsAPIClient is a client that implements the ListBuilds operation.
+type ListBuildsAPIClient interface {
+	ListBuilds(context.Context, *ListBuildsInput, ...func(*Options)) (*ListBuildsOutput, error)
+}
+
+var _ ListBuildsAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opListBuilds(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

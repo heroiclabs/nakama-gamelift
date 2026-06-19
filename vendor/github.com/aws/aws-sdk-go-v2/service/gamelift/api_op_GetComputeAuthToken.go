@@ -6,23 +6,44 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"time"
 )
 
-// Requests an authentication token from Amazon GameLift for a registered compute
-// in an Anywhere fleet. The game servers that are running on the compute use this
-// token to authenticate with the Amazon GameLift service. Each server process must
-// provide a valid authentication token in its call to the Amazon GameLift server
-// SDK action InitSDK() . Authentication tokens are valid for a limited time span.
-// Use a mechanism to regularly request a fresh authentication token before the
-// current token expires. Learn more
-//   - Create an Anywhere fleet (https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-creating-anywhere.html)
-//   - Test your integration (https://docs.aws.amazon.com/gamelift/latest/developerguide/integration-testing.html)
-//   - Server SDK reference guides (https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-serversdk.html)
-//     (for version 5.x)
+//	This API works with the following fleet types: EC2, Anywhere, Container
+//
+// Requests an authentication token from Amazon GameLift Servers for a compute
+// resource in an Amazon GameLift Servers fleet. Game servers that are running on
+// the compute use this token to communicate with the Amazon GameLift Servers
+// service, such as when calling the Amazon GameLift Servers server SDK action
+// InitSDK() . Authentication tokens are valid for a limited time span, so you need
+// to request a fresh token before the current token expires.
+//
+// Request options
+//
+//   - For managed EC2 fleets (compute type EC2 ), auth token retrieval and refresh
+//     is handled automatically. All game servers that are running on all fleet
+//     instances have access to a valid auth token.
+//
+//   - For Anywhere fleets (compute type ANYWHERE ), if you're using the Amazon
+//     GameLift Servers Agent, auth token retrieval and refresh is handled
+//     automatically for any compute where the Agent is running. If you're not using
+//     the Agent, create a mechanism to retrieve and refresh auth tokens for computes
+//     that are running game server processes.
+//
+// # Learn more
+//
+// [Create an Anywhere fleet]
+//
+// [Test your integration]
+//
+// [Server SDK reference guides]
+//   - (for version 5.x)
+//
+// [Test your integration]: https://docs.aws.amazon.com/gamelift/latest/developerguide/integration-testing.html
+// [Server SDK reference guides]: https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-serversdk.html
+// [Create an Anywhere fleet]: https://docs.aws.amazon.com/gamelift/latest/developerguide/fleets-creating-anywhere.html
 func (c *Client) GetComputeAuthToken(ctx context.Context, params *GetComputeAuthTokenInput, optFns ...func(*Options)) (*GetComputeAuthTokenOutput, error) {
 	if params == nil {
 		params = &GetComputeAuthTokenInput{}
@@ -41,7 +62,8 @@ func (c *Client) GetComputeAuthToken(ctx context.Context, params *GetComputeAuth
 type GetComputeAuthTokenInput struct {
 
 	// The name of the compute resource you are requesting the authentication token
-	// for.
+	// for. For an Anywhere fleet compute, use the registered compute name. For an EC2
+	// fleet instance, use the instance ID.
 	//
 	// This member is required.
 	ComputeName *string
@@ -59,10 +81,12 @@ type GetComputeAuthTokenOutput struct {
 	// A valid temporary authentication token.
 	AuthToken *string
 
-	// The Amazon Resource Name ( ARN (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html)
-	// ) that is assigned to an Amazon GameLift compute resource and uniquely
-	// identifies it. ARNs are unique across all Regions. Format is
+	// The Amazon Resource Name ([ARN] ) that is assigned to an Amazon GameLift Servers
+	// compute resource and uniquely identifies it. ARNs are unique across all Regions.
+	// Format is
 	// arn:aws:gamelift:::compute/compute-a1234567-b8c9-0d1e-2fa3-b45c6d7e8912 .
+	//
+	// [ARN]: https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
 	ComputeArn *string
 
 	// The name of the compute resource that the authentication token is issued to.
@@ -71,10 +95,11 @@ type GetComputeAuthTokenOutput struct {
 	// The amount of time until the authentication token is no longer valid.
 	ExpirationTimestamp *time.Time
 
-	// The Amazon Resource Name ( ARN (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html)
-	// ) that is assigned to a Amazon GameLift fleet resource and uniquely identifies
-	// it. ARNs are unique across all Regions. Format is
-	// arn:aws:gamelift:::fleet/fleet-a1234567-b8c9-0d1e-2fa3-b45c6d7e8912 .
+	// The Amazon Resource Name ([ARN] ) that is assigned to a Amazon GameLift Servers fleet
+	// resource and uniquely identifies it. ARNs are unique across all Regions. Format
+	// is arn:aws:gamelift:::fleet/fleet-a1234567-b8c9-0d1e-2fa3-b45c6d7e8912 .
+	//
+	// [ARN]: https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
 	FleetArn *string
 
 	// A unique identifier for the fleet that the compute is registered to.
@@ -90,11 +115,11 @@ func (c *Client) addOperationGetComputeAuthTokenMiddlewares(stack *middleware.St
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpGetComputeAuthToken{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpGetComputeAuthToken{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpGetComputeAuthToken{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpGetComputeAuthToken{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -108,25 +133,28 @@ func (c *Client) addOperationGetComputeAuthTokenMiddlewares(stack *middleware.St
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -141,13 +169,22 @@ func (c *Client) addOperationGetComputeAuthTokenMiddlewares(stack *middleware.St
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetComputeAuthTokenValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetComputeAuthToken(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -160,6 +197,15 @@ func (c *Client) addOperationGetComputeAuthTokenMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

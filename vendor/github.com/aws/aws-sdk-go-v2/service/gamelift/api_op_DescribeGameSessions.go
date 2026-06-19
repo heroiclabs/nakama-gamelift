@@ -6,37 +6,54 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+//	This API works with the following fleet types: EC2, Anywhere, Container
+//
 // Retrieves a set of one or more game sessions in a specific fleet location. You
-// can optionally filter the results by current game session status. This operation
-// can be used in the following ways:
+// can optionally filter the results by current game session status.
+//
+// This operation can be used in the following ways:
+//
 //   - To retrieve all game sessions that are currently running on all locations
 //     in a fleet, provide a fleet or alias ID, with an optional status filter. This
 //     approach returns all game sessions in the fleet's home Region and all remote
 //     locations.
+//
 //   - To retrieve all game sessions that are currently running on a specific
 //     fleet location, provide a fleet or alias ID and a location name, with optional
 //     status filter. The location can be the fleet's home Region or any remote
 //     location.
+//
 //   - To retrieve a specific game session, provide the game session ID. This
 //     approach looks for the game session ID in all fleets that reside in the Amazon
 //     Web Services Region defined in the request.
 //
 // Use the pagination parameters to retrieve results as a set of sequential pages.
+//
 // If successful, a GameSession object is returned for each game session that
-// matches the request. This operation is not designed to be continually called to
-// track game session status. This practice can cause you to exceed your API limit,
-// which results in errors. Instead, you must configure an Amazon Simple
-// Notification Service (SNS) topic to receive notifications from FlexMatch or
-// queues. Continuously polling with DescribeGameSessions should only be used for
-// games in development with low game session usage. Available in Amazon GameLift
-// Local. Learn more Find a game session (https://docs.aws.amazon.com/gamelift/latest/developerguide/gamelift-sdk-client-api.html#gamelift-sdk-client-api-find)
-// All APIs by task (https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets)
+// matches the request.
+//
+// This operation is not designed to be continually called to track game session
+// status. This practice can cause you to exceed your API limit, which results in
+// errors. Instead, you must configure an Amazon Simple Notification Service (SNS)
+// topic to receive notifications from FlexMatch or queues. Continuously polling
+// with DescribeGameSessions should only be used for games in development with low
+// game session usage.
+//
+// Available in Amazon GameLift Servers Local.
+//
+// # Learn more
+//
+// [Find a game session]
+//
+// [All APIs by task]
+//
+// [Find a game session]: https://docs.aws.amazon.com/gamelift/latest/developerguide/gamelift-sdk-client-api.html#gamelift-sdk-client-api-find
+// [All APIs by task]: https://docs.aws.amazon.com/gamelift/latest/developerguide/reference-awssdk.html#reference-awssdk-resources-fleets
 func (c *Client) DescribeGameSessions(ctx context.Context, params *DescribeGameSessionsInput, optFns ...func(*Options)) (*DescribeGameSessionsOutput, error) {
 	if params == nil {
 		params = &DescribeGameSessionsInput{}
@@ -62,7 +79,10 @@ type DescribeGameSessionsInput struct {
 	// either the fleet ID or ARN value.
 	FleetId *string
 
-	// A unique identifier for the game session to retrieve.
+	// An identifier for the game session that is unique across all regions to
+	// retrieve. The value is always a full ARN in the following format: For Home
+	// Region game session - arn:aws:gamelift:::gamesession// . For Remote Location
+	// game session - arn:aws:gamelift:::gamesession/// .
 	GameSessionId *string
 
 	// The maximum number of results to return. Use this parameter with NextToken to
@@ -107,11 +127,11 @@ func (c *Client) addOperationDescribeGameSessionsMiddlewares(stack *middleware.S
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeGameSessions{}, middleware.After)
+	err = stack.Serialize.Add(&smithyRpcv2cbor_serializeOpDescribeGameSessions{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeGameSessions{}, middleware.After)
+	err = stack.Deserialize.Add(&smithyRpcv2cbor_deserializeOpDescribeGameSessions{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -125,25 +145,28 @@ func (c *Client) addOperationDescribeGameSessionsMiddlewares(stack *middleware.S
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -158,10 +181,19 @@ func (c *Client) addOperationDescribeGameSessionsMiddlewares(stack *middleware.S
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeGameSessions(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -176,16 +208,17 @@ func (c *Client) addOperationDescribeGameSessionsMiddlewares(stack *middleware.S
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribeGameSessionsAPIClient is a client that implements the
-// DescribeGameSessions operation.
-type DescribeGameSessionsAPIClient interface {
-	DescribeGameSessions(context.Context, *DescribeGameSessionsInput, ...func(*Options)) (*DescribeGameSessionsOutput, error)
-}
-
-var _ DescribeGameSessionsAPIClient = (*Client)(nil)
 
 // DescribeGameSessionsPaginatorOptions is the paginator options for
 // DescribeGameSessions
@@ -252,6 +285,9 @@ func (p *DescribeGameSessionsPaginator) NextPage(ctx context.Context, optFns ...
 	}
 	params.Limit = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribeGameSessions(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -270,6 +306,14 @@ func (p *DescribeGameSessionsPaginator) NextPage(ctx context.Context, optFns ...
 
 	return result, nil
 }
+
+// DescribeGameSessionsAPIClient is a client that implements the
+// DescribeGameSessions operation.
+type DescribeGameSessionsAPIClient interface {
+	DescribeGameSessions(context.Context, *DescribeGameSessionsInput, ...func(*Options)) (*DescribeGameSessionsOutput, error)
+}
+
+var _ DescribeGameSessionsAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opDescribeGameSessions(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
