@@ -1,4 +1,4 @@
-ARG NAKAMA_VERSION=3.39.0
+ARG NAKAMA_VERSION=3.41.0
 
 FROM heroiclabs/nakama-pluginbuilder:${NAKAMA_VERSION} AS builder
 
