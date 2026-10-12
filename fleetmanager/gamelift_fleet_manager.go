@@ -2,13 +2,16 @@ package fleetmanager
 
 import (
 	"context"
+	"crypto/sha1"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -19,9 +22,9 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
-const (
-	StorageGameLiftIndex               = "_gamelift_instances_idx"
-	StorageGameLiftInstancesCollection = "_gamelift_instances"
+var (
+	StorageGameLiftIndex               = func(namespace string) string { return fmt.Sprintf("gamelift_%s_instances_idx", namespace) }
+	StorageGameLiftInstancesCollection = func(namespace string) string { return fmt.Sprintf("gamelift_%s_instances", namespace) }
 )
 
 const (
@@ -40,6 +43,7 @@ var _ runtime.FleetManagerInitializer = (*GameLiftFleetManager)(nil)
 
 type GameLiftFleetManager struct {
 	ctx             context.Context
+	namespace       string
 	glService       *gamelift.Client
 	sqsService      *sqs.Client
 	logger          runtime.Logger
@@ -132,7 +136,10 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 		return nil, err
 	}
 
-	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex, StorageGameLiftInstancesCollection, "", []string{"id", "create_time", "player_count", "metadata"}, []string{"create_time", "player_count"}, 1_000_000, false); err != nil {
+	sum := sha1.Sum([]byte(uuid.NewV4().String()))
+	namespace := hex.EncodeToString(sum[:])[:7]
+
+	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex(namespace), StorageGameLiftInstancesCollection(namespace), "", []string{"id", "create_time", "player_count", "metadata"}, []string{"create_time", "player_count"}, 1_000_000, false); err != nil {
 		return nil, err
 	}
 
@@ -149,6 +156,7 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 
 	glfm := &GameLiftFleetManager{
 		ctx:        ctx,
+		namespace:  namespace,
 		db:         db,
 		glService:  glService,
 		sqsService: sqsService,
@@ -343,7 +351,7 @@ func (fm *GameLiftFleetManager) List(ctx context.Context, query string, limit in
 	}
 
 	// Emptiest matches, most recently created first.
-	entries, _, err := fm.nk.StorageIndexList(ctx, "", StorageGameLiftIndex, query, limit, []string{"player_count", "-create_time"}, "")
+	entries, _, err := fm.nk.StorageIndexList(ctx, "", StorageGameLiftIndex(fm.namespace), query, limit, []string{"player_count", "-create_time"}, "")
 	if err != nil {
 		return nil, "", err
 	}
@@ -394,7 +402,7 @@ func (fm *GameLiftFleetManager) listDbGameSessions(ctx context.Context) ([]*runt
 
 	cursor := ""
 	for {
-		objects, nextCursor, err := fm.nk.StorageList(ctx, "", "", StorageGameLiftInstancesCollection, 1_000, cursor)
+		objects, nextCursor, err := fm.nk.StorageList(ctx, "", "", StorageGameLiftInstancesCollection(fm.namespace), 1_000, cursor)
 		if err != nil {
 			return nil, err
 		}
@@ -422,7 +430,7 @@ func (fm *GameLiftFleetManager) getDbGameSession(ctx context.Context, id string)
 		return nil, err
 	}
 	objects, err := fm.nk.StorageRead(ctx, []*runtime.StorageRead{{
-		Collection: StorageGameLiftInstancesCollection,
+		Collection: StorageGameLiftInstancesCollection(fm.namespace),
 		Key:        key,
 	}})
 	if err != nil {
@@ -456,7 +464,7 @@ func (fm *GameLiftFleetManager) updateStorageGameSessions(ctx context.Context, i
 			return err
 		}
 		storageWrites = append(storageWrites, &runtime.StorageWrite{
-			Collection: StorageGameLiftInstancesCollection,
+			Collection: StorageGameLiftInstancesCollection(fm.namespace),
 			Key:        key,
 			Value:      string(v),
 		})
@@ -477,7 +485,7 @@ func (fm *GameLiftFleetManager) deleteStorageGameSessions(ctx context.Context, i
 			return err
 		}
 		deletes = append(deletes, &runtime.StorageDelete{
-			Collection: StorageGameLiftInstancesCollection,
+			Collection: StorageGameLiftInstancesCollection(fm.namespace),
 			Key:        key,
 		})
 	}
