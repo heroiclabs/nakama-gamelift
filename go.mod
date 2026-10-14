@@ -16,3 +16,5 @@ require (
 	github.com/aws/smithy-go v1.28.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
+
+replace github.com/heroiclabs/nakama-common => ../nakama-common

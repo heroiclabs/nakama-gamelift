@@ -80,7 +80,7 @@ github.com/aws/smithy-go/transport/http/protocol/internal/cbor
 github.com/aws/smithy-go/transport/http/protocol/internal/json
 github.com/aws/smithy-go/transport/http/protocol/internal/json/internal/stdlib
 github.com/aws/smithy-go/transport/http/protocol/rpcv2
-# github.com/heroiclabs/nakama-common v1.48.0
+# github.com/heroiclabs/nakama-common v1.48.0 => ../nakama-common
 ## explicit; go 1.27.1
 github.com/heroiclabs/nakama-common/api
 github.com/heroiclabs/nakama-common/rtapi
@@ -119,3 +119,4 @@ google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/known/structpb
 google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/known/wrapperspb
+# github.com/heroiclabs/nakama-common => ../nakama-common
