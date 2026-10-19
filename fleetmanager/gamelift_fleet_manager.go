@@ -2,16 +2,13 @@ package fleetmanager
 
 import (
 	"context"
-	"crypto/sha1"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"strings"
 	"time"
-	"uuid"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -23,8 +20,19 @@ import (
 )
 
 var (
-	StorageGameLiftIndex               = func(namespace string) string { return fmt.Sprintf("gamelift_%s_instances_idx", namespace) }
-	StorageGameLiftInstancesCollection = func(namespace string) string { return fmt.Sprintf("gamelift_%s_instances", namespace) }
+	StorageGameLiftIndex = func(namespace string) string {
+		if namespace == "" {
+			return "gamelift_instances_idx"
+		}
+		return "gamelift_" + namespace + "_instances_idx"
+	}
+	StorageGameLiftInstancesCollection = func(namespace string) string {
+		if namespace == "" {
+			return "gamelift_instances"
+		}
+
+		return "gamelift_" + namespace + "_instances"
+	}
 )
 
 const (
@@ -32,12 +40,21 @@ const (
 	GameSessionDataKey = "GameSessionData"
 	GamePropertiesKey  = "GameProperties"
 	GameSessionNameKey = "GameSessionName"
-	PlacementIdKey     = "placementId"
 )
 
-const (
-	RpcIdUpdateInstanceInfo = "update_instance_info"
-	RpcIdDeleteInstanceInfo = "delete_instance_info"
+var (
+	RpcIdUpdateInstanceInfo = func(namespace string) string {
+		if namespace == "" {
+			return "gamelift_update_instance_info"
+		}
+		return "gamelift_" + namespace + "_update_instance_info"
+	}
+	RpcIdDeleteInstanceInfo = func(namespace string) string {
+		if namespace == "" {
+			return "gamelift_delete_instance_info"
+		}
+		return "gamelift_" + namespace + "_delete_instance_info"
+	}
 )
 
 var _ runtime.FleetManagerInitializer = (*GameLiftFleetManager)(nil)
@@ -137,13 +154,6 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 		return nil, err
 	}
 
-	sum := sha1.Sum([]byte(uuid.NewV4().String()))
-	namespace := hex.EncodeToString(sum[:])[:7]
-
-	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex(namespace), StorageGameLiftInstancesCollection(namespace), "", []string{"id", "create_time", "player_count", "metadata"}, []string{"create_time", "player_count"}, 1_000_000, false); err != nil {
-		return nil, err
-	}
-
 	awsConfig := aws.Config{
 		Region:      conf.AwsRegion,
 		Credentials: credentials.NewStaticCredentialsProvider(conf.AwsKey, conf.AwsSecret, ""),
@@ -157,7 +167,6 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 
 	glfm := &GameLiftFleetManager{
 		ctx:        ctx,
-		namespace:  namespace,
 		db:         db,
 		glService:  glService,
 		sqsService: sqsService,
@@ -166,23 +175,24 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 		cfg:        conf,
 	}
 
-	// NOTE: This RPC is required and must be invoked from a Game Session whenever a player connects/disconnects.
-	// Refer to the documentation for more information.
-	if err := initializer.RegisterRpc(RpcIdUpdateInstanceInfo, glfm.UpdateInstanceInfo); err != nil {
-		return nil, err
-	}
-	// NOTE: This RPC is required and must be invoked from the Game Session whenever a Game Session terminates.
-	// Refer to the documentation for more information.
-	if err := initializer.RegisterRpc(RpcIdDeleteInstanceInfo, glfm.DeleteInstanceInfo); err != nil {
-		return nil, err
-	}
-
 	return glfm, nil
 }
 
-func (fm *GameLiftFleetManager) Init(nk runtime.NakamaModule, callbackHandler runtime.FmCallbackHandler) error {
+func (fm *GameLiftFleetManager) Init(initializer runtime.Initializer, nk runtime.NakamaModule, callbackHandler runtime.FmCallbackHandler, namespace string) error {
 	fm.nk = nk
 	fm.callbackHandler = callbackHandler
+	fm.namespace = namespace
+
+	// NOTE: This RPC is required and must be invoked from a Game Session whenever a player connects/disconnects.
+	// Refer to the documentation for more information.
+	if err := initializer.RegisterRpc(RpcIdUpdateInstanceInfo(fm.namespace), fm.UpdateInstanceInfo); err != nil {
+		return err
+	}
+	// NOTE: This RPC is required and must be invoked from the Game Session whenever a Game Session terminates.
+	// Refer to the documentation for more information.
+	if err := initializer.RegisterRpc(RpcIdDeleteInstanceInfo(fm.namespace), fm.DeleteInstanceInfo); err != nil {
+		return err
+	}
 
 	// Initialise sqs background consumer here as it depends on the callbackHandler
 	go fm.processSqsPlacementEvents()
@@ -215,8 +225,21 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 	var gameSessionData *string
 	if m := metadata[GameSessionDataKey]; m != nil {
 		if s, ok := m.(string); ok {
+			var data map[string]string
+			if err := json.Unmarshal([]byte(s), &data); err != nil {
+				return nil, errors.New("failed to unmarshal GameSessionData metadata value: " + err.Error())
+			}
+			data["nakama_gamelift_namespace"] = fm.namespace
+			data["nakama_gamelift_update_rpc_id"] = RpcIdUpdateInstanceInfo(fm.namespace)
+			data["nakama_gamelift_delete_rpc_id"] = RpcIdDeleteInstanceInfo(fm.namespace)
+
+			sessionDataJson, err := json.Marshal(data)
+			if err != nil {
+				return nil, errors.New("failed to marshal GameSessionData metadata value: " + err.Error())
+			}
+
 			gameSessionData = new(string)
-			*gameSessionData = s
+			*gameSessionData = string(sessionDataJson)
 		}
 	}
 
