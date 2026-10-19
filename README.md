@@ -219,8 +219,16 @@ docker compose up
 ## Status Update RPCs
 For Nakama to be up-to-date on the number of Player Sessions currently connected to a Game Session and for it to be aware of when a Game Session is terminated, the Game Session SDK should invoke two RPCs that are automatically exposed as part of the `fleetmanager` registration. These RPCs can be invoked as [Server-to-Server calls](https://heroiclabs.com/docs/nakama/server-framework/runtime-examples/#server-to-server).
 
+The RPC IDs can be retrieved from GameLift's Game Session Data under the keys:
+* `nakama_gamelift_update_rpc_id`
+* `nakama_gamelift_delete_rpc_id`
+
+
+### Namespace
+The RPC IDs are namespaced with the `gamelift_<namespace>` prefix, where `<namespace>` is the Nakama runtime namespace that the Fleet Manager was registered with. If the namespace is empty, then the prefix is simply `gamelift_`.
+
 ### Update RPC
-* RpcId: `update_instance_info`
+* RpcId: `gamelift_<namespace>_update_instance_info`
 
 This RPC should be invoked any time a player connects or disconnects from the Game Session to update the playerCount by passing the current number of connected players.
 
@@ -243,7 +251,7 @@ The expected RPC payload is the following:
 ```
 
 ### Delete RPC
-* RpcId: `delete_instance_info`
+* RpcId: `gamelift_<namespace>_delete_instance_info`
 
 This RPC should be invoked any time a Game Session terminates.
 The expected RPC payload is the following:

@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.6
 	github.com/aws/aws-sdk-go-v2/service/gamelift v1.66.2
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.1
-	github.com/heroiclabs/nakama-common v1.48.0
+	github.com/heroiclabs/nakama-common v1.48.1-0.20261016195358-189a8ea03d90
 )
 
 require (
@@ -16,5 +16,3 @@ require (
 	github.com/aws/smithy-go v1.28.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
-
-replace github.com/heroiclabs/nakama-common => ../nakama-common
