@@ -32,7 +32,7 @@ The `fleetmanager` instance has to be created within your Nakama plugin `InitMod
 
 ### Registration
 ```go
-glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, initializer, nk, cfg)
+glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, nk, cfg)
 if err != nil {
     return err
 }
@@ -43,10 +43,28 @@ if err = initializer.RegisterFleetManager(glfm); err != nil {
 }
 ```
 
+### Multiple Fleet Managers
+To use more than one GameLift Fleet from the same Nakama deployment, register each Fleet Manager under a distinct name using `RegisterFleetManagerByName()`. The name is used as the Fleet Manager's namespace: it scopes its storage collection, storage index and [status update RPC IDs](#namespace).
+```go
+if err = initializer.RegisterFleetManagerByName("eu", glfmEu); err != nil {
+    return err
+}
+if err = initializer.RegisterFleetManagerByName("us", glfmUs); err != nil {
+    return err
+}
+```
+
+Each namespaced Fleet Manager must be configured with its own Placement Queue and Placement Events SQS Queue. If two Fleet Managers consume from the same SQS Queue, either one can receive the other's placement events, and the resulting Game Session data is stored under the wrong namespace.
+
 ### Access the Fleet Manager
 Once registered, it can be retrieved throughout your Nakama plugin code via the `runtime.NakamaModule` `GetFleetManager()` function:
 ```go
 fm := nk.GetFleetManager() // If fm is nil the FleetManager was not registered.
+```
+
+A Fleet Manager registered by name is retrieved with `GetFleetManagerByName()`:
+```go
+fm := nk.GetFleetManagerByName("eu")
 ```
 
 The `fm` instance can then be used to list or create Game Sessions.
@@ -87,8 +105,14 @@ maxPlayers := 10
 // playerIds - Optional: Reserves a Player Session for each userId. The reservation expires after 60s if the client doesn't connect.
 playerIds := []string{userId}
 // metadata - Optional: Can contain the following keys: GameSessionDataKey, GamePropertiesKey and GameSessionNameKey.
-// Expects the value of GameSessionDataKey and GameSessionNameKey to be strings. GamePropertiesKey's value should be a map[string]string.
-metadata := map[string]any{GamePropertiesKey: map[string]string{"key1":"value1"}}
+// - GameSessionDataKey's value should be a map[string]any. It is serialized as JSON before being sent to GameLift, so the
+//   Game Session must deserialize the GameSessionData string it fetches from GameLift. See "Game Session Data" below.
+// - GamePropertiesKey's value should be a map[string]string.
+// - GameSessionNameKey's value should be a string.
+metadata := map[string]any{
+    fleetmanager.GameSessionDataKey: map[string]any{"mode": "ranked", "map": "dust"},
+    fleetmanager.GamePropertiesKey:  map[string]string{"key1": "value1"},
+}
 // latencies - Optional: - A list of latencies to different aws regions, per userId, experienced from the client.
 latencies := []runtime.FleetUserLatencies{{
     UserId:                userId,
@@ -100,10 +124,28 @@ createMetadata, err = fm.Create(ctx, maxPlayers, playerIds, latencies, metadata,
 placementId := createMetadata[fleetmanager.PlacementIdKey] // The PlacementIdKey can be used to return the PlacementId of the Game Session creation request.
 ```
 
+#### Game Session Data
+`Create` always sets the Game Session's `GameSessionData`, even if `GameSessionDataKey` is not provided. The `GameSessionDataKey` map is serialized as a JSON object string, with the following keys added by the Fleet Manager:
+
+* `nakama_gamelift_namespace`: The namespace the Fleet Manager was registered with.
+* `nakama_gamelift_update_rpc_id`: The ID of the [Update RPC](#update-rpc).
+* `nakama_gamelift_delete_rpc_id`: The ID of the [Delete RPC](#delete-rpc).
+
+Any user-provided keys with these names are overwritten. Within the Game Session, deserialize the `GameSessionData` string retrieved from the GameLift Server SDK as JSON to access the values, for example:
+```json
+{
+  "mode": "ranked",
+  "map": "dust",
+  "nakama_gamelift_namespace": "",
+  "nakama_gamelift_update_rpc_id": "gamelift_update_instance_info",
+  "nakama_gamelift_delete_rpc_id": "gamelift_delete_instance_info"
+}
+```
+
 ### List
 To query for existing Game Sessions, `List` can be used with the [Query Syntax](https://heroiclabs.com/docs/nakama/concepts/multiplayer/query-syntax/):
 ```go
-query := "+value.playerCount:2" // Query to list Game Sessions currently containing 2 Player Sessions. An empty query will list all Game Sessions.
+query := "+value.player_count:2" // Query to list Game Sessions currently containing 2 Player Sessions. An empty query will list all Game Sessions.
 limit := 10 // Number of results per page (does not apply if query is != "").
 cursor := "" // Pagination cursor.
 instances, nextCursor, err := fm.List(ctx, query, limit, cursor)
@@ -186,7 +228,7 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 
   cfg := fleetmanager.NewGameLiftConfig(awsAccessKey, awsSecretAccessKey, awsRegion, awsAliasId, awsPlacementQueueName, awsGameLiftPlacementEventsQueueUrl)
 
-  glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, initializer, nk, cfg)
+  glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, nk, cfg)
   if err != nil {
     return err
   }
@@ -208,6 +250,8 @@ git clone https://github.com/heroiclabs/nakama-gamelift/
 To run it locally using [Docker](https://www.docker.com/) follow the steps in the [Docker section](#run-locally-with-docker).
 
 ## Run locally with Docker
+The plugin must be built with the same `nakama-common` version as the Nakama server that loads it. This version of the Fleet Manager requires Nakama 3.42.0 or later; the image version is set by the `NAKAMA_VERSION` build argument in the `Dockerfile`.
+
 ### Configuration
 To connect to your existing fleet, make sure you modify all the required runtime env parameters in the `local.yml` file.
 
@@ -219,18 +263,17 @@ docker compose up
 ## Status Update RPCs
 For Nakama to be up-to-date on the number of Player Sessions currently connected to a Game Session and for it to be aware of when a Game Session is terminated, the Game Session SDK should invoke two RPCs that are automatically exposed as part of the `fleetmanager` registration. These RPCs can be invoked as [Server-to-Server calls](https://heroiclabs.com/docs/nakama/server-framework/runtime-examples/#server-to-server).
 
-The RPC IDs can be retrieved from GameLift's Game Session Data under the keys:
+The RPC IDs can be retrieved from the Game Session's JSON-encoded [Game Session Data](#game-session-data) under the keys:
 * `nakama_gamelift_update_rpc_id`
 * `nakama_gamelift_delete_rpc_id`
 
-
 ### Namespace
-The RPC IDs are namespaced with the `gamelift_<namespace>` prefix, where `<namespace>` is the Nakama runtime namespace that the Fleet Manager was registered with. If the namespace is empty, then the prefix is simply `gamelift_`.
+The RPC IDs are namespaced with the `gamelift_<namespace>` prefix, where `<namespace>` is the name the Fleet Manager was registered with using `RegisterFleetManagerByName()`. If the Fleet Manager was registered with `RegisterFleetManager()`, the namespace is empty and the prefix is simply `gamelift_`. RPC IDs are always lowercase, so a Fleet Manager registered as `EU` exposes `gamelift_eu_update_instance_info`.
 
 ### Update RPC
 * RpcId: `gamelift_<namespace>_update_instance_info`
 
-This RPC should be invoked any time a player connects or disconnects from the Game Session to update the playerCount by passing the current number of connected players.
+This RPC should be invoked any time a player connects or disconnects from the Game Session to update the `player_count` by passing the current number of connected players.
 
 It can also be used to update a Game Session's `GameSessionName`, `GameSessionData` or `GameProperties`. Updating these metadata fields allow the filtering of Game Sessions in the `List` function based on the properties values.
 Each of metadata's expected keys are optional, and only if any is present with a value will it overwrite the current value in the Nakama Storage Index.
@@ -238,7 +281,7 @@ The expected RPC payload is the following:
 ```json
 {
   "id": "<Game Session ARN>",
-  "playerCount": 10,
+  "player_count": 10,
   "metadata": {
     "GameSessionData": "<game_session_data>",
     "GameSessionName": "<game_session_name>",
