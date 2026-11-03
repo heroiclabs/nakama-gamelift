@@ -13,8 +13,8 @@ import (
 //	This API works with the following fleet types: EC2, Anywhere, Container
 //
 // Removes locations from a multi-location fleet. When deleting a location, all
-// game server process and all instances that are still active in the location are
-// shut down.
+// game server processes and all instances that are still active in the location
+// are shut down.
 //
 // To delete fleet locations, identify the fleet ID and provide a list of the
 // locations to be deleted.
@@ -70,7 +70,9 @@ func (v *DeleteFleetLocationsInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.FleetId != nil {
 		s.WriteString(schemas.DeleteFleetLocationsInput_FleetId, *v.FleetId)
 	}
-	serializeLocationList(s, schemas.DeleteFleetLocationsInput_Locations, v.Locations)
+	if v.Locations != nil {
+		serializeLocationList(s, schemas.DeleteFleetLocationsInput_Locations, v.Locations)
+	}
 }
 
 type DeleteFleetLocationsOutput struct {
@@ -109,7 +111,9 @@ func (v *DeleteFleetLocationsOutput) SerializeMembers(s smithy.ShapeSerializer) 
 	if v.FleetId != nil {
 		s.WriteString(schemas.DeleteFleetLocationsOutput_FleetId, *v.FleetId)
 	}
-	serializeLocationStateList(s, schemas.DeleteFleetLocationsOutput_LocationStates, v.LocationStates)
+	if v.LocationStates != nil {
+		serializeLocationStateList(s, schemas.DeleteFleetLocationsOutput_LocationStates, v.LocationStates)
+	}
 }
 func (v *DeleteFleetLocationsOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.DeleteFleetLocationsOutput, func(s *smithy.Schema) error {

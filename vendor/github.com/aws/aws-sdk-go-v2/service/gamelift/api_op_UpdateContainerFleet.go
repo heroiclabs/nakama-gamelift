@@ -17,7 +17,7 @@ import (
 // can track deployments for a fleet using [https://docs.aws.amazon.com/gamelift/latest/apireference/API_DescribeFleetDeployment.html].
 //
 // A managed fleet's runtime environment, which depends on the fleet's Amazon
-// Machine Image {AMI} version, can't be updated. You must create a new fleet. As a
+// Machine Image (AMI) version, can't be updated. You must create a new fleet. As a
 // best practice, we recommend replacing your managed fleets every 30 days to
 // maintain a secure and up-to-date runtime environment for your hosted game
 // servers. For guidance, see [Security best practices for Amazon GameLift Servers].
@@ -54,7 +54,7 @@ import (
 // initiate a new deployment of fleet resources using the deployment configuration
 // provided. A deployment replaces existing fleet instances with new instances that
 // are deployed with the updated fleet properties. The fleet is placed in UPDATING
-// status until the deployment is complete, then return to ACTIVE .
+// status until the deployment is complete, then returns to ACTIVE .
 //
 // You can have only one update deployment active at a time for a fleet. If a
 // second update request initiates a deployment while another deployment is in
@@ -208,21 +208,29 @@ func (v *UpdateContainerFleetInput) SerializeMembers(s smithy.ShapeSerializer) {
 		v.InstanceConnectionPortRange.SerializeMembers(s)
 		s.CloseStruct()
 	}
-	serializeIpPermissionsList(s, schemas.UpdateContainerFleetInput_InstanceInboundPermissionAuthorizations, v.InstanceInboundPermissionAuthorizations)
-	serializeIpPermissionsList(s, schemas.UpdateContainerFleetInput_InstanceInboundPermissionRevocations, v.InstanceInboundPermissionRevocations)
+	if v.InstanceInboundPermissionAuthorizations != nil {
+		serializeIpPermissionsList(s, schemas.UpdateContainerFleetInput_InstanceInboundPermissionAuthorizations, v.InstanceInboundPermissionAuthorizations)
+	}
+	if v.InstanceInboundPermissionRevocations != nil {
+		serializeIpPermissionsList(s, schemas.UpdateContainerFleetInput_InstanceInboundPermissionRevocations, v.InstanceInboundPermissionRevocations)
+	}
 	if v.LogConfiguration != nil {
 		s.WriteStruct(schemas.UpdateContainerFleetInput_LogConfiguration)
 		v.LogConfiguration.SerializeMembers(s)
 		s.CloseStruct()
 	}
-	serializeMetricGroupList(s, schemas.UpdateContainerFleetInput_MetricGroups, v.MetricGroups)
+	if v.MetricGroups != nil {
+		serializeMetricGroupList(s, schemas.UpdateContainerFleetInput_MetricGroups, v.MetricGroups)
+	}
 	if v.NewGameSessionProtectionPolicy != "" {
 		s.WriteString(schemas.UpdateContainerFleetInput_NewGameSessionProtectionPolicy, string(v.NewGameSessionProtectionPolicy))
 	}
 	if v.PerInstanceContainerGroupDefinitionName != nil {
 		s.WriteString(schemas.UpdateContainerFleetInput_PerInstanceContainerGroupDefinitionName, *v.PerInstanceContainerGroupDefinitionName)
 	}
-	serializeContainerFleetRemoveAttributeList(s, schemas.UpdateContainerFleetInput_RemoveAttributes, v.RemoveAttributes)
+	if v.RemoveAttributes != nil {
+		serializeContainerFleetRemoveAttributeList(s, schemas.UpdateContainerFleetInput_RemoveAttributes, v.RemoveAttributes)
+	}
 }
 
 type UpdateContainerFleetOutput struct {

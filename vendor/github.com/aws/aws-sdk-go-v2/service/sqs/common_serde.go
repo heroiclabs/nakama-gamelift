@@ -8,9 +8,6 @@ import (
 )
 
 func serializeActionNameList(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -19,9 +16,6 @@ func serializeActionNameList(s smithy.ShapeSerializer, schema *smithy.Schema, v 
 }
 
 func serializeAttributeNameList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.QueueAttributeName) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -30,9 +24,6 @@ func serializeAttributeNameList(s smithy.ShapeSerializer, schema *smithy.Schema,
 }
 
 func serializeAWSAccountIdList(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -41,9 +32,6 @@ func serializeAWSAccountIdList(s smithy.ShapeSerializer, schema *smithy.Schema, 
 }
 
 func serializeBatchResultErrorEntryList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.BatchResultErrorEntry) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -54,9 +42,6 @@ func serializeBatchResultErrorEntryList(s smithy.ShapeSerializer, schema *smithy
 }
 
 func serializeBinaryList(s smithy.ShapeSerializer, schema *smithy.Schema, v [][]byte) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteBlob(schema.ListMember(), vv)
@@ -65,9 +50,6 @@ func serializeBinaryList(s smithy.ShapeSerializer, schema *smithy.Schema, v [][]
 }
 
 func serializeChangeMessageVisibilityBatchRequestEntryList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.ChangeMessageVisibilityBatchRequestEntry) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -78,9 +60,6 @@ func serializeChangeMessageVisibilityBatchRequestEntryList(s smithy.ShapeSeriali
 }
 
 func serializeChangeMessageVisibilityBatchResultEntryList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.ChangeMessageVisibilityBatchResultEntry) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -91,9 +70,6 @@ func serializeChangeMessageVisibilityBatchResultEntryList(s smithy.ShapeSerializ
 }
 
 func serializeDeleteMessageBatchRequestEntryList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.DeleteMessageBatchRequestEntry) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -104,9 +80,6 @@ func serializeDeleteMessageBatchRequestEntryList(s smithy.ShapeSerializer, schem
 }
 
 func serializeDeleteMessageBatchResultEntryList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.DeleteMessageBatchResultEntry) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -117,9 +90,6 @@ func serializeDeleteMessageBatchResultEntryList(s smithy.ShapeSerializer, schema
 }
 
 func serializeListMessageMoveTasksResultEntryList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.ListMessageMoveTasksResultEntry) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -130,9 +100,6 @@ func serializeListMessageMoveTasksResultEntryList(s smithy.ShapeSerializer, sche
 }
 
 func serializeMessageAttributeNameList(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -141,9 +108,6 @@ func serializeMessageAttributeNameList(s smithy.ShapeSerializer, schema *smithy.
 }
 
 func serializeMessageList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.Message) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -154,9 +118,6 @@ func serializeMessageList(s smithy.ShapeSerializer, schema *smithy.Schema, v []t
 }
 
 func serializeMessageSystemAttributeList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.MessageSystemAttributeName) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -165,9 +126,6 @@ func serializeMessageSystemAttributeList(s smithy.ShapeSerializer, schema *smith
 }
 
 func serializeQueueUrlList(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -176,9 +134,6 @@ func serializeQueueUrlList(s smithy.ShapeSerializer, schema *smithy.Schema, v []
 }
 
 func serializeSendMessageBatchRequestEntryList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.SendMessageBatchRequestEntry) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -189,9 +144,6 @@ func serializeSendMessageBatchRequestEntryList(s smithy.ShapeSerializer, schema 
 }
 
 func serializeSendMessageBatchResultEntryList(s smithy.ShapeSerializer, schema *smithy.Schema, v []types.SendMessageBatchResultEntry) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -202,9 +154,6 @@ func serializeSendMessageBatchResultEntryList(s smithy.ShapeSerializer, schema *
 }
 
 func serializeStringList(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -213,9 +162,6 @@ func serializeStringList(s smithy.ShapeSerializer, schema *smithy.Schema, v []st
 }
 
 func serializeTagKeyList(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -227,6 +173,13 @@ func deserializeActionNameList(d smithy.ShapeDeserializer, s *smithy.Schema, v *
 	*v = make([]string, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -241,6 +194,13 @@ func deserializeAttributeNameList(d smithy.ShapeDeserializer, s *smithy.Schema, 
 	*v = make([]types.QueueAttributeName, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.QueueAttributeName
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -255,6 +215,13 @@ func deserializeAWSAccountIdList(d smithy.ShapeDeserializer, s *smithy.Schema, v
 	*v = make([]string, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -269,6 +236,14 @@ func deserializeBatchResultErrorEntryList(d smithy.ShapeDeserializer, s *smithy.
 	*v = make([]types.BatchResultErrorEntry, 0)
 	var vv types.BatchResultErrorEntry
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.BatchResultErrorEntry
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = types.BatchResultErrorEntry{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -283,6 +258,13 @@ func deserializeBinaryList(d smithy.ShapeDeserializer, s *smithy.Schema, v *[][]
 	*v = make([][]byte, 0)
 	var vv []byte
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero []byte
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadBlob(s.ListMember(), &vv); err != nil {
 			return err
@@ -297,6 +279,14 @@ func deserializeChangeMessageVisibilityBatchRequestEntryList(d smithy.ShapeDeser
 	*v = make([]types.ChangeMessageVisibilityBatchRequestEntry, 0)
 	var vv types.ChangeMessageVisibilityBatchRequestEntry
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.ChangeMessageVisibilityBatchRequestEntry
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = types.ChangeMessageVisibilityBatchRequestEntry{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -311,6 +301,14 @@ func deserializeChangeMessageVisibilityBatchResultEntryList(d smithy.ShapeDeseri
 	*v = make([]types.ChangeMessageVisibilityBatchResultEntry, 0)
 	var vv types.ChangeMessageVisibilityBatchResultEntry
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.ChangeMessageVisibilityBatchResultEntry
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = types.ChangeMessageVisibilityBatchResultEntry{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -325,6 +323,14 @@ func deserializeDeleteMessageBatchRequestEntryList(d smithy.ShapeDeserializer, s
 	*v = make([]types.DeleteMessageBatchRequestEntry, 0)
 	var vv types.DeleteMessageBatchRequestEntry
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.DeleteMessageBatchRequestEntry
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = types.DeleteMessageBatchRequestEntry{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -339,6 +345,14 @@ func deserializeDeleteMessageBatchResultEntryList(d smithy.ShapeDeserializer, s 
 	*v = make([]types.DeleteMessageBatchResultEntry, 0)
 	var vv types.DeleteMessageBatchResultEntry
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.DeleteMessageBatchResultEntry
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = types.DeleteMessageBatchResultEntry{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -353,6 +367,14 @@ func deserializeListMessageMoveTasksResultEntryList(d smithy.ShapeDeserializer, 
 	*v = make([]types.ListMessageMoveTasksResultEntry, 0)
 	var vv types.ListMessageMoveTasksResultEntry
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.ListMessageMoveTasksResultEntry
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = types.ListMessageMoveTasksResultEntry{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -367,6 +389,13 @@ func deserializeMessageAttributeNameList(d smithy.ShapeDeserializer, s *smithy.S
 	*v = make([]string, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -381,6 +410,14 @@ func deserializeMessageList(d smithy.ShapeDeserializer, s *smithy.Schema, v *[]t
 	*v = make([]types.Message, 0)
 	var vv types.Message
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.Message
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = types.Message{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -395,6 +432,13 @@ func deserializeMessageSystemAttributeList(d smithy.ShapeDeserializer, s *smithy
 	*v = make([]types.MessageSystemAttributeName, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.MessageSystemAttributeName
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -409,6 +453,13 @@ func deserializeQueueUrlList(d smithy.ShapeDeserializer, s *smithy.Schema, v *[]
 	*v = make([]string, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -423,6 +474,14 @@ func deserializeSendMessageBatchRequestEntryList(d smithy.ShapeDeserializer, s *
 	*v = make([]types.SendMessageBatchRequestEntry, 0)
 	var vv types.SendMessageBatchRequestEntry
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.SendMessageBatchRequestEntry
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = types.SendMessageBatchRequestEntry{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -437,6 +496,14 @@ func deserializeSendMessageBatchResultEntryList(d smithy.ShapeDeserializer, s *s
 	*v = make([]types.SendMessageBatchResultEntry, 0)
 	var vv types.SendMessageBatchResultEntry
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.SendMessageBatchResultEntry
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = types.SendMessageBatchResultEntry{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -451,6 +518,13 @@ func deserializeStringList(d smithy.ShapeDeserializer, s *smithy.Schema, v *[]st
 	*v = make([]string, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -465,6 +539,13 @@ func deserializeTagKeyList(d smithy.ShapeDeserializer, s *smithy.Schema, v *[]st
 	*v = make([]string, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -476,9 +557,6 @@ func deserializeTagKeyList(d smithy.ShapeDeserializer, s *smithy.Schema, v *[]st
 }
 
 func serializeMessageBodyAttributeMap(s smithy.ShapeSerializer, schema *smithy.Schema, v map[string]types.MessageAttributeValue) {
-	if v == nil {
-		return
-	}
 	s.WriteMap(schema)
 	for k, vv := range v {
 		s.WriteKey(schema.MapKey(), k)
@@ -490,9 +568,6 @@ func serializeMessageBodyAttributeMap(s smithy.ShapeSerializer, schema *smithy.S
 }
 
 func serializeMessageBodySystemAttributeMap(s smithy.ShapeSerializer, schema *smithy.Schema, v map[string]types.MessageSystemAttributeValue) {
-	if v == nil {
-		return
-	}
 	s.WriteMap(schema)
 	for k, vv := range v {
 		s.WriteKey(schema.MapKey(), k)
@@ -504,9 +579,6 @@ func serializeMessageBodySystemAttributeMap(s smithy.ShapeSerializer, schema *sm
 }
 
 func serializeMessageSystemAttributeMap(s smithy.ShapeSerializer, schema *smithy.Schema, v map[string]string) {
-	if v == nil {
-		return
-	}
 	s.WriteMap(schema)
 	for k, vv := range v {
 		s.WriteKey(schema.MapKey(), k)
@@ -516,9 +588,6 @@ func serializeMessageSystemAttributeMap(s smithy.ShapeSerializer, schema *smithy
 }
 
 func serializeQueueAttributeMap(s smithy.ShapeSerializer, schema *smithy.Schema, v map[string]string) {
-	if v == nil {
-		return
-	}
 	s.WriteMap(schema)
 	for k, vv := range v {
 		s.WriteKey(schema.MapKey(), k)
@@ -528,9 +597,6 @@ func serializeQueueAttributeMap(s smithy.ShapeSerializer, schema *smithy.Schema,
 }
 
 func serializeTagMap(s smithy.ShapeSerializer, schema *smithy.Schema, v map[string]string) {
-	if v == nil {
-		return
-	}
 	s.WriteMap(schema)
 	for k, vv := range v {
 		s.WriteKey(schema.MapKey(), k)
@@ -543,6 +609,14 @@ func deserializeMessageBodyAttributeMap(d smithy.ShapeDeserializer, s *smithy.Sc
 	*v = make(map[string]types.MessageAttributeValue)
 	var vv types.MessageAttributeValue
 	return smithy.ReadMap(d, s, func(k string) error {
+		if isNil, err := d.ReadNil(s.MapValue()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.MessageAttributeValue
+			(*v)[k] = zero
+			return nil
+		}
+
 		vv = types.MessageAttributeValue{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -557,6 +631,14 @@ func deserializeMessageBodySystemAttributeMap(d smithy.ShapeDeserializer, s *smi
 	*v = make(map[string]types.MessageSystemAttributeValue)
 	var vv types.MessageSystemAttributeValue
 	return smithy.ReadMap(d, s, func(k string) error {
+		if isNil, err := d.ReadNil(s.MapValue()); err != nil {
+			return err
+		} else if isNil {
+			var zero types.MessageSystemAttributeValue
+			(*v)[k] = zero
+			return nil
+		}
+
 		vv = types.MessageSystemAttributeValue{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -571,6 +653,13 @@ func deserializeMessageSystemAttributeMap(d smithy.ShapeDeserializer, s *smithy.
 	*v = make(map[string]string)
 	var vv string
 	return smithy.ReadMap(d, s, func(k string) error {
+		if isNil, err := d.ReadNil(s.MapValue()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			(*v)[k] = zero
+			return nil
+		}
 
 		if err := d.ReadString(s.MapValue(), &vv); err != nil {
 			return err
@@ -585,6 +674,13 @@ func deserializeQueueAttributeMap(d smithy.ShapeDeserializer, s *smithy.Schema, 
 	*v = make(map[string]string)
 	var vv string
 	return smithy.ReadMap(d, s, func(k string) error {
+		if isNil, err := d.ReadNil(s.MapValue()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			(*v)[k] = zero
+			return nil
+		}
 
 		if err := d.ReadString(s.MapValue(), &vv); err != nil {
 			return err
@@ -599,6 +695,13 @@ func deserializeTagMap(d smithy.ShapeDeserializer, s *smithy.Schema, v *map[stri
 	*v = make(map[string]string)
 	var vv string
 	return smithy.ReadMap(d, s, func(k string) error {
+		if isNil, err := d.ReadNil(s.MapValue()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			(*v)[k] = zero
+			return nil
+		}
 
 		if err := d.ReadString(s.MapValue(), &vv); err != nil {
 			return err

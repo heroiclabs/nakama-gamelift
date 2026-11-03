@@ -118,8 +118,10 @@ type UpdateMatchmakingConfigurationInput struct {
 	// session queue resource and uniquely identifies it. ARNs are unique across all
 	// Regions. Format is arn:aws:gamelift:::gamesessionqueue/ . Queues can be located
 	// in any Region. Queues are used to start new Amazon GameLift Servers-hosted game
-	// sessions for matches that are created with this matchmaking configuration. If
-	// FlexMatchMode is set to STANDALONE , do not set this parameter.
+	// sessions for matches that are created with this matchmaking configuration. A
+	// matchmaking configuration supports only one queue; if you specify more than one
+	// ARN, the request fails with an InvalidRequestException . If FlexMatchMode is
+	// set to STANDALONE , do not set this parameter.
 	//
 	// [ARN]: https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
 	GameSessionQueueArns []string
@@ -171,11 +173,15 @@ func (v *UpdateMatchmakingConfigurationInput) SerializeMembers(s smithy.ShapeSer
 	if v.FlexMatchMode != "" {
 		s.WriteString(schemas.UpdateMatchmakingConfigurationInput_FlexMatchMode, string(v.FlexMatchMode))
 	}
-	serializeGamePropertyList(s, schemas.UpdateMatchmakingConfigurationInput_GameProperties, v.GameProperties)
+	if v.GameProperties != nil {
+		serializeGamePropertyList(s, schemas.UpdateMatchmakingConfigurationInput_GameProperties, v.GameProperties)
+	}
 	if v.GameSessionData != nil {
 		s.WriteString(schemas.UpdateMatchmakingConfigurationInput_GameSessionData, *v.GameSessionData)
 	}
-	serializeQueueArnsList(s, schemas.UpdateMatchmakingConfigurationInput_GameSessionQueueArns, v.GameSessionQueueArns)
+	if v.GameSessionQueueArns != nil {
+		serializeQueueArnsList(s, schemas.UpdateMatchmakingConfigurationInput_GameSessionQueueArns, v.GameSessionQueueArns)
+	}
 	if v.Name != nil {
 		s.WriteString(schemas.UpdateMatchmakingConfigurationInput_Name, *v.Name)
 	}

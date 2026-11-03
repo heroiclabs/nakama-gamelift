@@ -12,9 +12,9 @@ import (
 
 //	This API works with the following fleet types: EC2, Anywhere, Container
 //
-// Adds remote locations to an EC2 and begins populating the new locations with
-// instances. The new instances conform to the fleet's instance type, auto-scaling,
-// and other configuration settings.
+// Adds remote locations to an EC2 fleet and begins populating the new locations
+// with instances. The new instances conform to the fleet's instance type,
+// auto-scaling, and other configuration settings.
 //
 // You can't add remote locations to a fleet that resides in an Amazon Web
 // Services Region that doesn't support multiple locations. Fleets created prior to
@@ -84,7 +84,9 @@ func (v *CreateFleetLocationsInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.FleetId != nil {
 		s.WriteString(schemas.CreateFleetLocationsInput_FleetId, *v.FleetId)
 	}
-	serializeLocationConfigurationList(s, schemas.CreateFleetLocationsInput_Locations, v.Locations)
+	if v.Locations != nil {
+		serializeLocationConfigurationList(s, schemas.CreateFleetLocationsInput_Locations, v.Locations)
+	}
 }
 
 type CreateFleetLocationsOutput struct {
@@ -126,7 +128,9 @@ func (v *CreateFleetLocationsOutput) SerializeMembers(s smithy.ShapeSerializer) 
 	if v.FleetId != nil {
 		s.WriteString(schemas.CreateFleetLocationsOutput_FleetId, *v.FleetId)
 	}
-	serializeLocationStateList(s, schemas.CreateFleetLocationsOutput_LocationStates, v.LocationStates)
+	if v.LocationStates != nil {
+		serializeLocationStateList(s, schemas.CreateFleetLocationsOutput_LocationStates, v.LocationStates)
+	}
 }
 func (v *CreateFleetLocationsOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.CreateFleetLocationsOutput, func(s *smithy.Schema) error {

@@ -67,7 +67,7 @@ type CreateMatchmakingRuleSetInput struct {
 	RuleSetBody *string
 
 	// A list of labels to assign to the new matchmaking rule set resource. Tags are
-	// developer-defined key-value pairs. Tagging Amazon Web Services resources are
+	// developer-defined key-value pairs. Tagging Amazon Web Services resources is
 	// useful for resource management, access management and cost allocation. For more
 	// information, see [Tagging Amazon Web Services Resources]in the Amazon Web Services General Reference.
 	//
@@ -90,7 +90,9 @@ func (v *CreateMatchmakingRuleSetInput) SerializeMembers(s smithy.ShapeSerialize
 	if v.RuleSetBody != nil {
 		s.WriteString(schemas.CreateMatchmakingRuleSetInput_RuleSetBody, *v.RuleSetBody)
 	}
-	serializeTagList(s, schemas.CreateMatchmakingRuleSetInput_Tags, v.Tags)
+	if v.Tags != nil {
+		serializeTagList(s, schemas.CreateMatchmakingRuleSetInput_Tags, v.Tags)
+	}
 }
 
 type CreateMatchmakingRuleSetOutput struct {

@@ -144,7 +144,7 @@ type CreateGameSessionQueueInput struct {
 	PriorityConfiguration *types.PriorityConfiguration
 
 	// A list of labels to assign to the new game session queue resource. Tags are
-	// developer-defined key-value pairs. Tagging Amazon Web Services resources are
+	// developer-defined key-value pairs. Tagging Amazon Web Services resources is
 	// useful for resource management, access management and cost allocation. For more
 	// information, see [Tagging Amazon Web Services Resources]in the Amazon Web Services General Reference.
 	//
@@ -172,7 +172,9 @@ func (v *CreateGameSessionQueueInput) SerializeMembers(s smithy.ShapeSerializer)
 	if v.CustomEventData != nil {
 		s.WriteString(schemas.CreateGameSessionQueueInput_CustomEventData, *v.CustomEventData)
 	}
-	serializeGameSessionQueueDestinationList(s, schemas.CreateGameSessionQueueInput_Destinations, v.Destinations)
+	if v.Destinations != nil {
+		serializeGameSessionQueueDestinationList(s, schemas.CreateGameSessionQueueInput_Destinations, v.Destinations)
+	}
 	if v.FilterConfiguration != nil {
 		s.WriteStruct(schemas.CreateGameSessionQueueInput_FilterConfiguration)
 		v.FilterConfiguration.SerializeMembers(s)
@@ -184,13 +186,17 @@ func (v *CreateGameSessionQueueInput) SerializeMembers(s smithy.ShapeSerializer)
 	if v.NotificationTarget != nil {
 		s.WriteString(schemas.CreateGameSessionQueueInput_NotificationTarget, *v.NotificationTarget)
 	}
-	serializePlayerLatencyPolicyList(s, schemas.CreateGameSessionQueueInput_PlayerLatencyPolicies, v.PlayerLatencyPolicies)
+	if v.PlayerLatencyPolicies != nil {
+		serializePlayerLatencyPolicyList(s, schemas.CreateGameSessionQueueInput_PlayerLatencyPolicies, v.PlayerLatencyPolicies)
+	}
 	if v.PriorityConfiguration != nil {
 		s.WriteStruct(schemas.CreateGameSessionQueueInput_PriorityConfiguration)
 		v.PriorityConfiguration.SerializeMembers(s)
 		s.CloseStruct()
 	}
-	serializeTagList(s, schemas.CreateGameSessionQueueInput_Tags, v.Tags)
+	if v.Tags != nil {
+		serializeTagList(s, schemas.CreateGameSessionQueueInput_Tags, v.Tags)
+	}
 	if v.TimeoutInSeconds != nil {
 		s.WriteInt32(schemas.CreateGameSessionQueueInput_TimeoutInSeconds, *v.TimeoutInSeconds)
 	}

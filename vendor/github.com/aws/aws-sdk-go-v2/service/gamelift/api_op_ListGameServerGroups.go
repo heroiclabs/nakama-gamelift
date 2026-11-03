@@ -13,7 +13,7 @@ import (
 
 //	This API works with the following fleet types: EC2 (FleetIQ)
 //
-// Lists a game server groups.
+// Lists game server groups.
 func (c *Client) ListGameServerGroups(ctx context.Context, params *ListGameServerGroupsInput, optFns ...func(*Options)) (*ListGameServerGroupsOutput, error) {
 	if params == nil {
 		params = &ListGameServerGroupsInput{}
@@ -78,7 +78,9 @@ func (v *ListGameServerGroupsOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *ListGameServerGroupsOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeGameServerGroups(s, schemas.ListGameServerGroupsOutput_GameServerGroups, v.GameServerGroups)
+	if v.GameServerGroups != nil {
+		serializeGameServerGroups(s, schemas.ListGameServerGroupsOutput_GameServerGroups, v.GameServerGroups)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.ListGameServerGroupsOutput_NextToken, *v.NextToken)
 	}
