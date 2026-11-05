@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"strings"
 	"time"
@@ -42,18 +43,19 @@ const (
 	GameSessionNameKey = "GameSessionName"
 )
 
+// RPC IDs are lowercased to match how Nakama registers and resolves them.
 var (
 	RpcIdUpdateInstanceInfo = func(namespace string) string {
 		if namespace == "" {
 			return "gamelift_update_instance_info"
 		}
-		return "gamelift_" + namespace + "_update_instance_info"
+		return strings.ToLower("gamelift_" + namespace + "_update_instance_info")
 	}
 	RpcIdDeleteInstanceInfo = func(namespace string) string {
 		if namespace == "" {
 			return "gamelift_delete_instance_info"
 		}
-		return "gamelift_" + namespace + "_delete_instance_info"
+		return strings.ToLower("gamelift_" + namespace + "_delete_instance_info")
 	}
 )
 
@@ -144,7 +146,7 @@ func (glc *GameLiftConfig) Validate() error {
 	return nil
 }
 
-func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql.DB, initializer runtime.Initializer, nk runtime.NakamaModule, conf GameLiftConfig) (runtime.FleetManagerInitializer, error) {
+func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, conf GameLiftConfig) (runtime.FleetManagerInitializer, error) {
 	nakamaNode, ok := ctx.Value(runtime.RUNTIME_CTX_NODE).(string)
 	if !ok || !strings.HasPrefix(nakamaNode, "nakama") {
 		return nil, errors.New("failed to get nakama node from ctx")
@@ -183,6 +185,10 @@ func (fm *GameLiftFleetManager) Init(initializer runtime.Initializer, nk runtime
 	fm.callbackHandler = callbackHandler
 	fm.namespace = namespace
 
+	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex(namespace), StorageGameLiftInstancesCollection(namespace), "", []string{"id", "create_time", "player_count", "metadata"}, []string{"create_time", "player_count"}, fm.cfg.IndexMaxEntries, false); err != nil {
+		return err
+	}
+
 	// NOTE: This RPC is required and must be invoked from a Game Session whenever a player connects/disconnects.
 	// Refer to the documentation for more information.
 	if err := initializer.RegisterRpc(RpcIdUpdateInstanceInfo(fm.namespace), fm.UpdateInstanceInfo); err != nil {
@@ -197,6 +203,8 @@ func (fm *GameLiftFleetManager) Init(initializer runtime.Initializer, nk runtime
 	// Initialise sqs background consumer here as it depends on the callbackHandler
 	go fm.processSqsPlacementEvents()
 	go fm.syncInstancesWorker()
+
+	fm.logger.WithField("namespace", namespace).Info("GameLift Fleet Manager initialized")
 
 	return nil
 }
@@ -222,26 +230,23 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 	}
 	fm.logger.WithField("desired_sessions", desiredPlayerSessions).Debug("desired player sessions")
 
-	var gameSessionData *string
+	gsData := make(map[string]any)
 	if m := metadata[GameSessionDataKey]; m != nil {
-		if s, ok := m.(string); ok {
-			var data map[string]string
-			if err := json.Unmarshal([]byte(s), &data); err != nil {
-				return nil, errors.New("failed to unmarshal GameSessionData metadata value: " + err.Error())
-			}
-			data["nakama_gamelift_namespace"] = fm.namespace
-			data["nakama_gamelift_update_rpc_id"] = RpcIdUpdateInstanceInfo(fm.namespace)
-			data["nakama_gamelift_delete_rpc_id"] = RpcIdDeleteInstanceInfo(fm.namespace)
-
-			sessionDataJson, err := json.Marshal(data)
-			if err != nil {
-				return nil, errors.New("failed to marshal GameSessionData metadata value: " + err.Error())
-			}
-
-			gameSessionData = new(string)
-			*gameSessionData = string(sessionDataJson)
+		data, ok := m.(map[string]any)
+		if !ok {
+			return nil, errors.New("invalid metadata key 'GameSessionData' value: must be map[string]any")
 		}
+		gsData = maps.Clone(data)
 	}
+	gsData["nakama_gamelift_namespace"] = fm.namespace
+	gsData["nakama_gamelift_update_rpc_id"] = RpcIdUpdateInstanceInfo(fm.namespace)
+	gsData["nakama_gamelift_delete_rpc_id"] = RpcIdDeleteInstanceInfo(fm.namespace)
+
+	sessionDataJson, err := json.Marshal(gsData)
+	if err != nil {
+		return nil, errors.New("failed to marshal GameSessionData metadata value: " + err.Error())
+	}
+	gameSessionData := aws.String(string(sessionDataJson))
 
 	var gameProperties []types.GameProperty
 	if m := metadata[GamePropertiesKey]; m != nil {

@@ -1,4 +1,4 @@
-# github.com/aws/aws-sdk-go-v2 v1.47.1
+# github.com/aws/aws-sdk-go-v2 v1.47.5
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/aws
 github.com/aws/aws-sdk-go-v2/aws/defaults
@@ -19,28 +19,28 @@ github.com/aws/aws-sdk-go-v2/internal/strings
 github.com/aws/aws-sdk-go-v2/internal/sync/singleflight
 github.com/aws/aws-sdk-go-v2/internal/timeconv
 github.com/aws/aws-sdk-go-v2/internal/timeouts
-# github.com/aws/aws-sdk-go-v2/credentials v1.20.6
+# github.com/aws/aws-sdk-go-v2/credentials v1.20.13
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/credentials
-# github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.4
+# github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.8
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/internal/configsources
-# github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.4
+# github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.8
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2
-# github.com/aws/aws-sdk-go-v2/service/gamelift v1.66.2
+# github.com/aws/aws-sdk-go-v2/service/gamelift v1.68.4
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/service/gamelift
 github.com/aws/aws-sdk-go-v2/service/gamelift/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/gamelift/schemas
 github.com/aws/aws-sdk-go-v2/service/gamelift/types
-# github.com/aws/aws-sdk-go-v2/service/sqs v1.52.1
+# github.com/aws/aws-sdk-go-v2/service/sqs v1.52.8
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/service/sqs
 github.com/aws/aws-sdk-go-v2/service/sqs/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/sqs/schemas
 github.com/aws/aws-sdk-go-v2/service/sqs/types
-# github.com/aws/smithy-go v1.28.2
+# github.com/aws/smithy-go v1.28.7
 ## explicit; go 1.24
 github.com/aws/smithy-go
 github.com/aws/smithy-go/auth
@@ -80,8 +80,8 @@ github.com/aws/smithy-go/transport/http/protocol/internal/cbor
 github.com/aws/smithy-go/transport/http/protocol/internal/json
 github.com/aws/smithy-go/transport/http/protocol/internal/json/internal/stdlib
 github.com/aws/smithy-go/transport/http/protocol/rpcv2
-# github.com/heroiclabs/nakama-common v1.48.1-0.20261016195358-189a8ea03d90
-## explicit; go 1.27.1
+# github.com/heroiclabs/nakama-common v1.49.0
+## explicit; go 1.27.3
 github.com/heroiclabs/nakama-common/api
 github.com/heroiclabs/nakama-common/rtapi
 github.com/heroiclabs/nakama-common/runtime

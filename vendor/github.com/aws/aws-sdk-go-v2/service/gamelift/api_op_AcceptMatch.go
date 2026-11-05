@@ -33,7 +33,7 @@ import (
 // failed match is handled as follows:
 //
 //   - If the ticket has one or more players who rejected the match or failed to
-//     respond, the ticket status is set CANCELLED and processing is terminated.
+//     respond, the ticket status is set to CANCELLED and processing is terminated.
 //
 //   - If all players in the ticket accepted the match, the ticket status is
 //     returned to SEARCHING to find a new match.
@@ -93,7 +93,9 @@ func (v *AcceptMatchInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.AcceptanceType != "" {
 		s.WriteString(schemas.AcceptMatchInput_AcceptanceType, string(v.AcceptanceType))
 	}
-	serializePlayerIdsForAcceptMatch(s, schemas.AcceptMatchInput_PlayerIds, v.PlayerIds)
+	if v.PlayerIds != nil {
+		serializePlayerIdsForAcceptMatch(s, schemas.AcceptMatchInput_PlayerIds, v.PlayerIds)
+	}
 	if v.TicketId != nil {
 		s.WriteString(schemas.AcceptMatchInput_TicketId, *v.TicketId)
 	}

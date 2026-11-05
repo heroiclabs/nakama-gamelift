@@ -36,9 +36,9 @@ type CreateLocationInput struct {
 	LocationName *string
 
 	// A list of labels to assign to the new resource. Tags are developer-defined
-	// key-value pairs. Tagging Amazon Web Services resources are useful for resource
+	// key-value pairs. Tagging Amazon Web Services resources is useful for resource
 	// management, access management, and cost allocation. For more information, see [Tagging Amazon Web Services Resources]
-	// in the Amazon Web Services General Rareference.
+	// in the Amazon Web Services General Reference.
 	//
 	// [Tagging Amazon Web Services Resources]: https://docs.aws.amazon.com/general/latest/gr/aws_tagging.html
 	Tags []types.Tag
@@ -56,7 +56,9 @@ func (v *CreateLocationInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.LocationName != nil {
 		s.WriteString(schemas.CreateLocationInput_LocationName, *v.LocationName)
 	}
-	serializeTagList(s, schemas.CreateLocationInput_Tags, v.Tags)
+	if v.Tags != nil {
+		serializeTagList(s, schemas.CreateLocationInput_Tags, v.Tags)
+	}
 }
 
 type CreateLocationOutput struct {

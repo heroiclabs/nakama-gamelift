@@ -185,8 +185,12 @@ func (v *AttributeValue) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.S != nil {
 		s.WriteString(schemas.AttributeValue_S, *v.S)
 	}
-	serializePlayerAttributeStringDoubleMap(s, schemas.AttributeValue_SDM, v.SDM)
-	serializePlayerAttributeStringList(s, schemas.AttributeValue_SL, v.SL)
+	if v.SDM != nil {
+		serializePlayerAttributeStringDoubleMap(s, schemas.AttributeValue_SDM, v.SDM)
+	}
+	if v.SL != nil {
+		serializePlayerAttributeStringList(s, schemas.AttributeValue_SL, v.SL)
+	}
 }
 func (v *AttributeValue) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.AttributeValue, func(s *smithy.Schema) error {
@@ -219,8 +223,8 @@ func (v *AttributeValue) Deserialize(d smithy.ShapeDeserializer) error {
 //   - To upload a game server build directly to Amazon GameLift Servers S3
 //     storage using CreateBuild . To get access for this task, call [https://docs.aws.amazon.com/gamelift/latest/apireference/API_RequestUploadCredentials.html].
 //
-//   - To remotely connect to an active Amazon GameLift Servers fleet instances.
-//     To get remote access, call [https://docs.aws.amazon.com/gamelift/latest/apireference/API_GetComputeAccess.html].
+//   - To remotely connect to an active Amazon GameLift Servers fleet instance. To
+//     get remote access, call [https://docs.aws.amazon.com/gamelift/latest/apireference/API_GetComputeAccess.html].
 //
 // [https://docs.aws.amazon.com/gamelift/latest/apireference/API_RequestUploadCredentials.html]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_RequestUploadCredentials.html
 // [https://docs.aws.amazon.com/gamelift/latest/apireference/API_GetComputeAccess.html]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_GetComputeAccess.html
@@ -487,7 +491,9 @@ func (v *ClaimFilterOption) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *ClaimFilterOption) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeFilterInstanceStatuses(s, schemas.ClaimFilterOption_InstanceStatuses, v.InstanceStatuses)
+	if v.InstanceStatuses != nil {
+		serializeFilterInstanceStatuses(s, schemas.ClaimFilterOption_InstanceStatuses, v.InstanceStatuses)
+	}
 }
 func (v *ClaimFilterOption) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.ClaimFilterOption, func(s *smithy.Schema) error {
@@ -500,7 +506,7 @@ func (v *ClaimFilterOption) Deserialize(d smithy.ShapeDeserializer) error {
 }
 
 // An Amazon GameLift Servers compute resource for hosting your game servers.
-// Computes in an Amazon GameLift Servers fleet differs depending on the fleet's
+// Computes in an Amazon GameLift Servers fleet differ depending on the fleet's
 // compute type property as follows:
 //
 //   - For managed EC2 fleets, a compute is an EC2 instance.
@@ -600,7 +606,9 @@ func (v *Compute) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.ComputeStatus != "" {
 		s.WriteString(schemas.Compute_ComputeStatus, string(v.ComputeStatus))
 	}
-	serializeContainerAttributes(s, schemas.Compute_ContainerAttributes, v.ContainerAttributes)
+	if v.ContainerAttributes != nil {
+		serializeContainerAttributes(s, schemas.Compute_ContainerAttributes, v.ContainerAttributes)
+	}
 	if v.CreationTime != nil {
 		s.WriteTime(schemas.Compute_CreationTime, *v.CreationTime)
 	}
@@ -803,7 +811,7 @@ func (v *ContainerAttribute) Deserialize(d smithy.ShapeDeserializer) error {
 
 // A container's dependency on another container in the same container group. The
 // dependency impacts how the dependent container is able to start or shut down
-// based the status of the other container.
+// based on the status of the other container.
 //
 // For example, ContainerA is configured with the following dependency: a START
 // dependency on ContainerB. This means that ContainerA can't start until
@@ -1004,8 +1012,8 @@ type ContainerFleet struct {
 
 	// The Amazon EC2 instance type to use for all instances in the fleet. Instance
 	// type determines the computing resources and processing power that's available to
-	// host your game servers. This includes including CPU, memory, storage, and
-	// networking capacity. You can't update this fleet property.
+	// host your game servers. This includes CPU, memory, storage, and networking
+	// capacity. You can't update this fleet property.
 	InstanceType *string
 
 	// Information about the container fleet's remote locations where fleet instances
@@ -1024,7 +1032,7 @@ type ContainerFleet struct {
 	//   - NONE -- Don't collect container logs.
 	LogConfiguration *LogConfiguration
 
-	// The calculated maximum number of game server container group that can be
+	// The calculated maximum number of game server container groups that can be
 	// deployed on each fleet instance. The calculation depends on the resource needs
 	// of the container group and the CPU and memory resources of the fleet's instance
 	// type.
@@ -1078,8 +1086,8 @@ type ContainerFleet struct {
 	//   - ACTIVE -- The container fleet has been deployed and is ready to host game
 	//   sessions.
 	//
-	//   - UPDATING -- Updates to the container fleet is being updated. A deployment is
-	//   in progress.
+	//   - UPDATING -- The container fleet is being updated. A deployment is in
+	//   progress.
 	//
 	//   - EXPIRED -- The container fleet has been expired. The fleet is scaled down to
 	//   zero instances and cannot host new game sessions.
@@ -1137,11 +1145,15 @@ func (v *ContainerFleet) SerializeMembers(s smithy.ShapeSerializer) {
 		v.InstanceConnectionPortRange.SerializeMembers(s)
 		s.CloseStruct()
 	}
-	serializeIpPermissionsList(s, schemas.ContainerFleet_InstanceInboundPermissions, v.InstanceInboundPermissions)
+	if v.InstanceInboundPermissions != nil {
+		serializeIpPermissionsList(s, schemas.ContainerFleet_InstanceInboundPermissions, v.InstanceInboundPermissions)
+	}
 	if v.InstanceType != nil {
 		s.WriteString(schemas.ContainerFleet_InstanceType, *v.InstanceType)
 	}
-	serializeContainerFleetLocationAttributesList(s, schemas.ContainerFleet_LocationAttributes, v.LocationAttributes)
+	if v.LocationAttributes != nil {
+		serializeContainerFleetLocationAttributesList(s, schemas.ContainerFleet_LocationAttributes, v.LocationAttributes)
+	}
 	if v.LogConfiguration != nil {
 		s.WriteStruct(schemas.ContainerFleet_LogConfiguration)
 		v.LogConfiguration.SerializeMembers(s)
@@ -1150,7 +1162,9 @@ func (v *ContainerFleet) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.MaximumGameServerContainerGroupsPerInstance != nil {
 		s.WriteInt32(schemas.ContainerFleet_MaximumGameServerContainerGroupsPerInstance, *v.MaximumGameServerContainerGroupsPerInstance)
 	}
-	serializeMetricGroupList(s, schemas.ContainerFleet_MetricGroups, v.MetricGroups)
+	if v.MetricGroups != nil {
+		serializeMetricGroupList(s, schemas.ContainerFleet_MetricGroups, v.MetricGroups)
+	}
 	if v.NewGameSessionProtectionPolicy != "" {
 		s.WriteString(schemas.ContainerFleet_NewGameSessionProtectionPolicy, string(v.NewGameSessionProtectionPolicy))
 	}
@@ -1292,8 +1306,8 @@ type ContainerFleetLocationAttributes struct {
 	//   - ACTIVE -- The container fleet has been deployed and is ready to host game
 	//   sessions.
 	//
-	//   - UPDATING -- Updates to the container fleet is being updated. A deployment is
-	//   in progress.
+	//   - UPDATING -- The container fleet is being updated. A deployment is in
+	//   progress.
 	//
 	//   - EXPIRED -- The container fleet has been expired. The fleet is scaled down to
 	//   zero instances and cannot host new game sessions.
@@ -1345,8 +1359,8 @@ func (v *ContainerFleetLocationAttributes) Deserialize(d smithy.ShapeDeserialize
 }
 
 // The properties that describe a container group resource. You can update all
-// properties of a container group definition properties. Updates to a container
-// group definition are saved as new versions.
+// properties of a container group definition. Updates to a container group
+// definition are saved as new versions.
 //
 // Used with: [CreateContainerGroupDefinition]
 //
@@ -1434,13 +1448,13 @@ type ContainerGroupDefinition struct {
 	//   definition uses a different operating system than the one defined for the
 	//   container group.
 	//
-	// [IAM permission examples]: https://docs.aws.amazon.com/gamelift/latest/developerguide/gamelift-iam-policy-examples.html.html
+	// [IAM permission examples]: https://docs.aws.amazon.com/gamelift/latest/developerguide/gamelift-iam-policy-examples.html
 	// [Amazon GameLift Servers endpoints and quotas]: https://docs.aws.amazon.com/general/latest/gr/gamelift.html
 	// [CreateContainerGroupDefinition]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_CreateContainerGroupDefinition.html
 	StatusReason *string
 
 	// The set of definitions for support containers in this group. A container group
-	// definition might have zero support container definitions. Support container can
+	// definition might have zero support container definitions. Support containers can
 	// be used in any type of container group.
 	SupportContainerDefinitions []SupportContainerDefinition
 
@@ -1454,9 +1468,17 @@ type ContainerGroupDefinition struct {
 
 	// The amount of vCPU units on a fleet instance to allocate for the container
 	// group (1 vCPU is equal to 1024 CPU units). All containers in the group share
-	// these resources. You can set a limit for each container definition in the group.
-	// If individual containers have limits, this total value must be equal to or
-	// greater than the sum of the limits for each container in the group.
+	// these resources. You can set a vCPU reservation for each container definition in
+	// the group. If individual containers have reservations, this total value must be
+	// equal to or greater than the sum of the reservations for each container in the
+	// group.
+	//
+	// For a game server container group, if this property is set, Amazon GameLift
+	// Servers uses this value to calculate how many game server container groups fit
+	// on an instance. If this property isn't set, the group's containers can use up to
+	// the instance's available vCPU, and Amazon GameLift Servers uses the sum of the
+	// containers' Vcpu values to calculate how many game server container groups fit
+	// on an instance.
 	TotalVcpuLimit *float64
 
 	// An optional description that was provided for a container group definition
@@ -1505,7 +1527,9 @@ func (v *ContainerGroupDefinition) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.StatusReason != nil {
 		s.WriteString(schemas.ContainerGroupDefinition_StatusReason, *v.StatusReason)
 	}
-	serializeSupportContainerDefinitionList(s, schemas.ContainerGroupDefinition_SupportContainerDefinitions, v.SupportContainerDefinitions)
+	if v.SupportContainerDefinitions != nil {
+		serializeSupportContainerDefinitionList(s, schemas.ContainerGroupDefinition_SupportContainerDefinitions, v.SupportContainerDefinitions)
+	}
 	if v.TotalMemoryLimitMebibytes != nil {
 		s.WriteInt32(schemas.ContainerGroupDefinition_TotalMemoryLimitMebibytes, *v.TotalMemoryLimitMebibytes)
 	}
@@ -1610,7 +1634,9 @@ func (v *ContainerGroupPortMapping) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.ContainerName != nil {
 		s.WriteString(schemas.ContainerGroupPortMapping_ContainerName, *v.ContainerName)
 	}
-	serializeContainerPortMappingList(s, schemas.ContainerGroupPortMapping_ContainerPortMappings, v.ContainerPortMappings)
+	if v.ContainerPortMappings != nil {
+		serializeContainerPortMappingList(s, schemas.ContainerGroupPortMapping_ContainerPortMappings, v.ContainerPortMappings)
+	}
 	if v.ContainerRuntimeId != nil {
 		s.WriteString(schemas.ContainerGroupPortMapping_ContainerRuntimeId, *v.ContainerRuntimeId)
 	}
@@ -1685,7 +1711,9 @@ func (v *ContainerHealthCheck) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *ContainerHealthCheck) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeContainerCommandStringList(s, schemas.ContainerHealthCheck_Command, v.Command)
+	if v.Command != nil {
+		serializeContainerCommandStringList(s, schemas.ContainerHealthCheck_Command, v.Command)
+	}
 	if v.Interval != nil {
 		s.WriteInt32(schemas.ContainerHealthCheck_Interval, *v.Interval)
 	}
@@ -1875,7 +1903,9 @@ func (v *ContainerPortConfiguration) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *ContainerPortConfiguration) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeContainerPortRangeList(s, schemas.ContainerPortConfiguration_ContainerPortRanges, v.ContainerPortRanges)
+	if v.ContainerPortRanges != nil {
+		serializeContainerPortRangeList(s, schemas.ContainerPortConfiguration_ContainerPortRanges, v.ContainerPortRanges)
+	}
 }
 func (v *ContainerPortConfiguration) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.ContainerPortConfiguration, func(s *smithy.Schema) error {
@@ -2249,7 +2279,7 @@ func (v *EC2InstanceCounts) Deserialize(d smithy.ShapeDeserializer) error {
 // The Amazon GameLift Servers service limits for an Amazon EC2 instance type and
 // current utilization. Amazon GameLift Servers allows Amazon Web Services accounts
 // a maximum number of instances, per instance type, per Amazon Web Services Region
-// or location, for use with Amazon GameLift Servers. You can request an limit
+// or location, for use with Amazon GameLift Servers. You can request a limit
 // increase for your account by using the Service limits page in the Amazon
 // GameLift Servers console.
 type EC2InstanceLimit struct {
@@ -2360,7 +2390,7 @@ type Event struct {
 	//   instance.
 	//
 	//   - FLEET_CREATION_EXTRACTING_BUILD -- The game server build was successfully
-	//   downloaded to an instance, and Amazon GameLift Serversis now extracting the
+	//   downloaded to an instance, and Amazon GameLift Servers is now extracting the
 	//   build files from the uploaded build. Failure at this stage prevents a fleet from
 	//   moving to ACTIVE status. Logs for this stage display a list of the files that
 	//   are extracted and saved on the instance. Access the logs by using the URL in
@@ -2376,12 +2406,12 @@ type Event struct {
 	//   - FLEET_CREATION_COMPLETED_INSTALLER -- The game server build files were
 	//   successfully installed and validation of the installation will begin soon.
 	//
-	//   - FLEET_CREATION_FAILED_INSTALLER -- The installed failed while attempting to
+	//   - FLEET_CREATION_FAILED_INSTALLER -- The installer failed while attempting to
 	//   install the build files. This event indicates that the failure occurred before
 	//   Amazon GameLift Servers could start validation.
 	//
 	//   - FLEET_CREATION_VALIDATING_RUNTIME_CONFIG -- The build process was
-	//   successful, and the GameLift is now verifying that the game server launch paths,
+	//   successful, and GameLift is now verifying that the game server launch paths,
 	//   which are specified in the fleet's runtime configuration, exist. If any listed
 	//   launch path exists, Amazon GameLift Servers tries to launch a game server
 	//   process and waits for the process to report ready. Failures in this stage
@@ -2584,7 +2614,7 @@ func (v *Event) Deserialize(d smithy.ShapeDeserializer) error {
 // A list of fleet locations where a game session queue can place new game
 // sessions. You can use a filter to temporarily exclude specific locations from
 // receiving placements. For queues that have multi-location fleets, you can use a
-// filter configuration allow placement with some, but not all, of a fleet's
+// filter configuration to allow placement with some, but not all, of a fleet's
 // locations.
 type FilterConfiguration struct {
 
@@ -2602,7 +2632,9 @@ func (v *FilterConfiguration) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *FilterConfiguration) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeLocationList(s, schemas.FilterConfiguration_AllowedLocations, v.AllowedLocations)
+	if v.AllowedLocations != nil {
+		serializeLocationList(s, schemas.FilterConfiguration_AllowedLocations, v.AllowedLocations)
+	}
 }
 func (v *FilterConfiguration) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.FilterConfiguration, func(s *smithy.Schema) error {
@@ -2770,8 +2802,8 @@ type FleetAttributes struct {
 	//
 	// The policy is evaluated when a player tries to create a new game session. On
 	// receiving a CreateGameSession request, Amazon GameLift Servers checks that the
-	// player (identified by CreatorId ) has created fewer than game session limit in
-	// the specified time period.
+	// player (identified by CreatorId ) has created fewer than the game session limit
+	// in the specified time period.
 	//
 	// The purpose of this policy is to prevent a single player from consuming a large
 	// share of available hosting resources. For example, setting
@@ -2809,9 +2841,9 @@ type FleetAttributes struct {
 	//   - NEW -- A new fleet resource has been defined and Amazon GameLift Servers
 	//   has started creating the fleet. Desired instances is set to 1.
 	//
-	//   - DOWNLOADING/VALIDATING/BUILDING -- Amazon GameLift Servers is download the
-	//   game server build, running install scripts, and then validating the build files.
-	//   When complete, Amazon GameLift Servers launches a fleet instance.
+	//   - DOWNLOADING/VALIDATING/BUILDING -- Amazon GameLift Servers is downloading
+	//   the game server build, running install scripts, and then validating the build
+	//   files. When complete, Amazon GameLift Servers launches a fleet instance.
 	//
 	//   - ACTIVATING -- Amazon GameLift Servers is launching a game server process
 	//   and testing its connectivity with the Amazon GameLift Servers service.
@@ -2892,8 +2924,12 @@ func (v *FleetAttributes) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.InstanceType != "" {
 		s.WriteString(schemas.FleetAttributes_InstanceType, string(v.InstanceType))
 	}
-	serializeStringList(s, schemas.FleetAttributes_LogPaths, v.LogPaths)
-	serializeMetricGroupList(s, schemas.FleetAttributes_MetricGroups, v.MetricGroups)
+	if v.LogPaths != nil {
+		serializeStringList(s, schemas.FleetAttributes_LogPaths, v.LogPaths)
+	}
+	if v.MetricGroups != nil {
+		serializeMetricGroupList(s, schemas.FleetAttributes_MetricGroups, v.MetricGroups)
+	}
 	if v.Name != nil {
 		s.WriteString(schemas.FleetAttributes_Name, *v.Name)
 	}
@@ -2931,7 +2967,9 @@ func (v *FleetAttributes) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.Status != "" {
 		s.WriteString(schemas.FleetAttributes_Status, string(v.Status))
 	}
-	serializeFleetActionList(s, schemas.FleetAttributes_StoppedActions, v.StoppedActions)
+	if v.StoppedActions != nil {
+		serializeFleetActionList(s, schemas.FleetAttributes_StoppedActions, v.StoppedActions)
+	}
 	if v.TerminationTime != nil {
 		s.WriteTime(schemas.FleetAttributes_TerminationTime, *v.TerminationTime)
 	}
@@ -3694,6 +3732,24 @@ type GameServerContainerDefinition struct {
 	// container fleets.
 	ServerSdkVersion *string
 
+	// The number of vCPU units reserved for the game server container. The container
+	// can use more vCPU when it's available, up to the container group's total vCPU
+	// limit if one is set. If the container group has a total vCPU limit and the
+	// request doesn't set this value, Amazon GameLift Servers calculates the game
+	// server container's vCPU as the total vCPU limit minus the sum of the vCPU units
+	// reserved for the group's support containers.
+	//
+	// A game server container group needs either a total vCPU limit or this value. If
+	// the container group doesn't have a total vCPU limit, the group's containers can
+	// use up to the instance's available vCPU, and Amazon GameLift Servers uses the
+	// sum of the group's container Vcpu values to calculate how many game server
+	// container groups fit on an instance.
+	//
+	// Related data type: [ContainerGroupDefinition]TotalVcpuLimit
+	//
+	// [ContainerGroupDefinition]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_ContainerGroupDefinition.html
+	Vcpu *float64
+
 	noSmithyDocumentSerde
 }
 
@@ -3707,8 +3763,12 @@ func (v *GameServerContainerDefinition) SerializeMembers(s smithy.ShapeSerialize
 	if v.ContainerName != nil {
 		s.WriteString(schemas.GameServerContainerDefinition_ContainerName, *v.ContainerName)
 	}
-	serializeContainerDependencyList(s, schemas.GameServerContainerDefinition_DependsOn, v.DependsOn)
-	serializeContainerEnvironmentList(s, schemas.GameServerContainerDefinition_EnvironmentOverride, v.EnvironmentOverride)
+	if v.DependsOn != nil {
+		serializeContainerDependencyList(s, schemas.GameServerContainerDefinition_DependsOn, v.DependsOn)
+	}
+	if v.EnvironmentOverride != nil {
+		serializeContainerEnvironmentList(s, schemas.GameServerContainerDefinition_EnvironmentOverride, v.EnvironmentOverride)
+	}
 	if v.ImageUri != nil {
 		s.WriteString(schemas.GameServerContainerDefinition_ImageUri, *v.ImageUri)
 	}
@@ -3717,7 +3777,9 @@ func (v *GameServerContainerDefinition) SerializeMembers(s smithy.ShapeSerialize
 		v.LinuxCapabilities.SerializeMembers(s)
 		s.CloseStruct()
 	}
-	serializeContainerMountPointList(s, schemas.GameServerContainerDefinition_MountPoints, v.MountPoints)
+	if v.MountPoints != nil {
+		serializeContainerMountPointList(s, schemas.GameServerContainerDefinition_MountPoints, v.MountPoints)
+	}
 	if v.PortConfiguration != nil {
 		s.WriteStruct(schemas.GameServerContainerDefinition_PortConfiguration)
 		v.PortConfiguration.SerializeMembers(s)
@@ -3728,6 +3790,9 @@ func (v *GameServerContainerDefinition) SerializeMembers(s smithy.ShapeSerialize
 	}
 	if v.ServerSdkVersion != nil {
 		s.WriteString(schemas.GameServerContainerDefinition_ServerSdkVersion, *v.ServerSdkVersion)
+	}
+	if v.Vcpu != nil {
+		s.WriteFloat64(schemas.GameServerContainerDefinition_Vcpu, *v.Vcpu)
 	}
 }
 func (v *GameServerContainerDefinition) Deserialize(d smithy.ShapeDeserializer) error {
@@ -3757,6 +3822,9 @@ func (v *GameServerContainerDefinition) Deserialize(d smithy.ShapeDeserializer) 
 		case schemas.GameServerContainerDefinition_ServerSdkVersion:
 			v.ServerSdkVersion = new(string)
 			return d.ReadString(schemas.GameServerContainerDefinition_ServerSdkVersion, v.ServerSdkVersion)
+		case schemas.GameServerContainerDefinition_Vcpu:
+			v.Vcpu = new(float64)
+			return d.ReadFloat64(schemas.GameServerContainerDefinition_Vcpu, v.Vcpu)
 		}
 		return nil
 	})
@@ -3806,9 +3874,9 @@ type GameServerContainerDefinitionInput struct {
 	// container. The container port configuration must have enough ports for each
 	// container process that accepts inbound traffic connections. For example, a game
 	// server process requires a container port to allow game clients to connect to it.
-	// A container port configuration can have can have one or more container port
-	// ranges. Each range specifies starting and ending values as well as the supported
-	// network protocol.
+	// A container port configuration can have one or more container port ranges. Each
+	// range specifies starting and ending values as well as the supported network
+	// protocol.
 	//
 	// Container ports aren't directly accessed by inbound traffic. Amazon GameLift
 	// Servers maps each container port to an externally accessible connection port
@@ -3851,6 +3919,24 @@ type GameServerContainerDefinitionInput struct {
 	// the host system and lets it access the file or directory.
 	MountPoints []ContainerMountPoint
 
+	// The number of vCPU units reserved for the game server container. The container
+	// can use more vCPU when it's available, up to the container group's total vCPU
+	// limit if one is set. If the container group has a total vCPU limit and the
+	// request doesn't set this value, Amazon GameLift Servers calculates the game
+	// server container's vCPU as the total vCPU limit minus the sum of the vCPU units
+	// reserved for the group's support containers.
+	//
+	// A game server container group needs either a total vCPU limit or this value. If
+	// the container group doesn't have a total vCPU limit, the group's containers can
+	// use up to the instance's available vCPU, and Amazon GameLift Servers uses the
+	// sum of the group's container Vcpu values to calculate how many game server
+	// container groups fit on an instance.
+	//
+	// Related data type: [ContainerGroupDefinition]TotalVcpuLimit
+	//
+	// [ContainerGroupDefinition]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_ContainerGroupDefinition.html
+	Vcpu *float64
+
 	noSmithyDocumentSerde
 }
 
@@ -3864,8 +3950,12 @@ func (v *GameServerContainerDefinitionInput) SerializeMembers(s smithy.ShapeSeri
 	if v.ContainerName != nil {
 		s.WriteString(schemas.GameServerContainerDefinitionInput_ContainerName, *v.ContainerName)
 	}
-	serializeContainerDependencyList(s, schemas.GameServerContainerDefinitionInput_DependsOn, v.DependsOn)
-	serializeContainerEnvironmentList(s, schemas.GameServerContainerDefinitionInput_EnvironmentOverride, v.EnvironmentOverride)
+	if v.DependsOn != nil {
+		serializeContainerDependencyList(s, schemas.GameServerContainerDefinitionInput_DependsOn, v.DependsOn)
+	}
+	if v.EnvironmentOverride != nil {
+		serializeContainerEnvironmentList(s, schemas.GameServerContainerDefinitionInput_EnvironmentOverride, v.EnvironmentOverride)
+	}
 	if v.ImageUri != nil {
 		s.WriteString(schemas.GameServerContainerDefinitionInput_ImageUri, *v.ImageUri)
 	}
@@ -3874,7 +3964,9 @@ func (v *GameServerContainerDefinitionInput) SerializeMembers(s smithy.ShapeSeri
 		v.LinuxCapabilities.SerializeMembers(s)
 		s.CloseStruct()
 	}
-	serializeContainerMountPointList(s, schemas.GameServerContainerDefinitionInput_MountPoints, v.MountPoints)
+	if v.MountPoints != nil {
+		serializeContainerMountPointList(s, schemas.GameServerContainerDefinitionInput_MountPoints, v.MountPoints)
+	}
 	if v.PortConfiguration != nil {
 		s.WriteStruct(schemas.GameServerContainerDefinitionInput_PortConfiguration)
 		v.PortConfiguration.SerializeMembers(s)
@@ -3882,6 +3974,9 @@ func (v *GameServerContainerDefinitionInput) SerializeMembers(s smithy.ShapeSeri
 	}
 	if v.ServerSdkVersion != nil {
 		s.WriteString(schemas.GameServerContainerDefinitionInput_ServerSdkVersion, *v.ServerSdkVersion)
+	}
+	if v.Vcpu != nil {
+		s.WriteFloat64(schemas.GameServerContainerDefinitionInput_Vcpu, *v.Vcpu)
 	}
 }
 func (v *GameServerContainerDefinitionInput) Deserialize(d smithy.ShapeDeserializer) error {
@@ -3908,6 +4003,9 @@ func (v *GameServerContainerDefinitionInput) Deserialize(d smithy.ShapeDeseriali
 		case schemas.GameServerContainerDefinitionInput_ServerSdkVersion:
 			v.ServerSdkVersion = new(string)
 			return d.ReadString(schemas.GameServerContainerDefinitionInput_ServerSdkVersion, v.ServerSdkVersion)
+		case schemas.GameServerContainerDefinitionInput_Vcpu:
+			v.Vcpu = new(float64)
+			return d.ReadFloat64(schemas.GameServerContainerDefinitionInput_Vcpu, v.Vcpu)
 		}
 		return nil
 	})
@@ -3918,7 +4016,7 @@ func (v *GameServerContainerDefinitionInput) Deserialize(d smithy.ShapeDeseriali
 // each game server container group runs to learn how many game sessions the fleet
 // is capable of hosting concurrently. For example, if a fleet has 50 game server
 // container groups, and the game server container in each group runs 1 game server
-// process, then the fleet has the capacity to run host 50 game sessions at a time.
+// process, then the fleet has the capacity to host 50 game sessions at a time.
 //
 // Returned by: [https://docs.aws.amazon.com/gamelift/latest/apireference/API_DescribeFleetCapacity.html], [https://docs.aws.amazon.com/gamelift/latest/apireference/API_DescribeFleetLocationCapacity.html]
 //
@@ -4033,8 +4131,8 @@ type GameServerGroup struct {
 	// running might be terminated during a scale-down event, causing players to be
 	// dropped from the game. Protected instances cannot be terminated while there are
 	// active game servers running except in the event of a forced game server group
-	// deletion (see ). An exception to this is with Spot Instances, which can be
-	// terminated by Amazon Web Services regardless of protection status.
+	// deletion. An exception to this is with Spot Instances, which can be terminated
+	// by Amazon Web Services regardless of protection status.
 	GameServerProtectionPolicy GameServerProtectionPolicy
 
 	// The set of Amazon EC2 instance types that Amazon GameLift Servers FleetIQ can
@@ -4112,7 +4210,9 @@ func (v *GameServerGroup) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.GameServerProtectionPolicy != "" {
 		s.WriteString(schemas.GameServerGroup_GameServerProtectionPolicy, string(v.GameServerProtectionPolicy))
 	}
-	serializeInstanceDefinitions(s, schemas.GameServerGroup_InstanceDefinitions, v.InstanceDefinitions)
+	if v.InstanceDefinitions != nil {
+		serializeInstanceDefinitions(s, schemas.GameServerGroup_InstanceDefinitions, v.InstanceDefinitions)
+	}
 	if v.LastUpdatedTime != nil {
 		s.WriteTime(schemas.GameServerGroup_LastUpdatedTime, *v.LastUpdatedTime)
 	}
@@ -4125,7 +4225,9 @@ func (v *GameServerGroup) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.StatusReason != nil {
 		s.WriteString(schemas.GameServerGroup_StatusReason, *v.StatusReason)
 	}
-	serializeGameServerGroupActions(s, schemas.GameServerGroup_SuspendedActions, v.SuspendedActions)
+	if v.SuspendedActions != nil {
+		serializeGameServerGroupActions(s, schemas.GameServerGroup_SuspendedActions, v.SuspendedActions)
+	}
 }
 func (v *GameServerGroup) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.GameServerGroup, func(s *smithy.Schema) error {
@@ -4240,7 +4342,7 @@ func (v *GameServerGroupAutoScalingPolicy) Deserialize(d smithy.ShapeDeserialize
 //	Additional properties, including status, that describe an EC2 instance in a
 //
 // game server group. Instance configurations are set with game server group
-// properties (see DescribeGameServerGroup and with the EC2 launch template that
+// properties (see DescribeGameServerGroup ) and with the EC2 launch template that
 // was used when creating the game server group.
 //
 // Retrieve game server instances for a game server group by calling
@@ -4491,7 +4593,9 @@ func (v *GameSession) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.FleetId != nil {
 		s.WriteString(schemas.GameSession_FleetId, *v.FleetId)
 	}
-	serializeGamePropertyList(s, schemas.GameSession_GameProperties, v.GameProperties)
+	if v.GameProperties != nil {
+		serializeGamePropertyList(s, schemas.GameSession_GameProperties, v.GameProperties)
+	}
 	if v.GameSessionData != nil {
 		s.WriteString(schemas.GameSession_GameSessionData, *v.GameSessionData)
 	}
@@ -4689,7 +4793,9 @@ func (v *GameSessionConnectionInfo) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.IpAddress != nil {
 		s.WriteString(schemas.GameSessionConnectionInfo_IpAddress, *v.IpAddress)
 	}
-	serializeMatchedPlayerSessionList(s, schemas.GameSessionConnectionInfo_MatchedPlayerSessions, v.MatchedPlayerSessions)
+	if v.MatchedPlayerSessions != nil {
+		serializeMatchedPlayerSessionList(s, schemas.GameSessionConnectionInfo_MatchedPlayerSessions, v.MatchedPlayerSessions)
+	}
 	if v.PlayerGatewayStatus != "" {
 		s.WriteString(schemas.GameSessionConnectionInfo_PlayerGatewayStatus, string(v.PlayerGatewayStatus))
 	}
@@ -4732,8 +4838,8 @@ func (v *GameSessionConnectionInfo) Deserialize(d smithy.ShapeDeserializer) erro
 //
 // The policy is evaluated when a player tries to create a new game session. On
 // receiving a CreateGameSession request, Amazon GameLift Servers checks that the
-// player (identified by CreatorId ) has created fewer than game session limit in
-// the specified time period.
+// player (identified by CreatorId ) has created fewer than the game session limit
+// in the specified time period.
 type GameSessionCreationLimitPolicy struct {
 
 	// A policy that puts limits on the number of game sessions that a player can
@@ -4742,8 +4848,8 @@ type GameSessionCreationLimitPolicy struct {
 	//
 	// The policy evaluates when a player tries to create a new game session. On
 	// receiving a CreateGameSession request, Amazon GameLift Servers checks that the
-	// player (identified by CreatorId ) has created fewer than game session limit in
-	// the specified time period.
+	// player (identified by CreatorId ) has created fewer than the game session limit
+	// in the specified time period.
 	NewGameSessionsPerCreator *int32
 
 	// The time span used in evaluating the resource creation limit policy.
@@ -5007,7 +5113,9 @@ func (v *GameSessionPlacement) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.EndTime != nil {
 		s.WriteTime(schemas.GameSessionPlacement_EndTime, *v.EndTime)
 	}
-	serializeGamePropertyList(s, schemas.GameSessionPlacement_GameProperties, v.GameProperties)
+	if v.GameProperties != nil {
+		serializeGamePropertyList(s, schemas.GameSessionPlacement_GameProperties, v.GameProperties)
+	}
 	if v.GameSessionArn != nil {
 		s.WriteString(schemas.GameSessionPlacement_GameSessionArn, *v.GameSessionArn)
 	}
@@ -5035,14 +5143,18 @@ func (v *GameSessionPlacement) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.MaximumPlayerSessionCount != nil {
 		s.WriteInt32(schemas.GameSessionPlacement_MaximumPlayerSessionCount, *v.MaximumPlayerSessionCount)
 	}
-	serializePlacedPlayerSessionList(s, schemas.GameSessionPlacement_PlacedPlayerSessions, v.PlacedPlayerSessions)
+	if v.PlacedPlayerSessions != nil {
+		serializePlacedPlayerSessionList(s, schemas.GameSessionPlacement_PlacedPlayerSessions, v.PlacedPlayerSessions)
+	}
 	if v.PlacementId != nil {
 		s.WriteString(schemas.GameSessionPlacement_PlacementId, *v.PlacementId)
 	}
 	if v.PlayerGatewayStatus != "" {
 		s.WriteString(schemas.GameSessionPlacement_PlayerGatewayStatus, string(v.PlayerGatewayStatus))
 	}
-	serializePlayerLatencyList(s, schemas.GameSessionPlacement_PlayerLatencies, v.PlayerLatencies)
+	if v.PlayerLatencies != nil {
+		serializePlayerLatencyList(s, schemas.GameSessionPlacement_PlayerLatencies, v.PlayerLatencies)
+	}
 	if v.Port != nil {
 		s.WriteInt32(schemas.GameSessionPlacement_Port, *v.Port)
 	}
@@ -5201,7 +5313,9 @@ func (v *GameSessionQueue) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.CustomEventData != nil {
 		s.WriteString(schemas.GameSessionQueue_CustomEventData, *v.CustomEventData)
 	}
-	serializeGameSessionQueueDestinationList(s, schemas.GameSessionQueue_Destinations, v.Destinations)
+	if v.Destinations != nil {
+		serializeGameSessionQueueDestinationList(s, schemas.GameSessionQueue_Destinations, v.Destinations)
+	}
 	if v.FilterConfiguration != nil {
 		s.WriteStruct(schemas.GameSessionQueue_FilterConfiguration)
 		v.FilterConfiguration.SerializeMembers(s)
@@ -5216,7 +5330,9 @@ func (v *GameSessionQueue) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.NotificationTarget != nil {
 		s.WriteString(schemas.GameSessionQueue_NotificationTarget, *v.NotificationTarget)
 	}
-	serializePlayerLatencyPolicyList(s, schemas.GameSessionQueue_PlayerLatencyPolicies, v.PlayerLatencyPolicies)
+	if v.PlayerLatencyPolicies != nil {
+		serializePlayerLatencyPolicyList(s, schemas.GameSessionQueue_PlayerLatencyPolicies, v.PlayerLatencyPolicies)
+	}
 	if v.PriorityConfiguration != nil {
 		s.WriteStruct(schemas.GameSessionQueue_PriorityConfiguration)
 		v.PriorityConfiguration.SerializeMembers(s)
@@ -5816,7 +5932,9 @@ func (v *LinuxCapabilities) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *LinuxCapabilities) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeLinuxCapabilityList(s, schemas.LinuxCapabilities_Include, v.Include)
+	if v.Include != nil {
+		serializeLinuxCapabilityList(s, schemas.LinuxCapabilities_Include, v.Include)
+	}
 }
 func (v *LinuxCapabilities) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.LinuxCapabilities, func(s *smithy.Schema) error {
@@ -5908,7 +6026,9 @@ func (v *LocationAttributes) SerializeMembers(s smithy.ShapeSerializer) {
 		v.LocationState.SerializeMembers(s)
 		s.CloseStruct()
 	}
-	serializeFleetActionList(s, schemas.LocationAttributes_StoppedActions, v.StoppedActions)
+	if v.StoppedActions != nil {
+		serializeFleetActionList(s, schemas.LocationAttributes_StoppedActions, v.StoppedActions)
+	}
 	if v.UpdateStatus != "" {
 		s.WriteString(schemas.LocationAttributes_UpdateStatus, string(v.UpdateStatus))
 	}
@@ -6463,11 +6583,15 @@ func (v *MatchmakingConfiguration) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.FlexMatchMode != "" {
 		s.WriteString(schemas.MatchmakingConfiguration_FlexMatchMode, string(v.FlexMatchMode))
 	}
-	serializeGamePropertyList(s, schemas.MatchmakingConfiguration_GameProperties, v.GameProperties)
+	if v.GameProperties != nil {
+		serializeGamePropertyList(s, schemas.MatchmakingConfiguration_GameProperties, v.GameProperties)
+	}
 	if v.GameSessionData != nil {
 		s.WriteString(schemas.MatchmakingConfiguration_GameSessionData, *v.GameSessionData)
 	}
-	serializeQueueArnsList(s, schemas.MatchmakingConfiguration_GameSessionQueueArns, v.GameSessionQueueArns)
+	if v.GameSessionQueueArns != nil {
+		serializeQueueArnsList(s, schemas.MatchmakingConfiguration_GameSessionQueueArns, v.GameSessionQueueArns)
+	}
 	if v.Name != nil {
 		s.WriteString(schemas.MatchmakingConfiguration_Name, *v.Name)
 	}
@@ -6569,7 +6693,7 @@ func (v *MatchmakingConfiguration) Deserialize(d smithy.ShapeDeserializer) error
 //     match based on player attributes. A rule might specify minimum requirements for
 //     individual players, teams, or entire matches. For example, a rule might require
 //     each player to meet a certain skill level, each team to have at least one player
-//     in a certain role, or the match to have a minimum average skill level. or may
+//     in a certain role, or the match to have a minimum average skill level, or may
 //     describe an entire group--such as all teams must be evenly matched or have at
 //     least one player in a certain role.
 //
@@ -6674,7 +6798,7 @@ type MatchmakingTicket struct {
 
 	// Connection information for a new game session. Once a match is made, the
 	// FlexMatch engine creates a new game session for it. This information is added to
-	// the matchmaking ticket, which you can be retrieve by calling [DescribeMatchmaking].
+	// the matchmaking ticket, which you can retrieve by calling [DescribeMatchmaking].
 	//
 	// [DescribeMatchmaking]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_DescribeMatchmaking.html
 	GameSessionConnectionInfo *GameSessionConnectionInfo
@@ -6758,7 +6882,9 @@ func (v *MatchmakingTicket) SerializeMembers(s smithy.ShapeSerializer) {
 		v.GameSessionConnectionInfo.SerializeMembers(s)
 		s.CloseStruct()
 	}
-	serializePlayerList(s, schemas.MatchmakingTicket_Players, v.Players)
+	if v.Players != nil {
+		serializePlayerList(s, schemas.MatchmakingTicket_Players, v.Players)
+	}
 	if v.StartTime != nil {
 		s.WriteTime(schemas.MatchmakingTicket_StartTime, *v.StartTime)
 	}
@@ -6940,8 +7066,12 @@ func (v *Player) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *Player) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeLatencyMap(s, schemas.Player_LatencyInMs, v.LatencyInMs)
-	serializePlayerAttributeMap(s, schemas.Player_PlayerAttributes, v.PlayerAttributes)
+	if v.LatencyInMs != nil {
+		serializeLatencyMap(s, schemas.Player_LatencyInMs, v.LatencyInMs)
+	}
+	if v.PlayerAttributes != nil {
+		serializePlayerAttributeMap(s, schemas.Player_PlayerAttributes, v.PlayerAttributes)
+	}
 	if v.PlayerId != nil {
 		s.WriteString(schemas.Player_PlayerId, *v.PlayerId)
 	}
@@ -7016,7 +7146,9 @@ func (v *PlayerConnectionDetail) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *PlayerConnectionDetail) SerializeMembers(s smithy.ShapeSerializer) {
-	serializePlayerConnectionEndpointList(s, schemas.PlayerConnectionDetail_Endpoints, v.Endpoints)
+	if v.Endpoints != nil {
+		serializePlayerConnectionEndpointList(s, schemas.PlayerConnectionDetail_Endpoints, v.Endpoints)
+	}
 	if v.Expiration != nil {
 		s.WriteTime(schemas.PlayerConnectionDetail_Expiration, *v.Expiration)
 	}
@@ -7192,7 +7324,7 @@ func (v *PlayerLatency) Deserialize(d smithy.ShapeDeserializer) error {
 // Sets a latency cap for individual players when placing a game session. With a
 // latency policy in force, a game session cannot be placed in a fleet location
 // where a player reports latency higher than the cap. Latency policies are used
-// only with placement request that provide player latency information. Player
+// only with placement requests that provide player latency information. Player
 // latency policies can be stacked to gradually relax latency requirements over
 // time.
 type PlayerLatencyPolicy struct {
@@ -7239,11 +7371,11 @@ func (v *PlayerLatencyPolicy) Deserialize(d smithy.ShapeDeserializer) error {
 
 // Represents a player session. Player sessions are created either for a specific
 // game session, or as part of a game session placement or matchmaking request. A
-// player session can represents a reserved player slot in a game session (when
+// player session can represent a reserved player slot in a game session (when
 // status is RESERVED ) or actual player activity in a game session (when status is
 // ACTIVE ). A player session object, including player data, is automatically
 // passed to a game session when the player connects to the game session and is
-// validated. After the game session ends, player sessions information is retained
+// validated. After the game session ends, player session information is retained
 // for 30 days and then removed.
 //
 // # Related actions
@@ -7433,7 +7565,7 @@ func (v *PlayerSession) Deserialize(d smithy.ShapeDeserializer) error {
 //
 //   - When a game session request includes player latency data, Amazon GameLift
 //     Servers re-orders the queue's destinations to make placements where the average
-//     player latency is lowest. It reorders based the following priorities: (1) the
+//     player latency is lowest. It reorders based on the following priorities: (1) the
 //     lowest average latency across all players, (2) the lowest hosting cost, (3) the
 //     queue's default destination order, and (4) for multi-location fleets, an
 //     alphabetic list of locations.
@@ -7475,8 +7607,12 @@ func (v *PriorityConfiguration) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *PriorityConfiguration) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeLocationList(s, schemas.PriorityConfiguration_LocationOrder, v.LocationOrder)
-	serializePriorityTypeList(s, schemas.PriorityConfiguration_PriorityOrder, v.PriorityOrder)
+	if v.LocationOrder != nil {
+		serializeLocationList(s, schemas.PriorityConfiguration_LocationOrder, v.LocationOrder)
+	}
+	if v.PriorityOrder != nil {
+		serializePriorityTypeList(s, schemas.PriorityConfiguration_PriorityOrder, v.PriorityOrder)
+	}
 }
 func (v *PriorityConfiguration) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.PriorityConfiguration, func(s *smithy.Schema) error {
@@ -7500,9 +7636,9 @@ func (v *PriorityConfiguration) Deserialize(d smithy.ShapeDeserializer) error {
 // A priority configuration override list does not override a queue's
 // FilterConfiguration setting, if the queue has one. Filter configurations are
 // used to limit placements to a subset of the locations in a queue's destinations.
-// If the override list includes a location that's not on in the
-// FilterConfiguration allowed list, Amazon GameLift Servers won't attempt to place
-// a game session there.
+// If the override list includes a location that's not in the FilterConfiguration
+// allowed list, Amazon GameLift Servers won't attempt to place a game session
+// there.
 //
 // [StartGameSessionPlacement]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_StartGameSessionPlacement.html
 type PriorityConfigurationOverride struct {
@@ -7536,7 +7672,9 @@ func (v *PriorityConfigurationOverride) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *PriorityConfigurationOverride) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeLocationOrderOverrideList(s, schemas.PriorityConfigurationOverride_LocationOrder, v.LocationOrder)
+	if v.LocationOrder != nil {
+		serializeLocationOrderOverrideList(s, schemas.PriorityConfigurationOverride_LocationOrder, v.LocationOrder)
+	}
 	if v.PlacementFallbackStrategy != "" {
 		s.WriteString(schemas.PriorityConfigurationOverride_PlacementFallbackStrategy, string(v.PlacementFallbackStrategy))
 	}
@@ -7564,8 +7702,8 @@ func (v *PriorityConfigurationOverride) Deserialize(d smithy.ShapeDeserializer) 
 //
 // The policy is evaluated when a player tries to create a new game session. On
 // receiving a CreateGameSession request, Amazon GameLift Servers checks that the
-// player (identified by CreatorId ) has created fewer than game session limit in
-// the specified time period.
+// player (identified by CreatorId ) has created fewer than the game session limit
+// in the specified time period.
 //
 // The purpose of this policy is to prevent a single player from consuming a large
 // share of available hosting resources. For example, setting
@@ -7581,8 +7719,8 @@ type ResourceCreationLimitPolicy struct {
 	//
 	// The policy is evaluated when a player tries to create a new game session. On
 	// receiving a CreateGameSession request, Amazon GameLift Servers checks that the
-	// player (identified by CreatorId ) has created fewer than game session limit in
-	// the specified time period.
+	// player (identified by CreatorId ) has created fewer than the game session limit
+	// in the specified time period.
 	NewGameSessionsPerCreator *int32
 
 	// The time span used in evaluating the resource creation limit policy.
@@ -7733,7 +7871,9 @@ func (v *RuntimeConfiguration) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.MaxConcurrentGameSessionActivations != nil {
 		s.WriteInt32(schemas.RuntimeConfiguration_MaxConcurrentGameSessionActivations, *v.MaxConcurrentGameSessionActivations)
 	}
-	serializeServerProcessList(s, schemas.RuntimeConfiguration_ServerProcesses, v.ServerProcesses)
+	if v.ServerProcesses != nil {
+		serializeServerProcessList(s, schemas.RuntimeConfiguration_ServerProcesses, v.ServerProcesses)
+	}
 }
 func (v *RuntimeConfiguration) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.RuntimeConfiguration, func(s *smithy.Schema) error {
@@ -7755,7 +7895,7 @@ func (v *RuntimeConfiguration) Deserialize(d smithy.ShapeDeserializer) error {
 // Amazon GameLift Servers.
 type S3Location struct {
 
-	// An Amazon S3 bucket identifier. Thename of the S3 bucket.
+	// An Amazon S3 bucket identifier. The name of the S3 bucket.
 	//
 	// Amazon GameLift Servers doesn't support uploading from Amazon S3 buckets with
 	// names that contain a dot (.).
@@ -7853,7 +7993,7 @@ type ScalingPolicy struct {
 	//   - ActiveInstances -- Fleet instances that are currently running at least one
 	//   game session.
 	//
-	//   - AvailableGameSessions -- Additional game sessions that fleet could host
+	//   - AvailableGameSessions -- Additional game sessions that a fleet could host
 	//   simultaneously, given current capacity.
 	//
 	//   - AvailablePlayerSessions -- Empty player slots in currently active game
@@ -8334,7 +8474,7 @@ type SupportContainerDefinition struct {
 	MountPoints []ContainerMountPoint
 
 	// A set of ports that allow access to the container from external users.
-	// Processes running in the container can bind to a one of these ports. Container
+	// Processes running in the container can bind to one of these ports. Container
 	// ports aren't directly accessed by inbound traffic. Amazon GameLift Servers maps
 	// these container ports to externally accessible connection ports, which are
 	// assigned as needed from the container fleet's ConnectionPortRange .
@@ -8365,8 +8505,12 @@ func (v *SupportContainerDefinition) SerializeMembers(s smithy.ShapeSerializer) 
 	if v.ContainerName != nil {
 		s.WriteString(schemas.SupportContainerDefinition_ContainerName, *v.ContainerName)
 	}
-	serializeContainerDependencyList(s, schemas.SupportContainerDefinition_DependsOn, v.DependsOn)
-	serializeContainerEnvironmentList(s, schemas.SupportContainerDefinition_EnvironmentOverride, v.EnvironmentOverride)
+	if v.DependsOn != nil {
+		serializeContainerDependencyList(s, schemas.SupportContainerDefinition_DependsOn, v.DependsOn)
+	}
+	if v.EnvironmentOverride != nil {
+		serializeContainerEnvironmentList(s, schemas.SupportContainerDefinition_EnvironmentOverride, v.EnvironmentOverride)
+	}
 	if v.Essential != nil {
 		s.WriteBool(schemas.SupportContainerDefinition_Essential, *v.Essential)
 	}
@@ -8386,7 +8530,9 @@ func (v *SupportContainerDefinition) SerializeMembers(s smithy.ShapeSerializer) 
 	if v.MemoryHardLimitMebibytes != nil {
 		s.WriteInt32(schemas.SupportContainerDefinition_MemoryHardLimitMebibytes, *v.MemoryHardLimitMebibytes)
 	}
-	serializeContainerMountPointList(s, schemas.SupportContainerDefinition_MountPoints, v.MountPoints)
+	if v.MountPoints != nil {
+		serializeContainerMountPointList(s, schemas.SupportContainerDefinition_MountPoints, v.MountPoints)
+	}
 	if v.PortConfiguration != nil {
 		s.WriteStruct(schemas.SupportContainerDefinition_PortConfiguration)
 		v.PortConfiguration.SerializeMembers(s)
@@ -8485,8 +8631,6 @@ type SupportContainerDefinitionInput struct {
 	// containers in the same container group. A container can have dependencies on
 	// multiple different containers.
 	//
-	// .
-	//
 	// You can use dependencies to establish a startup/shutdown sequence across the
 	// container group. For example, you might specify that ContainerB has a START
 	// dependency on ContainerA. This dependency means that ContainerB can't start
@@ -8535,8 +8679,8 @@ type SupportContainerDefinitionInput struct {
 	// A set of ports that Amazon GameLift Servers can assign to processes in a
 	// container. The container port configuration must have enough ports for each
 	// container process that accepts inbound traffic connections. A container port
-	// configuration can have can have one or more container port ranges. Each range
-	// specifies starting and ending values as well as the supported network protocol.
+	// configuration can have one or more container port ranges. Each range specifies
+	// starting and ending values as well as the supported network protocol.
 	//
 	// Container ports aren't directly accessed by inbound traffic. Amazon GameLift
 	// Servers maps each container port to an externally accessible connection port
@@ -8544,10 +8688,10 @@ type SupportContainerDefinitionInput struct {
 	PortConfiguration *ContainerPortConfiguration
 
 	// The number of vCPU units to reserve for this container. The container can use
-	// more resources when needed, if available. If you don't reserve CPU units for
+	// more resources when needed, if available. If you don't reserve vCPU units for
 	// this container, it shares the container group's total vCPU limit.
 	//
-	// Related data type: [ContainerGroupDefinition] TotalCpuLimit
+	// Related data type: [ContainerGroupDefinition] TotalVcpuLimit
 	//
 	// [ContainerGroupDefinition]: https://docs.aws.amazon.com/gamelift/latest/apireference/API_ContainerGroupDefinition.html
 	Vcpu *float64
@@ -8565,8 +8709,12 @@ func (v *SupportContainerDefinitionInput) SerializeMembers(s smithy.ShapeSeriali
 	if v.ContainerName != nil {
 		s.WriteString(schemas.SupportContainerDefinitionInput_ContainerName, *v.ContainerName)
 	}
-	serializeContainerDependencyList(s, schemas.SupportContainerDefinitionInput_DependsOn, v.DependsOn)
-	serializeContainerEnvironmentList(s, schemas.SupportContainerDefinitionInput_EnvironmentOverride, v.EnvironmentOverride)
+	if v.DependsOn != nil {
+		serializeContainerDependencyList(s, schemas.SupportContainerDefinitionInput_DependsOn, v.DependsOn)
+	}
+	if v.EnvironmentOverride != nil {
+		serializeContainerEnvironmentList(s, schemas.SupportContainerDefinitionInput_EnvironmentOverride, v.EnvironmentOverride)
+	}
 	if v.Essential != nil {
 		s.WriteBool(schemas.SupportContainerDefinitionInput_Essential, *v.Essential)
 	}
@@ -8586,7 +8734,9 @@ func (v *SupportContainerDefinitionInput) SerializeMembers(s smithy.ShapeSeriali
 	if v.MemoryHardLimitMebibytes != nil {
 		s.WriteInt32(schemas.SupportContainerDefinitionInput_MemoryHardLimitMebibytes, *v.MemoryHardLimitMebibytes)
 	}
-	serializeContainerMountPointList(s, schemas.SupportContainerDefinitionInput_MountPoints, v.MountPoints)
+	if v.MountPoints != nil {
+		serializeContainerMountPointList(s, schemas.SupportContainerDefinitionInput_MountPoints, v.MountPoints)
+	}
 	if v.PortConfiguration != nil {
 		s.WriteStruct(schemas.SupportContainerDefinitionInput_PortConfiguration)
 		v.PortConfiguration.SerializeMembers(s)
@@ -8695,9 +8845,9 @@ func (v *Tag) Deserialize(d smithy.ShapeDeserializer) error {
 }
 
 // Settings for a target-based scaling policy. A target-based policy tracks a
-// particular fleet metric specifies a target value for the metric. As player usage
-// changes, the policy triggers Amazon GameLift Servers to adjust capacity so that
-// the metric returns to the target value. The target configuration specifies
+// particular fleet metric and specifies a target value for the metric. As player
+// usage changes, the policy triggers Amazon GameLift Servers to adjust capacity so
+// that the metric returns to the target value. The target configuration specifies
 // settings as needed for the target based policy, including the target value.
 type TargetConfiguration struct {
 
