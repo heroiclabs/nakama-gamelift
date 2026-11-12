@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -16,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/gamelift"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	types2 "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
@@ -63,9 +65,10 @@ type GameLiftConfig struct {
 	HttpDialerTimeout        time.Duration // AWS Http Client request dialing timeout
 	SqsVisibilityTimeout     time.Duration // AWS SQS Client Visibility Timeout
 	SqsWaitTime              time.Duration // AWS SQS Client Wait Time
+	SqsMessageBatchSize      int           // AWS SQS Max Number of Messages to retrieve per request (1-10)
 }
 
-func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsGameLiftPlacementQueueName, awsGameLiftPlacementEventsSqsUrl string) GameLiftConfig {
+func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsGameLiftPlacementQueueName, awsGameLiftPlacementEventsSqsUrl string, sqsMessageBatchSize int) GameLiftConfig {
 	return GameLiftConfig{
 		AwsKey:                   awsKey,
 		AwsSecret:                awsSecret,
@@ -79,6 +82,7 @@ func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsG
 		HttpDialerTimeout:        15 * time.Second,
 		SqsVisibilityTimeout:     10 * time.Second,
 		SqsWaitTime:              20 * time.Second,
+		SqsMessageBatchSize:      sqsMessageBatchSize,
 	}
 }
 
@@ -114,7 +118,9 @@ func (glc *GameLiftConfig) Validate() error {
 	if glc.SqsWaitTime >= glc.HttpRequestTimeout {
 		errs = append(errs, errors.New("sqs wait time must be < http request timeout"))
 	}
-
+	if glc.SqsMessageBatchSize < 1 || glc.SqsMessageBatchSize > 10 {
+		errs = append(errs, errors.New("sqs message batch size must be between 1 and 10"))
+	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
@@ -737,7 +743,7 @@ type SqsMessagePlacementEventBody struct {
 func (fm *GameLiftFleetManager) processSqsPlacementEvents() {
 	receiveMessageInput := &sqs.ReceiveMessageInput{
 		QueueUrl:            aws.String(fm.cfg.AwsPlacementEventsSqsUrl),
-		MaxNumberOfMessages: 1,
+		MaxNumberOfMessages: int32(fm.cfg.SqsMessageBatchSize),
 		VisibilityTimeout:   int32(fm.cfg.SqsVisibilityTimeout.Seconds()),
 		WaitTimeSeconds:     int32(fm.cfg.SqsWaitTime.Seconds()),
 	}
@@ -763,65 +769,95 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvents() {
 				continue
 			}
 
-			m := message.Messages[0]
-			logger := fm.logger.WithField("message_id", *m.MessageId)
-			logger.WithField("message_body", *m.Body).Debug("Sqs placement notification received.")
-
-			var queueMsg SqsMessage
-			if err = json.Unmarshal([]byte(*m.Body), &queueMsg); err != nil {
-				logger.WithField("error", err.Error()).Error("failed to unmarshal sqs queue message body.")
-				continue
+			processed := make([]bool, len(message.Messages))
+			wg := sync.WaitGroup{}
+			for i, m := range message.Messages {
+				wg.Go(func() {
+					processed[i] = fm.processSqsPlacementEvent(ctx, m)
+				})
 			}
+			wg.Wait()
 
-			var placementEventMsg *SqsMessagePlacementEventBody
-			if err = json.Unmarshal([]byte(queueMsg.Message), &placementEventMsg); err != nil {
-				logger.WithField("error", err.Error()).Error("failed to unmarshal sqs event body.")
-				continue
-			}
-
-			placementId := placementEventMsg.Detail.PlacementId
-
-			eventMetadata := map[string]any{"event": *m.Body}
-
-			switch placementEventMsg.Detail.Type {
-			case GameLiftEventIdPlacementFulfilled:
-				instanceInfo, err := fm.Get(ctx, placementEventMsg.Detail.GameSessionArn)
-				if err != nil {
-					logger.WithField("error", err.Error()).Error("failed to get session info from gamelift")
+			ackEntries := make([]types2.DeleteMessageBatchRequestEntry, 0, len(message.Messages))
+			for i, m := range message.Messages {
+				if !processed[i] {
 					continue
 				}
-
-				var sessions []*runtime.SessionInfo
-				if len(placementEventMsg.Detail.PlacedPlayerSessions) > 0 {
-					sessions = make([]*runtime.SessionInfo, len(placementEventMsg.Detail.PlacedPlayerSessions))
-					for i, s := range placementEventMsg.Detail.PlacedPlayerSessions {
-						sessions[i] = &runtime.SessionInfo{
-							UserId:    s.PlayerId,
-							SessionId: s.PlayerSessionId,
-						}
-					}
-				}
-
-				go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateSuccess, instanceInfo, sessions, eventMetadata, nil)
-			case GameLiftEventIdPlacementTimedOut:
-				go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateTimeout, nil, nil, eventMetadata, errors.New(placementEventMsg.Detail.Type))
-			case GameLiftEventIdPlacementCancelled:
-				fallthrough
-			case GameLiftEventIdPlacementFailed:
-				go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateError, nil, nil, eventMetadata, errors.New(placementEventMsg.Detail.Type))
-			default:
-				logger.Warn("unhandled game session placement state: %s", placementEventMsg.Detail.Type)
+				ackEntries = append(ackEntries, types2.DeleteMessageBatchRequestEntry{
+					Id:            m.MessageId,
+					ReceiptHandle: m.ReceiptHandle,
+				})
 			}
 
-			if _, err = fm.sqsService.DeleteMessage(ctx, &sqs.DeleteMessageInput{
-				QueueUrl:      aws.String(fm.cfg.AwsPlacementEventsSqsUrl),
-				ReceiptHandle: m.ReceiptHandle,
-			}); err != nil {
-				logger.WithField("error", err.Error()).Error("failed to delete sqs message")
-				continue
+			if len(ackEntries) > 0 {
+				res, err := fm.sqsService.DeleteMessageBatch(ctx, &sqs.DeleteMessageBatchInput{
+					QueueUrl: aws.String(fm.cfg.AwsPlacementEventsSqsUrl),
+					Entries:  ackEntries,
+				})
+				if err != nil {
+					fm.logger.WithField("error", err.Error()).WithField("entries", len(ackEntries)).Error("failed to delete sqs message batch")
+				} else if len(res.Failed) > 0 {
+					fm.logger.WithField("failed", res.Failed).WithField("entries", len(ackEntries)).Error("failed to delete some sqs messages")
+				}
 			}
 		}
 	}
+}
+
+// processSqsPlacementEvent handles a single placement event message and reports whether it was
+// successfully processed and can be acked. Messages that fail are left on the queue to be redelivered.
+func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m types2.Message) bool {
+	logger := fm.logger.WithField("message_id", *m.MessageId)
+	logger.WithField("message_body", *m.Body).Debug("Sqs placement notification received.")
+
+	var queueMsg SqsMessage
+	if err := json.Unmarshal([]byte(*m.Body), &queueMsg); err != nil {
+		logger.WithField("error", err.Error()).Error("failed to unmarshal sqs queue message body.")
+		return false
+	}
+
+	var placementEventMsg *SqsMessagePlacementEventBody
+	if err := json.Unmarshal([]byte(queueMsg.Message), &placementEventMsg); err != nil {
+		logger.WithField("error", err.Error()).Error("failed to unmarshal sqs event body.")
+		return false
+	}
+
+	placementId := placementEventMsg.Detail.PlacementId
+	eventMetadata := map[string]any{"event": *m.Body}
+
+	switch placementEventMsg.Detail.Type {
+	case GameLiftEventIdPlacementFulfilled:
+		instanceInfo, err := fm.Get(ctx, placementEventMsg.Detail.GameSessionArn)
+		if err != nil {
+			logger.WithField("error", err.Error()).Error("failed to get session info from gamelift")
+			return false
+		}
+
+		var sessions []*runtime.SessionInfo
+		if len(placementEventMsg.Detail.PlacedPlayerSessions) > 0 {
+			sessions = make([]*runtime.SessionInfo, len(placementEventMsg.Detail.PlacedPlayerSessions))
+			for i, s := range placementEventMsg.Detail.PlacedPlayerSessions {
+				sessions[i] = &runtime.SessionInfo{
+					UserId:    s.PlayerId,
+					SessionId: s.PlayerSessionId,
+				}
+			}
+		}
+
+		// Spin callback in separate goroutine to not delay the batch ack.
+		go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateSuccess, instanceInfo, sessions, eventMetadata, nil)
+	case GameLiftEventIdPlacementTimedOut:
+		go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateTimeout, nil, nil, eventMetadata, errors.New(placementEventMsg.Detail.Type))
+	case GameLiftEventIdPlacementCancelled:
+		fallthrough
+	case GameLiftEventIdPlacementFailed:
+		go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateError, nil, nil, eventMetadata, errors.New(placementEventMsg.Detail.Type))
+	default:
+		// Nothing to do for unknown event types; ack them so they aren't redelivered forever.
+		logger.WithField("type", placementEventMsg.Detail.Type).Warn("unhandled game session placement state")
+	}
+
+	return true
 }
 
 func (fm *GameLiftFleetManager) syncInstancesWorker() {
