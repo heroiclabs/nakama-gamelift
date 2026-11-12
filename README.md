@@ -144,6 +144,7 @@ The `fleetmanager` instance expects a number of required configurations to be pr
 * AWS Fleet Placement Queue Name;
 * AWS GameLift Placement Events SQS URL;
 * SQS message batch size: the max number of placement events fetched and processed per SQS request (1-10);
+* SQS workers: the number of concurrent consumers polling the SQS queue for placement events (minimum 1);
 * Placement timeout: how long a pending placement is tracked before it's considered stale and cleaned up. It should be greater than or equal to the GameLift Placement Queue timeout (600 seconds by default).
 
 Typically, these values would be passed to Nakama via its [Nakama's runtime env configuration](https://heroiclabs.com/docs/nakama/getting-started/configuration/#runtime.env).
@@ -186,10 +187,11 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
     return runtime.NewError("missing GL_PLACEMENT_EVENTS_SQS_URL environment variable", 3)
   }
 
-  sqsMessageBatchSize := 10              // Max number of SQS messages to fetch per request (1-10).
+  sqsMessageBatchSize := 10            // Max number of SQS messages to fetch per request (1-10).
+  sqsWorkers := 1                      // Number of concurrent SQS consumers (>= 1).
   placementTimeout := 10 * time.Minute // Should be >= the GameLift Placement Queue timeout.
 
-  cfg := fleetmanager.NewGameLiftConfig(awsAccessKey, awsSecretAccessKey, awsRegion, awsAliasId, awsPlacementQueueName, awsGameLiftPlacementEventsQueueUrl, sqsMessageBatchSize, placementTimeout)
+  cfg := fleetmanager.NewGameLiftConfig(awsAccessKey, awsSecretAccessKey, awsRegion, awsAliasId, awsPlacementQueueName, awsGameLiftPlacementEventsQueueUrl, sqsMessageBatchSize, sqsWorkers, placementTimeout)
 
   glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, initializer, nk, cfg)
   if err != nil {

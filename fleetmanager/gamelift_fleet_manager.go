@@ -72,10 +72,11 @@ type GameLiftConfig struct {
 	SqsVisibilityTimeout     time.Duration // AWS SQS Client Visibility Timeout
 	SqsWaitTime              time.Duration // AWS SQS Client Wait Time
 	SqsMessageBatchSize      int           // AWS SQS Max Number of Messages to retrieve per request (1-10)
+	SqsWorkers               int           // Number of concurrent SQS consumers (>= 1)
 	IndexMaxEntries          int           // Nakama storage index max entries - limits the number of game sessions that can be indexed.
 }
 
-func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsGameLiftPlacementQueueName, awsGameLiftPlacementEventsSqsUrl string, sqsMessageBatchSize int, placementTimeout time.Duration) GameLiftConfig {
+func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsGameLiftPlacementQueueName, awsGameLiftPlacementEventsSqsUrl string, sqsMessageBatchSize, sqsWorkers int, placementTimeout time.Duration) GameLiftConfig {
 	return GameLiftConfig{
 		AwsKey:                   awsKey,
 		AwsSecret:                awsSecret,
@@ -90,6 +91,7 @@ func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsG
 		SqsVisibilityTimeout:     10 * time.Second,
 		SqsWaitTime:              20 * time.Second,
 		SqsMessageBatchSize:      sqsMessageBatchSize,
+		SqsWorkers:               sqsWorkers,
 		PlacementTimeout:         placementTimeout,
 	}
 }
@@ -129,6 +131,9 @@ func (glc *GameLiftConfig) Validate() error {
 	if glc.SqsMessageBatchSize < 1 || glc.SqsMessageBatchSize > 10 {
 		errs = append(errs, errors.New("sqs message batch size must be between 1 and 10"))
 	}
+	if glc.SqsWorkers < 1 {
+		errs = append(errs, errors.New("sqs workers must be >= 1"))
+	}
 	if glc.PlacementTimeout <= 0 {
 		errs = append(errs, errors.New("placement timeout must be > 0"))
 	}
@@ -140,9 +145,13 @@ func (glc *GameLiftConfig) Validate() error {
 }
 
 func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql.DB, initializer runtime.Initializer, nk runtime.NakamaModule, conf GameLiftConfig) (runtime.FleetManagerInitializer, error) {
-	nakamaNode, ok := ctx.Value(runtime.RUNTIME_CTX_NODE).(string)
-	if !ok || !strings.HasPrefix(nakamaNode, "nakama") {
-		return nil, errors.New("failed to get nakama node from ctx")
+	nakamaConfig, err := initializer.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get nakama config: %s", err.Error())
+	}
+	nakamaNode := nakamaConfig.GetName()
+	if !strings.HasPrefix(nakamaNode, "nakama") {
+		return nil, errors.New("failed to get nakama node from config")
 	}
 	conf.NakamaNode = nakamaNode
 	if err := conf.Validate(); err != nil {
@@ -190,6 +199,7 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 		WithField("placement_queue", conf.AwsPlacementQueueName).
 		WithField("sqs_url", conf.AwsPlacementEventsSqsUrl).
 		WithField("sqs_batch_size", conf.SqsMessageBatchSize).
+		WithField("sqs_workers", conf.SqsWorkers).
 		WithField("sqs_visibility_timeout", conf.SqsVisibilityTimeout).
 		WithField("sqs_wait_time", conf.SqsWaitTime).
 		Info("GameLift fleet manager initialized")
@@ -201,9 +211,15 @@ func (fm *GameLiftFleetManager) Init(nk runtime.NakamaModule, callbackHandler ru
 	fm.nk = nk
 	fm.callbackHandler = callbackHandler
 
-	// Initialise sqs background consumer here as it depends on the callbackHandler
-	go fm.processSqsPlacementEvents()
-	go fm.syncInstancesWorker()
+	// Initialise sqs background consumers here as they depend on the callbackHandler
+	for range fm.cfg.SqsWorkers {
+		go fm.processSqsPlacementEvents()
+	}
+
+	// The sync worker only needs to run on a single node of the cluster.
+	if fm.cfg.NakamaNode == "nakama" || fm.cfg.NakamaNode == "nakama-0" {
+		go fm.syncInstancesWorker()
+	}
 
 	return nil
 }
