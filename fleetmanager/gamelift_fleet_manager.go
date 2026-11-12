@@ -919,8 +919,10 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvents() {
 			ackEntries := make([]types2.DeleteMessageBatchRequestEntry, 0, len(message.Messages))
 			for i, m := range message.Messages {
 				if !processed[i] {
+					fm.nk.MetricsCounterAdd("gamelift_sqs_messages_processed", map[string]string{"result": "failure"}, 1)
 					continue
 				}
+				fm.nk.MetricsCounterAdd("gamelift_sqs_messages_processed", map[string]string{"result": "success"}, 1)
 				ackEntries = append(ackEntries, types2.DeleteMessageBatchRequestEntry{
 					Id:            m.MessageId,
 					ReceiptHandle: m.ReceiptHandle,
