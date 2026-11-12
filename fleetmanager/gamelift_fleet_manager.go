@@ -787,7 +787,7 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvents() {
 				})
 			}
 			wg.Wait()
-			fm.logger.WithField("processed", processed).WithField("total", len(message.Messages)).WithField("duration_ms", time.Since(t).Milliseconds()).Debug("sqs placement events processed")
+			fm.logger.WithField("processed", processed).WithField("total", len(message.Messages)).WithField("duration_ms", time.Since(t).Milliseconds()).Info("sqs placement events processed")
 
 			ackEntries := make([]types2.DeleteMessageBatchRequestEntry, 0, len(message.Messages))
 			for i, m := range message.Messages {
