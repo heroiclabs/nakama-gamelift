@@ -174,6 +174,15 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 		return nil, err
 	}
 
+	logger.WithField("region", conf.AwsRegion).
+		WithField("fleet_alias", conf.AwsFleetAlias).
+		WithField("placement_queue", conf.AwsPlacementQueueName).
+		WithField("sqs_url", conf.AwsPlacementEventsSqsUrl).
+		WithField("sqs_batch_size", conf.SqsMessageBatchSize).
+		WithField("sqs_visibility_timeout", conf.SqsVisibilityTimeout).
+		WithField("sqs_wait_time", conf.SqsWaitTime).
+		Info("GameLift fleet manager initialized")
+
 	return glfm, nil
 }
 
@@ -771,12 +780,14 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvents() {
 
 			processed := make([]bool, len(message.Messages))
 			wg := sync.WaitGroup{}
+			t := time.Now()
 			for i, m := range message.Messages {
 				wg.Go(func() {
 					processed[i] = fm.processSqsPlacementEvent(ctx, m)
 				})
 			}
 			wg.Wait()
+			fm.logger.WithField("processed", processed).WithField("total", len(message.Messages)).WithField("duration_ms", time.Since(t).Milliseconds()).Debug("sqs placement events processed")
 
 			ackEntries := make([]types2.DeleteMessageBatchRequestEntry, 0, len(message.Messages))
 			for i, m := range message.Messages {
