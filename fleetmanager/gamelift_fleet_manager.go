@@ -280,6 +280,7 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 
 	placementOutput, err := fm.glService.StartGameSessionPlacement(ctx, placementInput)
 	if err != nil {
+		fm.nk.MetricsCounterAdd("gamelift_api_errors", map[string]string{"operation": "StartGameSessionPlacement"}, 1)
 		return nil, err
 	}
 
@@ -287,12 +288,14 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 	case types.GameSessionPlacementStatePending:
 		fallthrough
 	case types.GameSessionPlacementStateFulfilled:
+		fm.nk.MetricsCounterAdd("gamelift_placement_requests", map[string]string{"status": "pending"}, 1)
 		fm.logger.WithField("placement_id", placementId).Debug("placement started")
 	case types.GameSessionPlacementStateCancelled:
 		fallthrough
 	case types.GameSessionPlacementStateTimedOut:
 		fallthrough
 	case types.GameSessionPlacementStateFailed:
+		fm.nk.MetricsCounterAdd("gamelift_placement_requests", map[string]string{"status": "failed"}, 1)
 		return nil, errors.New("failed to start game session placement")
 	}
 
@@ -313,6 +316,7 @@ func (fm *GameLiftFleetManager) Get(ctx context.Context, id string) (instance *r
 
 	out, err := fm.glService.DescribeGameSessions(ctx, params)
 	if err != nil {
+		fm.nk.MetricsCounterAdd("gamelift_api_errors", map[string]string{"operation": "DescribeGameSessions"}, 1)
 		return nil, err
 	}
 
@@ -384,6 +388,7 @@ func (fm *GameLiftFleetManager) listGameLiftGameSessions(ctx context.Context, cu
 	instances := make([]*runtime.InstanceInfo, 0)
 	out, err := fm.glService.SearchGameSessions(ctx, params)
 	if err != nil {
+		fm.nk.MetricsCounterAdd("gamelift_api_errors", map[string]string{"operation": "SearchGameSessions"}, 1)
 		return nil, "", err
 	}
 
@@ -523,6 +528,7 @@ func (fm *GameLiftFleetManager) Join(ctx context.Context, id string, userIds []s
 
 		cps, err := fm.glService.CreatePlayerSession(ctx, input)
 		if err != nil {
+			fm.nk.MetricsCounterAdd("gamelift_api_errors", map[string]string{"operation": "CreatePlayerSession"}, 1)
 			return nil, err
 		}
 
@@ -540,6 +546,7 @@ func (fm *GameLiftFleetManager) Join(ctx context.Context, id string, userIds []s
 
 		cpss, err := fm.glService.CreatePlayerSessions(ctx, input)
 		if err != nil {
+			fm.nk.MetricsCounterAdd("gamelift_api_errors", map[string]string{"operation": "CreatePlayerSessions"}, 1)
 			return nil, err
 		}
 		for _, s := range cpss.PlayerSessions {
@@ -550,6 +557,8 @@ func (fm *GameLiftFleetManager) Join(ctx context.Context, id string, userIds []s
 			joinedPlayerCount++
 		}
 	}
+
+	fm.nk.MetricsCounterAdd("gamelift_player_sessions_created", nil, int64(joinedPlayerCount))
 
 	dbinfo, err := fm.getDbGameSession(ctx, id)
 	if err != nil {
@@ -690,6 +699,7 @@ func (fm *GameLiftFleetManager) Update(ctx context.Context, id string, playerCou
 		GameSessionId:  aws.String(dbInfo.Id),
 		GameProperties: gameProps,
 	}); err != nil {
+		fm.nk.MetricsCounterAdd("gamelift_api_errors", map[string]string{"operation": "UpdateGameSession"}, 1)
 		return err
 	}
 
@@ -770,6 +780,7 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvents() {
 					return
 				}
 
+				fm.nk.MetricsCounterAdd("gamelift_sqs_errors", map[string]string{"stage": "receive"}, 1)
 				fm.logger.WithField("error", err.Error()).Error("failed to fetch aws sqs messages from queue.")
 				continue
 			}
@@ -806,8 +817,10 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvents() {
 					Entries:  ackEntries,
 				})
 				if err != nil {
+					fm.nk.MetricsCounterAdd("gamelift_sqs_errors", map[string]string{"stage": "delete"}, int64(len(ackEntries)))
 					fm.logger.WithField("error", err.Error()).WithField("entries", len(ackEntries)).Error("failed to delete sqs message batch")
 				} else if len(res.Failed) > 0 {
+					fm.nk.MetricsCounterAdd("gamelift_sqs_errors", map[string]string{"stage": "delete"}, int64(len(res.Failed)))
 					fm.logger.WithField("failed", res.Failed).WithField("entries", len(ackEntries)).Error("failed to delete some sqs messages")
 				}
 			}
@@ -823,12 +836,14 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m 
 
 	var queueMsg SqsMessage
 	if err := json.Unmarshal([]byte(*m.Body), &queueMsg); err != nil {
+		fm.nk.MetricsCounterAdd("gamelift_sqs_errors", map[string]string{"stage": "unmarshal_queue"}, 1)
 		logger.WithField("error", err.Error()).Error("failed to unmarshal sqs queue message body.")
 		return false
 	}
 
 	var placementEventMsg *SqsMessagePlacementEventBody
 	if err := json.Unmarshal([]byte(queueMsg.Message), &placementEventMsg); err != nil {
+		fm.nk.MetricsCounterAdd("gamelift_sqs_errors", map[string]string{"stage": "unmarshal_event"}, 1)
 		logger.WithField("error", err.Error()).Error("failed to unmarshal sqs event body.")
 		return false
 	}
@@ -856,12 +871,19 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m 
 		}
 
 		// Spin callback in separate goroutine to not delay the batch ack.
+		fm.nk.MetricsCounterAdd("gamelift_placement_requests", map[string]string{"status": "fulfilled"}, 1)
+		fm.nk.MetricsCounterAdd("gamelift_player_sessions_created", nil, int64(len(sessions)))
+		fm.nk.MetricsCounterAdd("gamelift_placement_events", map[string]string{"event": GameLiftEventIdPlacementFulfilled}, 1)
+		fm.nk.MetricsTimerRecord("gamelift_placement_fulfillment_duration", nil, placementEventMsg.Detail.EndTime.Sub(placementEventMsg.Detail.StartTime))
 		go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateSuccess, instanceInfo, sessions, eventMetadata, nil)
 	case GameLiftEventIdPlacementTimedOut:
+		fm.nk.MetricsCounterAdd("gamelift_placement_events", map[string]string{"event": GameLiftEventIdPlacementTimedOut}, 1)
 		go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateTimeout, nil, nil, eventMetadata, errors.New(placementEventMsg.Detail.Type))
 	case GameLiftEventIdPlacementCancelled:
-		fallthrough
+		fm.nk.MetricsCounterAdd("gamelift_placement_events", map[string]string{"event": GameLiftEventIdPlacementCancelled}, 1)
+		go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateError, nil, nil, eventMetadata, errors.New(placementEventMsg.Detail.Type))
 	case GameLiftEventIdPlacementFailed:
+		fm.nk.MetricsCounterAdd("gamelift_placement_events", map[string]string{"event": GameLiftEventIdPlacementFailed}, 1)
 		go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateError, nil, nil, eventMetadata, errors.New(placementEventMsg.Detail.Type))
 	default:
 		// Nothing to do for unknown event types; ack them so they aren't redelivered forever.
@@ -941,6 +963,7 @@ func (fm *GameLiftFleetManager) listGameliftActiveInstances(ctx context.Context,
 
 	out, err := fm.glService.DescribeGameSessions(ctx, params)
 	if err != nil {
+		fm.nk.MetricsCounterAdd("gamelift_api_errors", map[string]string{"operation": "DescribeGameSessions"}, 1)
 		return nil, "", err
 	}
 
