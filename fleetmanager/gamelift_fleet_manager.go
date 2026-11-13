@@ -395,9 +395,7 @@ func (fm *GameLiftFleetManager) List(ctx context.Context, query string, limit in
 	// Exclude placements that haven't been fulfilled yet.
 	query = query + " -value.status:" + GameSessionStatusPlaced
 	if fm.cfg.heartbeatTimeout > 0 {
-		// Exclude game sessions that stopped sending heartbeats. A must-not clause is used as adding a must clause would
-		// make the query's unprefixed clauses optional. Entries written before heartbeats were enabled have no last seen
-		// time and remain listed until their next update.
+		// Exclude game sessions that stopped sending heartbeats.
 		query = query + " -value.last_seen:<" + strconv.FormatInt(time.Now().Add(-fm.cfg.heartbeatTimeout).Unix(), 10)
 	}
 
@@ -542,12 +540,15 @@ func (s *storageInstanceInfo) refreshPlayerCount(now time.Time) {
 	s.PlayerCount = s.ConnectedCount + len(s.PlayerSessions)
 }
 
-// reserve reserves a seat for each of the player sessions until expiry.
+// reserve reserves a seat for each of the player sessions until expiry. Existing seats are kept.
 func (s *storageInstanceInfo) reserve(sessions []*runtime.SessionInfo, expiry time.Time) {
 	if s.PlayerSessions == nil {
 		s.PlayerSessions = make(map[string]*storagePlayerSession, len(sessions))
 	}
 	for _, session := range sessions {
+		if _, ok := s.PlayerSessions[session.SessionId]; ok {
+			continue
+		}
 		s.PlayerSessions[session.SessionId] = &storagePlayerSession{
 			UserId: session.UserId,
 			Expiry: expiry,
@@ -1202,80 +1203,69 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m 
 func (fm *GameLiftFleetManager) resolvePlacementFulfilled(ctx context.Context, event *SqsMessagePlacementEventBody, sessions []*runtime.SessionInfo) (*runtime.InstanceInfo, error) {
 	placementId := event.Detail.PlacementId
 	gameSessionId := event.Detail.GameSessionArn
+	// Derived from the event only, so redeliveries reserve the same seats.
+	expiry := event.Detail.EndTime.Add(fm.cfg.reservationTimeout)
 
 	placement, err := fm.getStoragePlacement(ctx, placementId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read placement from db: %s", err.Error())
 	}
 
-	if placement == nil {
-		dbInfo, err := fm.getDbGameSession(ctx, gameSessionId)
+	var created *storageInstanceInfo
+	if placement != nil {
+		port, err := strconv.Atoi(event.Detail.Port)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read instance info from db: %s", err.Error())
-		}
-		if dbInfo != nil {
-			fm.nk.MetricsCounterAdd("gamelift_placement_fulfilled_source", map[string]string{"source": "db"}, 1)
-			return dbInfo, nil
+			return nil, fmt.Errorf("invalid placement event port %q: %s", event.Detail.Port, err.Error())
 		}
 
+		created = &storageInstanceInfo{InstanceInfo: &runtime.InstanceInfo{
+			Id: gameSessionId,
+			ConnectionInfo: &runtime.ConnectionInfo{
+				IpAddress: event.Detail.IpAddress,
+				DnsName:   event.Detail.DnsName,
+				Port:      port,
+			},
+			CreateTime: event.Detail.EndTime,
+			Status:     string(gltypes.GameSessionStatusActive),
+			Metadata:   placement.Metadata,
+		}}
+		// Give the game session a full heartbeat timeout to report in.
+		created.touch(time.Now(), fm.cfg.heartbeatTimeout)
+	}
+
+	// The entry may already exist if the update RPC ran first or the event is redelivered. Its state is newer, so the
+	// placed player sessions are only merged into it.
+	var source string
+	written, err := fm.writeStorageGameSessions(ctx, []string{gameSessionId}, func(_ string, current *storageInstanceInfo) (*storageInstanceInfo, error) {
+		source = "db"
+		if current == nil {
+			if created == nil {
+				return nil, errGameSessionNotFound
+			}
+			current, source = created, "placement"
+		}
+		current.reserve(sessions, expiry)
+		return current, nil
+	})
+	switch {
+	case errors.Is(err, errGameSessionNotFound):
+		// GameLift's player count already includes the placed player sessions.
 		fm.nk.MetricsCounterAdd("gamelift_placement_fulfilled_source", map[string]string{"source": "gamelift"}, 1)
 		return fm.Get(ctx, gameSessionId)
+	case err != nil:
+		return nil, fmt.Errorf("failed to store instance info: %s", err.Error())
 	}
 
-	port, err := strconv.Atoi(event.Detail.Port)
-	if err != nil {
-		return nil, fmt.Errorf("invalid placement event port %q: %s", event.Detail.Port, err.Error())
-	}
-
-	instance := &runtime.InstanceInfo{
-		Id: gameSessionId,
-		ConnectionInfo: &runtime.ConnectionInfo{
-			IpAddress: event.Detail.IpAddress,
-			DnsName:   event.Detail.DnsName,
-			Port:      port,
-		},
-		CreateTime: event.Detail.EndTime,
-		Status:     string(gltypes.GameSessionStatusActive),
-		Metadata:   placement.Metadata,
-	}
-	stored := &storageInstanceInfo{InstanceInfo: instance}
-	// Give the game session a full heartbeat timeout to report in.
-	stored.touch(time.Now(), fm.cfg.heartbeatTimeout)
-	// The placed player sessions hold a seat until they connect, starting from when the placement was fulfilled.
-	stored.reserve(sessions, event.Detail.EndTime.Add(fm.cfg.reservationTimeout))
-	stored.refreshPlayerCount(time.Now())
-
-	key, err := InstanceIdToStorageKey(gameSessionId)
-	if err != nil {
-		return nil, err
-	}
-	v, err := json.Marshal(stored)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the game session entry and remove the placement entry atomically. The game session entry is only created
-	// if it doesn't exist yet, so a more recent update from the game server isn't overwritten.
-	if _, _, err = fm.nk.MultiUpdate(ctx, nil, []*runtime.StorageWrite{{
-		Collection: StorageGameLiftInstancesCollection(fm.namespace),
-		Key:        key,
-		Value:      string(v),
-		Version:    "*",
-	}}, []*runtime.StorageDelete{{
-		Collection: StorageGameLiftInstancesCollection(fm.namespace),
-		Key:        PlacementIdToStorageKey(placementId),
-	}}, nil, false); err != nil {
-		dbInfo, readErr := fm.getDbGameSession(ctx, gameSessionId)
-		if readErr != nil || dbInfo == nil {
-			return nil, fmt.Errorf("failed to store instance info: %s", err.Error())
+	if placement != nil {
+		// A failed delete doesn't block the ack, the sync worker eventually removes it.
+		if err := fm.deleteStoragePlacements(ctx, []string{placementId}); err != nil {
+			fm.logger.WithField("error", err.Error()).WithField("placement_id", placementId).Warn("failed to delete placement storage entry")
 		}
-		// The game session entry already exists. The placement entry is left for the sync worker to remove.
-		instance = dbInfo
 	}
 
-	fm.nk.MetricsCounterAdd("gamelift_placement_fulfilled_source", map[string]string{"source": "placement"}, 1)
+	fm.nk.MetricsCounterAdd("gamelift_placement_fulfilled_source", map[string]string{"source": source}, 1)
 
-	return instance, nil
+	return written[0].InstanceInfo, nil
 }
 
 func (fm *GameLiftFleetManager) syncInstancesWorker() {

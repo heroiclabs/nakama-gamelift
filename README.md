@@ -208,7 +208,7 @@ The other settings have defaults, which can be overridden by passing options to 
 | `WithGameLiftPollingPeriod` | 15 minutes | How often GameLift is polled to remove terminated Game Sessions and stale placements from storage. |
 | `WithHttpRequestTimeout` | 30 seconds | The AWS HTTP client request timeout. It must be greater than the SQS wait time. |
 | `WithHttpDialerTimeout` | 15 seconds | The AWS HTTP client dialing timeout. |
-| `WithHeartbeatTimeout` | `0` (disabled) | How long a Game Session can go without invoking the [Update RPC](#heartbeats) before it's excluded from `List` queries. It should be at least 3 times the heartbeat interval. |
+| `WithHeartbeatTimeout` | `0` (disabled) | How long a Game Session can go without invoking the [Update RPC](#heartbeats) before it's excluded from `List` queries. It should be at least 3 times the heartbeat interval. Only enable it once all game servers send heartbeats, see the [warning](#heartbeats). |
 | `WithIndexMaxEntries` | `1000000` | The max entries of the Nakama storage index, which limits the number of Game Sessions that can be listed. |
 
 ### Example
@@ -338,6 +338,8 @@ The expected RPC payload is the following:
 Invoking the Update RPC periodically, in addition to when players connect or disconnect, corrects any drift in the Game Session's `player_count`, for instance from a missed or failed update, within one interval. It also releases expired seat reservations promptly. An interval of 30 to 60 seconds is recommended. Heartbeats don't need to include metadata, and heartbeats that don't change anything aren't written to storage.
 
 Heartbeat tracking can be enabled with the `WithHeartbeatTimeout` option. `List` queries then exclude Game Sessions that haven't invoked the Update RPC within the timeout, such as unresponsive Game Sessions that GameLift hasn't terminated yet. The timeout should be at least 3 times the heartbeat interval. Game Sessions stored before heartbeat tracking was enabled remain listed until their next update.
+
+> **Warning:** Only enable heartbeat tracking once every game server build running in the fleet invokes the Update RPC periodically. Game Sessions that only invoke it when players connect or disconnect are excluded from `List` queries after the timeout whenever no player connects or disconnects within it, including empty Game Sessions waiting for their first player, and are only listed again on their next update.
 
 ### Delete RPC
 * RpcId: `gamelift_<namespace>_delete_instance_info`
