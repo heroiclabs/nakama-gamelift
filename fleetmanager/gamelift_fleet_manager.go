@@ -1,6 +1,7 @@
 package fleetmanager
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -141,7 +142,7 @@ func (fm *GameLiftFleetManager) Init(initializer runtime.Initializer, nk runtime
 	fm.callbackHandler = callbackHandler
 	fm.namespace = namespace
 
-	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex(namespace), StorageGameLiftInstancesCollection(namespace), "", []string{"id", "create_time", "player_count", "status", "metadata"}, []string{"create_time", "player_count"}, fm.cfg.indexMaxEntries, false); err != nil {
+	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex(namespace), StorageGameLiftInstancesCollection(namespace), "", []string{"id", "create_time", "player_count", "status", "metadata", "last_seen"}, []string{"create_time", "player_count"}, fm.cfg.indexMaxEntries, false); err != nil {
 		return err
 	}
 
@@ -393,6 +394,12 @@ func (fm *GameLiftFleetManager) List(ctx context.Context, query string, limit in
 
 	// Exclude placements that haven't been fulfilled yet.
 	query = query + " -value.status:" + GameSessionStatusPlaced
+	if fm.cfg.heartbeatTimeout > 0 {
+		// Exclude game sessions that stopped sending heartbeats. A must-not clause is used as adding a must clause would
+		// make the query's unprefixed clauses optional. Entries written before heartbeats were enabled have no last seen
+		// time and remain listed until their next update.
+		query = query + " -value.last_seen:<" + strconv.FormatInt(time.Now().Add(-fm.cfg.heartbeatTimeout).Unix(), 10)
+	}
 
 	// Emptiest matches, most recently created first.
 	entries, _, err := fm.nk.StorageIndexList(ctx, "", StorageGameLiftIndex(fm.namespace), query, limit, []string{"player_count", "-create_time"}, "")
@@ -510,6 +517,19 @@ type storageInstanceInfo struct {
 	*runtime.InstanceInfo
 	ConnectedCount int                              `json:"connected_count"`           // Connected players not tracked by player session, as reported by GameLift or the deprecated player count.
 	PlayerSessions map[string]*storagePlayerSession `json:"player_sessions,omitempty"` // player session id -> seat
+	Seq            int64                            `json:"seq,omitempty"`             // Sequence number of the last applied update RPC, used to discard out of order updates.
+	LastSeen       int64                            `json:"last_seen,omitempty"`       // Unix time of the last heartbeat, only set if heartbeat tracking is enabled.
+}
+
+// touch records a heartbeat if heartbeat tracking is enabled. The last seen time is only refreshed once half of the
+// timeout has elapsed, so that heartbeats don't cause a write each time they're received.
+func (s *storageInstanceInfo) touch(now time.Time, heartbeatTimeout time.Duration) {
+	if heartbeatTimeout <= 0 {
+		return
+	}
+	if now.Unix()-s.LastSeen >= int64((heartbeatTimeout / 2).Seconds()) {
+		s.LastSeen = now.Unix()
+	}
 }
 
 // refreshPlayerCount releases the seats of player sessions that didn't connect in time, and recomputes the player count.
@@ -535,11 +555,43 @@ func (s *storageInstanceInfo) reserve(sessions []*runtime.SessionInfo, expiry ti
 	}
 }
 
-var errGameSessionNotFound = errors.New("game session not found in storage")
+// setConnected replaces the player sessions connected to the game session, releasing the seats of the ones that
+// disconnected. If connected is nil, only the number of connected players is known and all the seats are released.
+func (s *storageInstanceInfo) setConnected(connected map[string]struct{}, playerCount int) {
+	if connected == nil {
+		s.PlayerSessions = nil
+		s.ConnectedCount = playerCount
+		return
+	}
+	for psid, ps := range s.PlayerSessions {
+		if _, ok := connected[psid]; !ok && ps.Connected {
+			// The player disconnected.
+			delete(s.PlayerSessions, psid)
+		}
+	}
+	if s.PlayerSessions == nil {
+		s.PlayerSessions = make(map[string]*storagePlayerSession, len(connected))
+	}
+	for psid := range connected {
+		if ps, ok := s.PlayerSessions[psid]; ok {
+			ps.Connected = true
+		} else {
+			// Player session created outside Nakama, or that connected after its seat was released.
+			s.PlayerSessions[psid] = &storagePlayerSession{Connected: true}
+		}
+	}
+	s.ConnectedCount = 0
+}
+
+var (
+	errGameSessionNotFound = errors.New("game session not found in storage")
+	// errNothingToWrite aborts a storage write retry when none of the entries changed.
+	errNothingToWrite = errors.New("nothing to write")
+)
 
 // writeStorageGameSessions atomically applies updateFn to the storage entries of the given game sessions, retrying on
 // concurrent writes. updateFn receives nil if a game session has no entry, and can return nil to leave it unchanged.
-// The written entries are returned in the order of ids.
+// Entries whose value is unchanged aren't written. The resulting entries are returned in the order of ids.
 func (fm *GameLiftFleetManager) writeStorageGameSessions(ctx context.Context, ids []string, updateFn func(id string, current *storageInstanceInfo) (*storageInstanceInfo, error)) ([]*storageInstanceInfo, error) {
 	keys := make([]string, 0, len(ids))
 	reads := make([]*runtime.StorageRead, 0, len(ids))
@@ -567,9 +619,15 @@ func (fm *GameLiftFleetManager) writeStorageGameSessions(ctx context.Context, id
 		writes := make([]*runtime.StorageWrite, 0, len(ids))
 		for i, id := range ids {
 			var current *storageInstanceInfo
+			var original []byte
 			version := "*"
 			if obj, ok := objectsByKey[keys[i]]; ok {
 				if err := json.Unmarshal([]byte(obj.Value), &current); err != nil {
+					return nil, err
+				}
+				// The stored value can't be compared directly as the database may not preserve its formatting.
+				var err error
+				if original, err = json.Marshal(current); err != nil {
 					return nil, err
 				}
 				if current.ConnectedCount == 0 && current.PlayerSessions == nil {
@@ -594,6 +652,9 @@ func (fm *GameLiftFleetManager) writeStorageGameSessions(ctx context.Context, id
 				return nil, err
 			}
 			written = append(written, next)
+			if original != nil && bytes.Equal(v, original) {
+				continue
+			}
 			writes = append(writes, &runtime.StorageWrite{
 				Collection: StorageGameLiftInstancesCollection(fm.namespace),
 				Key:        keys[i],
@@ -602,8 +663,11 @@ func (fm *GameLiftFleetManager) writeStorageGameSessions(ctx context.Context, id
 			})
 		}
 
+		if len(writes) == 0 {
+			return nil, errNothingToWrite
+		}
 		return writes, nil
-	}, storageWriteMaxRetries); err != nil {
+	}, storageWriteMaxRetries); err != nil && !errors.Is(err, errNothingToWrite) {
 		return nil, err
 	}
 
@@ -624,10 +688,13 @@ func (fm *GameLiftFleetManager) syncStorageGameSessions(ctx context.Context, ins
 	written, err := fm.writeStorageGameSessions(ctx, ids, func(id string, current *storageInstanceInfo) (*storageInstanceInfo, error) {
 		instance := instancesById[id]
 		if current == nil {
-			return &storageInstanceInfo{
+			created := &storageInstanceInfo{
 				InstanceInfo:   instance,
 				ConnectedCount: instance.PlayerCount,
-			}, nil
+			}
+			// Give the game session a full heartbeat timeout to report in.
+			created.touch(time.Now(), fm.cfg.heartbeatTimeout)
+			return created, nil
 		}
 		current.Status = instance.Status
 		current.ConnectionInfo = instance.ConnectionInfo
@@ -804,6 +871,7 @@ var (
 
 type UpdateInstanceInfoRequest struct {
 	Id               string         `json:"id"`
+	Seq              int64          `json:"seq"`                // Optional increasing sequence number, the connected players of out of order updates are discarded.
 	PlayerSessionIds []string       `json:"player_session_ids"` // Player sessions currently connected to the game session.
 	PlayerCount      int            `json:"player_count"`       // Deprecated: only used if player_session_ids is not set.
 	Metadata         map[string]any `json:"metadata"`
@@ -820,7 +888,7 @@ func (fm *GameLiftFleetManager) UpdateInstanceInfo(ctx context.Context, logger r
 		return "", ErrInvalidInput
 	}
 
-	if err := fm.update(ctx, req.Id, req.PlayerSessionIds, req.PlayerCount, req.Metadata); err != nil {
+	if err := fm.update(ctx, req.Id, req.Seq, req.PlayerSessionIds, req.PlayerCount, req.Metadata); err != nil {
 		logger.WithField("error", err.Error()).Error("failed to update instance info")
 		if errors.Is(err, ErrInvalidInput) {
 			return "", ErrInvalidInput
@@ -860,12 +928,14 @@ func (fm *GameLiftFleetManager) DeleteInstanceInfo(ctx context.Context, logger r
 // seat reservations are dropped. Game sessions should invoke the update RPC with the connected player session ids
 // instead.
 func (fm *GameLiftFleetManager) Update(ctx context.Context, id string, playerCount int, metadata map[string]any) error {
-	return fm.update(ctx, id, nil, playerCount, metadata)
+	return fm.update(ctx, id, 0, nil, playerCount, metadata)
 }
 
 // update sets the player sessions connected to a game session, or only their count if playerSessionIds is nil, and
-// its metadata. The metadata is only stored in Nakama, which owns it, and isn't propagated to GameLift.
-func (fm *GameLiftFleetManager) update(ctx context.Context, id string, playerSessionIds []string, playerCount int, metadata map[string]any) error {
+// its metadata. The metadata is only stored in Nakama, which owns it, and isn't propagated to GameLift. If seq is set,
+// the connected players are only applied if seq is greater than the last applied one, as each update replaces them.
+// Metadata is always applied, as updates only include the keys that changed. Every update counts as a heartbeat.
+func (fm *GameLiftFleetManager) update(ctx context.Context, id string, seq int64, playerSessionIds []string, playerCount int, metadata map[string]any) error {
 	if m := metadata[GamePropertiesKey]; m != nil {
 		mmap, ok := m.(map[string]any)
 		if !ok {
@@ -892,28 +962,11 @@ func (fm *GameLiftFleetManager) update(ctx context.Context, id string, playerSes
 		if current == nil {
 			return nil, errGameSessionNotFound
 		}
-		if connected != nil {
-			for psid, ps := range current.PlayerSessions {
-				if _, ok := connected[psid]; !ok && ps.Connected {
-					// The player disconnected.
-					delete(current.PlayerSessions, psid)
-				}
-			}
-			if current.PlayerSessions == nil {
-				current.PlayerSessions = make(map[string]*storagePlayerSession, len(connected))
-			}
-			for psid := range connected {
-				if ps, ok := current.PlayerSessions[psid]; ok {
-					ps.Connected = true
-				} else {
-					// Player session created outside Nakama, or that connected after its seat was released.
-					current.PlayerSessions[psid] = &storagePlayerSession{Connected: true}
-				}
-			}
-			current.ConnectedCount = 0
-		} else {
-			current.PlayerSessions = nil
-			current.ConnectedCount = playerCount
+		current.touch(time.Now(), fm.cfg.heartbeatTimeout)
+		// Out of order or duplicate updates report outdated connected players.
+		if seq == 0 || seq > current.Seq {
+			current.setConnected(connected, playerCount)
+			current.Seq = max(current.Seq, seq)
 		}
 		if current.Metadata == nil {
 			current.Metadata = make(map[string]any)
@@ -1186,6 +1239,8 @@ func (fm *GameLiftFleetManager) resolvePlacementFulfilled(ctx context.Context, e
 		Metadata:   placement.Metadata,
 	}
 	stored := &storageInstanceInfo{InstanceInfo: instance}
+	// Give the game session a full heartbeat timeout to report in.
+	stored.touch(time.Now(), fm.cfg.heartbeatTimeout)
 	// The placed player sessions hold a seat until they connect, starting from when the placement was fulfilled.
 	stored.reserve(sessions, event.Detail.EndTime.Add(fm.cfg.reservationTimeout))
 	stored.refreshPlayerCount(time.Now())

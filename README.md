@@ -175,7 +175,7 @@ Nakama is the source of truth for a Game Session's `player_count`. It counts the
 
 A seat is reserved for each Player Session created by a successful `Join`, and for each placed Player Session when a placement created with `Create` is fulfilled. A reserved seat becomes a connected seat when its Player Session is reported as connected, and is released after 1 minute otherwise, matching the fixed time GameLift waits for a reserved Player Session to be accepted.
 
-Expired reservations are released on the next write to the Game Session, or by the background sync worker, so a Game Session may appear fuller than it is until then.
+Expired reservations are released on the next write to the Game Session, or by the background sync worker, so a Game Session may appear fuller than it is until then. Game Sessions that invoke the Update RPC as a [heartbeat](#heartbeats) at an interval of at most 1 minute release them promptly.
 
 ### Delete
 Delete should be used to remove an InstanceInfo data of a Game Session that was terminated on GameLift:
@@ -208,6 +208,7 @@ The other settings have defaults, which can be overridden by passing options to 
 | `WithGameLiftPollingPeriod` | 15 minutes | How often GameLift is polled to remove terminated Game Sessions and stale placements from storage. |
 | `WithHttpRequestTimeout` | 30 seconds | The AWS HTTP client request timeout. It must be greater than the SQS wait time. |
 | `WithHttpDialerTimeout` | 15 seconds | The AWS HTTP client dialing timeout. |
+| `WithHeartbeatTimeout` | `0` (disabled) | How long a Game Session can go without invoking the [Update RPC](#heartbeats) before it's excluded from `List` queries. It should be at least 3 times the heartbeat interval. |
 | `WithIndexMaxEntries` | `1000000` | The max entries of the Nakama storage index, which limits the number of Game Sessions that can be listed. |
 
 ### Example
@@ -305,7 +306,11 @@ The RPC IDs are namespaced with the `gamelift_<namespace>` prefix, where `<names
 ### Update RPC
 * RpcId: `gamelift_<namespace>_update_instance_info`
 
-This RPC should be invoked any time a player connects or disconnects from the Game Session, passing the IDs of all the Player Sessions currently connected to it in `player_session_ids`. These are the Player Session IDs the Game Session accepts with the Server SDK's `AcceptPlayerSession` when clients connect, so no further GameLift calls are needed. Nakama maps the [seats it reserved](#seat-reservations) back to their users, while Player Sessions that weren't created through Nakama are counted as connected players without a known user.
+This RPC should be invoked any time a player connects or disconnects from the Game Session, and periodically as a [heartbeat](#heartbeats), passing the IDs of all the Player Sessions currently connected to it in `player_session_ids`. These are the Player Session IDs the Game Session accepts with the Server SDK's `AcceptPlayerSession` when clients connect, so no further GameLift calls are needed. Nakama maps the [seats it reserved](#seat-reservations) back to their users, while Player Sessions that weren't created through Nakama are counted as connected players without a known user.
+
+A player's seat is released as soon as its Player Session is missing from `player_session_ids`, but GameLift only frees it when the Game Session calls the Server SDK's `RemovePlayerSession`. Game Sessions must call it when a player disconnects, otherwise GameLift may reject new Player Sessions as the Game Session is full while Nakama lists it as having room.
+
+Since each update replaces the connected Player Sessions, updates applied out of order would overwrite the current ones with outdated ones. To prevent this, Game Sessions should set `seq` to a number that increases with every update, such as a counter or the current time in milliseconds. The connected Player Sessions of an update whose `seq` isn't greater than the last applied one are ignored, while its metadata is still applied. Updates without `seq` are always applied.
 
 The deprecated `player_count` field is still accepted when `player_session_ids` isn't set. Since the connected Player Sessions aren't known, it releases all the Game Session's seat reservations.
 
@@ -316,6 +321,7 @@ The expected RPC payload is the following:
 ```json
 {
   "id": "<Game Session ARN>",
+  "seq": 42,
   "player_session_ids": ["<player session id>", "<player session id>"],
   "metadata": {
     "GameSessionData": "<game_session_data>",
@@ -327,6 +333,11 @@ The expected RPC payload is the following:
   }
 }
 ```
+
+#### Heartbeats
+Invoking the Update RPC periodically, in addition to when players connect or disconnect, corrects any drift in the Game Session's `player_count`, for instance from a missed or failed update, within one interval. It also releases expired seat reservations promptly. An interval of 30 to 60 seconds is recommended. Heartbeats don't need to include metadata, and heartbeats that don't change anything aren't written to storage.
+
+Heartbeat tracking can be enabled with the `WithHeartbeatTimeout` option. `List` queries then exclude Game Sessions that haven't invoked the Update RPC within the timeout, such as unresponsive Game Sessions that GameLift hasn't terminated yet. The timeout should be at least 3 times the heartbeat interval. Game Sessions stored before heartbeat tracking was enabled remain listed until their next update.
 
 ### Delete RPC
 * RpcId: `gamelift_<namespace>_delete_instance_info`

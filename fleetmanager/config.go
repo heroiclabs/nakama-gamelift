@@ -40,6 +40,7 @@ type config struct {
 	httpDialerTimeout     time.Duration
 	placementTimeout      time.Duration
 	reservationTimeout    time.Duration
+	heartbeatTimeout      time.Duration
 	sqsVisibilityTimeout  time.Duration
 	sqsWaitTime           time.Duration
 	sqsMessageBatchSize   int
@@ -93,6 +94,13 @@ func WithHttpDialerTimeout(d time.Duration) Option {
 // stale. It should be greater than or equal to the GameLift queue timeout. Defaults to 10 minutes.
 func WithPlacementTimeout(d time.Duration) Option {
 	return func(c *config) { c.placementTimeout = d }
+}
+
+// WithHeartbeatTimeout enables heartbeat tracking: game sessions that haven't invoked the update RPC within the
+// timeout are excluded from List queries. Game sessions are expected to invoke it periodically, at an interval of at
+// most a third of the timeout. Defaults to 0, which disables heartbeat tracking.
+func WithHeartbeatTimeout(d time.Duration) Option {
+	return func(c *config) { c.heartbeatTimeout = d }
 }
 
 // WithSqsVisibilityTimeout sets how long a received SQS message is hidden from other consumers before it's redelivered
@@ -170,6 +178,9 @@ func (c *config) validate() error {
 	}
 	if c.sqsWorkers < 1 {
 		errs = append(errs, errors.New("sqs workers must be >= 1"))
+	}
+	if c.heartbeatTimeout < 0 {
+		errs = append(errs, errors.New("heartbeat timeout must be >= 0"))
 	}
 	if c.placementTimeout <= 0 {
 		errs = append(errs, errors.New("placement timeout must be > 0"))
