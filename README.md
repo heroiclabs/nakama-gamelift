@@ -170,6 +170,13 @@ metadata := map[string]string{
 joinInfo, err := fm.Join(ctx, id string, userIds []string, metadata map[string]string)
 ```
 
+### Seat reservations
+Nakama is the source of truth for a Game Session's `player_count`. It counts the Player Sessions connected to the Game Session, as reported by the [Update RPC](#update-rpc), plus the seats reserved for Player Sessions that haven't connected yet.
+
+A seat is reserved for each Player Session created by a successful `Join`, and for each placed Player Session when a placement created with `Create` is fulfilled. A reserved seat becomes a connected seat when its Player Session is reported as connected, and is released after 1 minute otherwise, matching the fixed time GameLift waits for a reserved Player Session to be accepted.
+
+Expired reservations are released on the next write to the Game Session, or by the background sync worker, so a Game Session may appear fuller than it is until then.
+
 ### Delete
 Delete should be used to remove an InstanceInfo data of a Game Session that was terminated on GameLift:
 ```go
@@ -281,15 +288,18 @@ The RPC IDs are namespaced with the `gamelift_<namespace>` prefix, where `<names
 ### Update RPC
 * RpcId: `gamelift_<namespace>_update_instance_info`
 
-This RPC should be invoked any time a player connects or disconnects from the Game Session to update the `player_count` by passing the current number of connected players.
+This RPC should be invoked any time a player connects or disconnects from the Game Session, passing the IDs of all the Player Sessions currently connected to it in `player_session_ids`. These are the Player Session IDs the Game Session accepts with the Server SDK's `AcceptPlayerSession` when clients connect, so no further GameLift calls are needed. Nakama maps the [seats it reserved](#seat-reservations) back to their users, while Player Sessions that weren't created through Nakama are counted as connected players without a known user.
+
+The deprecated `player_count` field is still accepted when `player_session_ids` isn't set. Since the connected Player Sessions aren't known, it releases all the Game Session's seat reservations.
 
 It can also be used to update a Game Session's `GameSessionName`, `GameSessionData` or `GameProperties`. Updating these metadata fields allow the filtering of Game Sessions in the `List` function based on the properties values.
 Each of metadata's expected keys are optional, and only if any is present with a value will it overwrite the current value in the Nakama Storage Index.
+These updates are only stored in Nakama, which owns the Game Session's metadata, and aren't sent to GameLift. The values the Game Session retrieves from the GameLift Server SDK remain the ones it was created with.
 The expected RPC payload is the following:
 ```json
 {
   "id": "<Game Session ARN>",
-  "player_count": 10,
+  "player_session_ids": ["<player session id>", "<player session id>"],
   "metadata": {
     "GameSessionData": "<game_session_data>",
     "GameSessionName": "<game_session_name>",

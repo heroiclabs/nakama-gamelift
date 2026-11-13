@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	gltypes "github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
@@ -50,6 +52,16 @@ const (
 // GameLift hasn't yet reported the placement outcome. These entries are keyed by placement id and are never returned
 // by List queries.
 const GameSessionStatusPlaced = "PLACED"
+
+const (
+	// storageWriteMaxRetries is the max number of retries of a versioned game session storage write.
+	storageWriteMaxRetries = 10
+	// syncWriteBatchSize is the max number of game sessions written per storage transaction by the sync worker.
+	syncWriteBatchSize = 100
+	// reservationTimeout is how long a reserved seat counts towards a game session's player count until the user
+	// connects to it. It matches GameLift's fixed 60s timeout for a reserved player session to be accepted.
+	reservationTimeout = time.Minute
+)
 
 // RPC IDs are lowercased to match how Nakama registers and resolves them.
 var (
@@ -98,6 +110,8 @@ type GameLiftConfig struct {
 	SqsMessageBatchSize      int           // AWS SQS Max Number of Messages to retrieve per request (1-10)
 	SqsWorkers               int           // Number of concurrent SQS consumers (>= 1)
 	IndexMaxEntries          int           // Nakama storage index max entries - limits the number of game sessions that can be indexed.
+
+	reservationTimeout time.Duration // How long a reserved seat counts towards a game session's player count until the user connects to it. Not configurable as GameLift's timeout is fixed.
 }
 
 func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsGameLiftPlacementQueueName, awsGameLiftPlacementEventsSqsUrl string, sqsMessageBatchSize, sqsWorkers int, placementTimeout time.Duration) GameLiftConfig {
@@ -117,6 +131,7 @@ func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsG
 		SqsMessageBatchSize:      sqsMessageBatchSize,
 		SqsWorkers:               sqsWorkers,
 		PlacementTimeout:         placementTimeout,
+		reservationTimeout:       reservationTimeout,
 	}
 }
 
@@ -174,6 +189,10 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 		return nil, errors.New("failed to get nakama node from ctx")
 	}
 	conf.NakamaNode = nakamaNode
+	if conf.reservationTimeout <= 0 {
+		// The config wasn't created with NewGameLiftConfig.
+		conf.reservationTimeout = reservationTimeout
+	}
 	if err := conf.Validate(); err != nil {
 		return nil, err
 	}
@@ -438,9 +457,11 @@ func (fm *GameLiftFleetManager) Get(ctx context.Context, id string) (instance *r
 
 	switch gs.Status {
 	case gltypes.GameSessionStatusActive:
-		if err = fm.updateStorageGameSessions(ctx, []*runtime.InstanceInfo{instance}); err != nil {
+		merged, err := fm.syncStorageGameSessions(ctx, []*runtime.InstanceInfo{instance})
+		if err != nil {
 			return nil, errors.New("failed to update gamelift game session instance info")
 		}
+		instance = merged[0]
 	case gltypes.GameSessionStatusTerminated, gltypes.GameSessionStatusTerminating, gltypes.GameSessionStatusError:
 		if err = fm.deleteStorageGameSessions(ctx, []string{id}); err != nil {
 			return nil, errors.New("failed to delete gamelift game session instance info")
@@ -458,7 +479,7 @@ func (fm *GameLiftFleetManager) List(ctx context.Context, query string, limit in
 			return nil, "", err
 		}
 
-		if err = fm.updateStorageGameSessions(ctx, instances); err != nil {
+		if instances, err = fm.syncStorageGameSessions(ctx, instances); err != nil {
 			return nil, "", err
 		}
 
@@ -569,30 +590,154 @@ func (fm *GameLiftFleetManager) getDbGameSession(ctx context.Context, id string)
 	return instance, nil
 }
 
-func (fm *GameLiftFleetManager) updateStorageGameSessions(ctx context.Context, instances []*runtime.InstanceInfo) error {
-	storageWrites := make([]*runtime.StorageWrite, 0, len(instances))
-	for _, i := range instances {
-		v, err := json.Marshal(i)
-		if err != nil {
-			return err
-		}
+// storagePlayerSession is a seat taken on a game session by a player session, either reserved or connected.
+type storagePlayerSession struct {
+	UserId    string    `json:"user_id,omitempty"` // Empty if the player session wasn't created through Nakama.
+	Connected bool      `json:"connected"`
+	Expiry    time.Time `json:"expiry"` // When the seat is released if the player hasn't connected.
+}
 
-		key, err := InstanceIdToStorageKey(i.Id)
-		if err != nil {
-			return err
+// storageInstanceInfo is the storage value of a game session. Nakama is the source of truth for its player count,
+// which is made up of the player sessions connected to the game session and the seats reserved for player sessions
+// that haven't connected yet. The extra fields aren't indexed and are ignored when the value is unmarshalled into an
+// InstanceInfo.
+type storageInstanceInfo struct {
+	*runtime.InstanceInfo
+	ConnectedCount int                              `json:"connected_count"`           // Connected players not tracked by player session, as reported by GameLift or the deprecated player count.
+	PlayerSessions map[string]*storagePlayerSession `json:"player_sessions,omitempty"` // player session id -> seat
+}
+
+// refreshPlayerCount releases the seats of player sessions that didn't connect in time, and recomputes the player count.
+func (s *storageInstanceInfo) refreshPlayerCount(now time.Time) {
+	for id, ps := range s.PlayerSessions {
+		if !ps.Connected && !now.Before(ps.Expiry) {
+			delete(s.PlayerSessions, id)
 		}
-		storageWrites = append(storageWrites, &runtime.StorageWrite{
+	}
+	s.PlayerCount = s.ConnectedCount + len(s.PlayerSessions)
+}
+
+// reserve reserves a seat for each of the player sessions until expiry.
+func (s *storageInstanceInfo) reserve(sessions []*runtime.SessionInfo, expiry time.Time) {
+	if s.PlayerSessions == nil {
+		s.PlayerSessions = make(map[string]*storagePlayerSession, len(sessions))
+	}
+	for _, session := range sessions {
+		s.PlayerSessions[session.SessionId] = &storagePlayerSession{
+			UserId: session.UserId,
+			Expiry: expiry,
+		}
+	}
+}
+
+var errGameSessionNotFound = errors.New("game session not found in storage")
+
+// writeStorageGameSessions atomically applies updateFn to the storage entries of the given game sessions, retrying on
+// concurrent writes. updateFn receives nil if a game session has no entry, and can return nil to leave it unchanged.
+// The written entries are returned in the order of ids.
+func (fm *GameLiftFleetManager) writeStorageGameSessions(ctx context.Context, ids []string, updateFn func(id string, current *storageInstanceInfo) (*storageInstanceInfo, error)) ([]*storageInstanceInfo, error) {
+	keys := make([]string, 0, len(ids))
+	reads := make([]*runtime.StorageRead, 0, len(ids))
+	for _, id := range ids {
+		key, err := InstanceIdToStorageKey(id)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+		reads = append(reads, &runtime.StorageRead{
 			Collection: StorageGameLiftInstancesCollection(fm.namespace),
 			Key:        key,
-			Value:      string(v),
 		})
 	}
 
-	if _, err := fm.nk.StorageWrite(ctx, storageWrites); err != nil {
-		return err
+	var written []*storageInstanceInfo
+	if _, err := fm.nk.StorageWriteRetry(ctx, reads, func(objects []*api.StorageObject) ([]*runtime.StorageWrite, error) {
+		objectsByKey := make(map[string]*api.StorageObject, len(objects))
+		for _, obj := range objects {
+			objectsByKey[obj.Key] = obj
+		}
+
+		now := time.Now()
+		written = make([]*storageInstanceInfo, 0, len(ids))
+		writes := make([]*runtime.StorageWrite, 0, len(ids))
+		for i, id := range ids {
+			var current *storageInstanceInfo
+			version := "*"
+			if obj, ok := objectsByKey[keys[i]]; ok {
+				if err := json.Unmarshal([]byte(obj.Value), &current); err != nil {
+					return nil, err
+				}
+				if current.ConnectedCount == 0 && current.PlayerSessions == nil {
+					// Entries written before seat reservations only have a player count. For any other entry
+					// this is a no-op, as the player count is 0 when there are no connected or reserved seats.
+					current.ConnectedCount = current.PlayerCount
+				}
+				version = obj.Version
+			}
+
+			next, err := updateFn(id, current)
+			if err != nil {
+				return nil, err
+			}
+			if next == nil {
+				continue
+			}
+			next.refreshPlayerCount(now)
+
+			v, err := json.Marshal(next)
+			if err != nil {
+				return nil, err
+			}
+			written = append(written, next)
+			writes = append(writes, &runtime.StorageWrite{
+				Collection: StorageGameLiftInstancesCollection(fm.namespace),
+				Key:        keys[i],
+				Value:      string(v),
+				Version:    version,
+			})
+		}
+
+		return writes, nil
+	}, storageWriteMaxRetries); err != nil {
+		return nil, err
 	}
 
-	return nil
+	return written, nil
+}
+
+// syncStorageGameSessions merges the game sessions state reported by GameLift into storage. New game sessions are
+// created with GameLift's player count, existing ones only have their status and connection info refreshed as Nakama
+// owns their player count and metadata.
+func (fm *GameLiftFleetManager) syncStorageGameSessions(ctx context.Context, instances []*runtime.InstanceInfo) ([]*runtime.InstanceInfo, error) {
+	ids := make([]string, 0, len(instances))
+	instancesById := make(map[string]*runtime.InstanceInfo, len(instances))
+	for _, i := range instances {
+		ids = append(ids, i.Id)
+		instancesById[i.Id] = i
+	}
+
+	written, err := fm.writeStorageGameSessions(ctx, ids, func(id string, current *storageInstanceInfo) (*storageInstanceInfo, error) {
+		instance := instancesById[id]
+		if current == nil {
+			return &storageInstanceInfo{
+				InstanceInfo:   instance,
+				ConnectedCount: instance.PlayerCount,
+			}, nil
+		}
+		current.Status = instance.Status
+		current.ConnectionInfo = instance.ConnectionInfo
+		return current, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	merged := make([]*runtime.InstanceInfo, 0, len(written))
+	for _, w := range written {
+		merged = append(merged, w.InstanceInfo)
+	}
+
+	return merged, nil
 }
 
 func (fm *GameLiftFleetManager) deleteStorageGameSessions(ctx context.Context, ids []string) error {
@@ -721,27 +866,28 @@ func (fm *GameLiftFleetManager) Join(ctx context.Context, id string, userIds []s
 
 	fm.nk.MetricsCounterAdd("gamelift_player_sessions_created", nil, int64(joinedPlayerCount))
 
-	dbinfo, err := fm.getDbGameSession(ctx, id)
+	reserveFn := func(_ string, current *storageInstanceInfo) (*storageInstanceInfo, error) {
+		if current == nil {
+			return nil, errGameSessionNotFound
+		}
+		current.reserve(sessionInfo, time.Now().Add(fm.cfg.reservationTimeout))
+		return current, nil
+	}
+
+	written, err := fm.writeStorageGameSessions(ctx, []string{id}, reserveFn)
+	if errors.Is(err, errGameSessionNotFound) {
+		// instance does not exist in db - should not happen but check with AWS regardless.
+		if _, err = fm.Get(ctx, id); err != nil {
+			return nil, err
+		}
+		written, err = fm.writeStorageGameSessions(ctx, []string{id}, reserveFn)
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	if dbinfo == nil {
-		// instance does not exist in db - should not happen but check with AWS regardless.
-		dbinfo, err = fm.Get(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	dbinfo.PlayerCount += joinedPlayerCount
-
-	if err = fm.updateStorageGameSessions(ctx, []*runtime.InstanceInfo{dbinfo}); err != nil {
-		return nil, err
-	}
-
 	return &runtime.JoinInfo{
-		InstanceInfo: dbinfo,
+		InstanceInfo: written[0].InstanceInfo,
 		SessionInfo:  sessionInfo,
 	}, nil
 }
@@ -752,9 +898,10 @@ var (
 )
 
 type UpdateInstanceInfoRequest struct {
-	Id          string         `json:"id"`
-	PlayerCount int            `json:"player_count"`
-	Metadata    map[string]any `json:"metadata"`
+	Id               string         `json:"id"`
+	PlayerSessionIds []string       `json:"player_session_ids"` // Player sessions currently connected to the game session.
+	PlayerCount      int            `json:"player_count"`       // Deprecated: only used if player_session_ids is not set.
+	Metadata         map[string]any `json:"metadata"`
 }
 
 func (fm *GameLiftFleetManager) UpdateInstanceInfo(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
@@ -768,7 +915,7 @@ func (fm *GameLiftFleetManager) UpdateInstanceInfo(ctx context.Context, logger r
 		return "", ErrInvalidInput
 	}
 
-	if err := fm.Update(ctx, req.Id, req.PlayerCount, req.Metadata); err != nil {
+	if err := fm.update(ctx, req.Id, req.PlayerSessionIds, req.PlayerCount, req.Metadata); err != nil {
 		logger.WithField("error", err.Error()).Error("failed to update instance info")
 		if errors.Is(err, ErrInvalidInput) {
 			return "", ErrInvalidInput
@@ -804,66 +951,92 @@ func (fm *GameLiftFleetManager) DeleteInstanceInfo(ctx context.Context, logger r
 	return "", nil
 }
 
+// Update sets the number of players connected to a game session. As the connected player sessions aren't known, any
+// seat reservations are dropped. Game sessions should invoke the update RPC with the connected player session ids
+// instead.
 func (fm *GameLiftFleetManager) Update(ctx context.Context, id string, playerCount int, metadata map[string]any) error {
-	dbInfo, err := fm.getDbGameSession(ctx, id)
-	if err != nil {
-		return fmt.Errorf("failed to read instance info from db: %s", err.Error())
-	}
+	return fm.update(ctx, id, nil, playerCount, metadata)
+}
 
-	if dbInfo == nil {
-		// instance info was not found in the db, fetch from AWS and ignore received payload
-		dbInfo, err = fm.Get(ctx, id)
-		return err
-	}
-
-	var gameProps []gltypes.GameProperty
-	dbInfo.PlayerCount = playerCount
-	if metadata != nil {
-		if m := metadata[GameSessionDataKey]; m != nil {
-			dbInfo.Metadata[GameSessionDataKey] = m
+// update sets the player sessions connected to a game session, or only their count if playerSessionIds is nil, and
+// its metadata. The metadata is only stored in Nakama, which owns it, and isn't propagated to GameLift.
+func (fm *GameLiftFleetManager) update(ctx context.Context, id string, playerSessionIds []string, playerCount int, metadata map[string]any) error {
+	if m := metadata[GamePropertiesKey]; m != nil {
+		mmap, ok := m.(map[string]any)
+		if !ok {
+			return fmt.Errorf("%w: 'GameProperties' value must be map[string]string", ErrInvalidInput)
 		}
-		if m := metadata[GamePropertiesKey]; m != nil {
-			dbInfo.Metadata[GamePropertiesKey] = m
-			mmap, ok := m.(map[string]any)
-			if !ok {
-				return fmt.Errorf("%w: 'GameProperties' value must be map[string]string", ErrInvalidInput)
+		for k, v := range mmap {
+			if _, ok := v.(string); !ok {
+				return fmt.Errorf("%w: 'GameProperties' value for key %q must be a string", ErrInvalidInput, k)
 			}
-			gameProps = make([]gltypes.GameProperty, 0, len(mmap))
-			for k, v := range mmap {
-				s, ok := v.(string)
-				if !ok {
-					return fmt.Errorf("%w: 'GameProperties' value for key %q must be a string", ErrInvalidInput, k)
+		}
+	}
+
+	var connected map[string]struct{}
+	if playerSessionIds != nil {
+		connected = make(map[string]struct{}, len(playerSessionIds))
+		for _, psid := range playerSessionIds {
+			if psid != "" {
+				connected[psid] = struct{}{}
+			}
+		}
+	}
+
+	updateFn := func(_ string, current *storageInstanceInfo) (*storageInstanceInfo, error) {
+		if current == nil {
+			return nil, errGameSessionNotFound
+		}
+		if connected != nil {
+			for psid, ps := range current.PlayerSessions {
+				if _, ok := connected[psid]; !ok && ps.Connected {
+					// The player disconnected.
+					delete(current.PlayerSessions, psid)
 				}
-				kk, vv := new(string), new(string)
-				*kk, *vv = k, s
-				gameProps = append(gameProps, gltypes.GameProperty{
-					Key:   kk,
-					Value: vv,
-				})
+			}
+			if current.PlayerSessions == nil {
+				current.PlayerSessions = make(map[string]*storagePlayerSession, len(connected))
+			}
+			for psid := range connected {
+				if ps, ok := current.PlayerSessions[psid]; ok {
+					ps.Connected = true
+				} else {
+					// Player session created outside Nakama, or that connected after its seat was released.
+					current.PlayerSessions[psid] = &storagePlayerSession{Connected: true}
+				}
+			}
+			current.ConnectedCount = 0
+		} else {
+			current.PlayerSessions = nil
+			current.ConnectedCount = playerCount
+		}
+		if current.Metadata == nil {
+			current.Metadata = make(map[string]any)
+		}
+		for _, k := range []string{GameSessionDataKey, GamePropertiesKey, GameSessionNameKey} {
+			if m := metadata[k]; m != nil {
+				current.Metadata[k] = m
 			}
 		}
-		if m := metadata[GameSessionNameKey]; m != nil {
-			dbInfo.Metadata[GameSessionNameKey] = m
+		return current, nil
+	}
+
+	written, err := fm.writeStorageGameSessions(ctx, []string{id}, updateFn)
+	if errors.Is(err, errGameSessionNotFound) {
+		// instance info was not found in the db, fetch it from AWS before applying the update.
+		if _, err = fm.Get(ctx, id); err != nil {
+			return err
 		}
+		written, err = fm.writeStorageGameSessions(ctx, []string{id}, updateFn)
 	}
-
-	newInfo, err := json.Marshal(dbInfo)
-	if err == nil {
-		fm.logger.WithField("update_instance_info", string(newInfo)).Debug("received update from headless instance")
-	} else {
-		fm.logger.WithField("err", err.Error()).Debug("failed to marshal db info")
-	}
-
-	if err = fm.updateStorageGameSessions(ctx, []*runtime.InstanceInfo{dbInfo}); err != nil {
+	if err != nil {
 		return fmt.Errorf("failed to update db instance info: %s", err.Error())
 	}
 
-	if _, err = fm.glService.UpdateGameSession(ctx, &gamelift.UpdateGameSessionInput{
-		GameSessionId:  aws.String(dbInfo.Id),
-		GameProperties: gameProps,
-	}); err != nil {
-		fm.nk.MetricsCounterAdd("gamelift_api_errors", map[string]string{"operation": "UpdateGameSession"}, 1)
-		return err
+	if newInfo, err := json.Marshal(written[0]); err == nil {
+		fm.logger.WithField("update_instance_info", string(newInfo)).Debug("received update from headless instance")
+	} else {
+		fm.logger.WithField("err", err.Error()).Debug("failed to marshal db info")
 	}
 
 	return nil
@@ -1023,12 +1196,6 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m 
 
 	switch placementEventMsg.Detail.Type {
 	case GameLiftEventIdPlacementFulfilled:
-		instanceInfo, err := fm.resolvePlacementFulfilled(ctx, placementEventMsg)
-		if err != nil {
-			logger.WithField("error", err.Error()).Error("failed to resolve fulfilled placement instance info")
-			return false
-		}
-
 		var sessions []*runtime.SessionInfo
 		if len(placementEventMsg.Detail.PlacedPlayerSessions) > 0 {
 			sessions = make([]*runtime.SessionInfo, len(placementEventMsg.Detail.PlacedPlayerSessions))
@@ -1038,6 +1205,12 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m 
 					SessionId: s.PlayerSessionId,
 				}
 			}
+		}
+
+		instanceInfo, err := fm.resolvePlacementFulfilled(ctx, placementEventMsg, sessions)
+		if err != nil {
+			logger.WithField("error", err.Error()).Error("failed to resolve fulfilled placement instance info")
+			return false
 		}
 
 		fm.nk.MetricsCounterAdd("gamelift_placement_requests", map[string]string{"status": "fulfilled"}, 1)
@@ -1068,7 +1241,7 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m 
 }
 
 // resolvePlacementFulfilled builds the instance info of a fulfilled placement and stores it under the game session id.
-func (fm *GameLiftFleetManager) resolvePlacementFulfilled(ctx context.Context, event *SqsMessagePlacementEventBody) (*runtime.InstanceInfo, error) {
+func (fm *GameLiftFleetManager) resolvePlacementFulfilled(ctx context.Context, event *SqsMessagePlacementEventBody, sessions []*runtime.SessionInfo) (*runtime.InstanceInfo, error) {
 	placementId := event.Detail.PlacementId
 	gameSessionId := event.Detail.GameSessionArn
 
@@ -1103,17 +1276,20 @@ func (fm *GameLiftFleetManager) resolvePlacementFulfilled(ctx context.Context, e
 			DnsName:   event.Detail.DnsName,
 			Port:      port,
 		},
-		CreateTime:  event.Detail.EndTime,
-		PlayerCount: len(event.Detail.PlacedPlayerSessions),
-		Status:      string(gltypes.GameSessionStatusActive),
-		Metadata:    placement.Metadata,
+		CreateTime: event.Detail.EndTime,
+		Status:     string(gltypes.GameSessionStatusActive),
+		Metadata:   placement.Metadata,
 	}
+	stored := &storageInstanceInfo{InstanceInfo: instance}
+	// The placed player sessions hold a seat until they connect, starting from when the placement was fulfilled.
+	stored.reserve(sessions, event.Detail.EndTime.Add(fm.cfg.reservationTimeout))
+	stored.refreshPlayerCount(time.Now())
 
 	key, err := InstanceIdToStorageKey(gameSessionId)
 	if err != nil {
 		return nil, err
 	}
-	v, err := json.Marshal(instance)
+	v, err := json.Marshal(stored)
 	if err != nil {
 		return nil, err
 	}
@@ -1187,8 +1363,9 @@ func (fm *GameLiftFleetManager) syncInstancesWorker() {
 			}
 		}
 
-		if len(activeInstances) > 0 {
-			if err = fm.updateStorageGameSessions(fm.ctx, activeInstances); err != nil {
+		// Merging the GameLift state also drops expired seat reservations.
+		for batch := range slices.Chunk(activeInstances, syncWriteBatchSize) {
+			if _, err = fm.syncStorageGameSessions(fm.ctx, batch); err != nil {
 				fm.logger.WithField("error", err.Error()).Error("failed to update db instances")
 				return
 			}
