@@ -16,6 +16,7 @@ The Nakama GameLift Fleet Manager expects a GameLift Fleet to be up and running 
 * A Placement Queue;
   * An SNS Topic to publish Placement Events;
 * An SQS Queue subscribed to the above Topic;
+  * A [redrive policy](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html) with a Dead-Letter Queue is strongly recommended. Placement events that fail to be processed are left on the queue to be redelivered, and without a Dead-Letter Queue they are retried until they expire. Malformed events are discarded;
 * Invocation of [status update RPCs](#status-update-rpcs) exposed by the Fleet Manager implementation.
 
 Follow [our setup guide](https://heroiclabs.com/docs/nakama/guides/concepts/gamelift-integration/) to create a minimal test Fleet deployment on AWS, with instructions on how to set up the above.
@@ -32,7 +33,7 @@ The `fleetmanager` instance has to be created within your Nakama plugin `InitMod
 
 ### Registration
 ```go
-glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, nk, cfg)
+glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, nk, awsCfg)
 if err != nil {
     return err
 }
@@ -169,6 +170,13 @@ metadata := map[string]string{
 joinInfo, err := fm.Join(ctx, id string, userIds []string, metadata map[string]string)
 ```
 
+### Seat reservations
+Nakama is the source of truth for a Game Session's `player_count`. It counts the Player Sessions connected to the Game Session, as reported by the [Update RPC](#update-rpc), plus the seats reserved for Player Sessions that haven't connected yet.
+
+A seat is reserved for each Player Session created by a successful `Join`, and for each placed Player Session when a placement created with `Create` is fulfilled. A reserved seat becomes a connected seat when its Player Session is reported as connected, and is released after 1 minute otherwise, matching the fixed time GameLift waits for a reserved Player Session to be accepted.
+
+Expired reservations are released on the next write to the Game Session, or by the background sync worker, so a Game Session may appear fuller than it is until then. Game Sessions that invoke the Update RPC as a [heartbeat](#heartbeats) at an interval of at most 1 minute release them promptly.
+
 ### Delete
 Delete should be used to remove an InstanceInfo data of a Game Session that was terminated on GameLift:
 ```go
@@ -177,16 +185,31 @@ err := fm.Delete(ctx, id)
 ```
 
 ### Configuration
-The `fleetmanager` instance expects a number of required configurations to be provided on creation:
+The `fleetmanager` instance requires an `AwsConfig` with the following settings on creation:
 
-* AWS Key;
-* AWS Secret;
-* AWS Fleet Region;
-* AWS Fleet Alias ID;
-* AWS Fleet Placement Queue Name;
-* AWS GameLift Placement Events SQS URL;
+* `Key`: AWS Key;
+* `Secret`: AWS Secret;
+* `Region`: AWS Fleet Region;
+* `FleetAlias`: AWS Fleet Alias ID;
+* `PlacementQueueName`: AWS Fleet Placement Queue Name;
+* `PlacementEventsSqsUrl`: AWS GameLift Placement Events SQS URL.
 
 Typically, these values would be passed to Nakama via its [Nakama's runtime env configuration](https://heroiclabs.com/docs/nakama/getting-started/configuration/#runtime.env).
+
+The other settings have defaults, which can be overridden by passing options to `NewGameLiftFleetManager`:
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `WithSqsMessageBatchSize` | `10` | The max number of placement events fetched and processed per SQS request (1-10). |
+| `WithSqsWorkers` | `1` | The number of concurrent consumers polling the SQS queue for placement events (minimum 1). |
+| `WithSqsVisibilityTimeout` | 10 seconds | How long a received placement event is hidden from other consumers before it's redelivered if it isn't processed. |
+| `WithSqsWaitTime` | 20 seconds | How long an SQS request waits for placement events to arrive (0-20 seconds). |
+| `WithPlacementTimeout` | 10 minutes | How long a pending placement is tracked before it's considered stale and cleaned up. It should be greater than or equal to the GameLift Placement Queue timeout (600 seconds by default). |
+| `WithGameLiftPollingPeriod` | 15 minutes | How often GameLift is polled to remove terminated Game Sessions and stale placements from storage. |
+| `WithHttpRequestTimeout` | 30 seconds | The AWS HTTP client request timeout. It must be greater than the SQS wait time. |
+| `WithHttpDialerTimeout` | 15 seconds | The AWS HTTP client dialing timeout. |
+| `WithHeartbeatTimeout` | `0` (disabled) | How long a Game Session can go without invoking the [Update RPC](#heartbeats) before it's excluded from `List` queries. It should be at least 3 times the heartbeat interval. Only enable it once all game servers send heartbeats, see the [warning](#heartbeats). |
+| `WithIndexMaxEntries` | `1000000` | The max entries of the Nakama storage index, which limits the number of Game Sessions that can be listed. |
 
 ### Example
 ```go
@@ -226,9 +249,19 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
     return runtime.NewError("missing GL_PLACEMENT_EVENTS_SQS_URL environment variable", 3)
   }
 
-  cfg := fleetmanager.NewGameLiftConfig(awsAccessKey, awsSecretAccessKey, awsRegion, awsAliasId, awsPlacementQueueName, awsGameLiftPlacementEventsQueueUrl)
+  awsCfg := fleetmanager.AwsConfig{
+    Key:                   awsAccessKey,
+    Secret:                awsSecretAccessKey,
+    Region:                awsRegion,
+    FleetAlias:            awsAliasId,
+    PlacementQueueName:    awsPlacementQueueName,
+    PlacementEventsSqsUrl: awsGameLiftPlacementEventsQueueUrl,
+  }
 
-  glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, nk, cfg)
+  glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, nk, awsCfg,
+    fleetmanager.WithSqsWorkers(2),                    // Number of concurrent SQS consumers (>= 1).
+    fleetmanager.WithPlacementTimeout(15*time.Minute), // Should be >= the GameLift Placement Queue timeout.
+  )
   if err != nil {
     return err
   }
@@ -273,15 +306,23 @@ The RPC IDs are namespaced with the `gamelift_<namespace>` prefix, where `<names
 ### Update RPC
 * RpcId: `gamelift_<namespace>_update_instance_info`
 
-This RPC should be invoked any time a player connects or disconnects from the Game Session to update the `player_count` by passing the current number of connected players.
+This RPC should be invoked any time a player connects or disconnects from the Game Session, and periodically as a [heartbeat](#heartbeats), passing the IDs of all the Player Sessions currently connected to it in `player_session_ids`. These are the Player Session IDs the Game Session accepts with the Server SDK's `AcceptPlayerSession` when clients connect, so no further GameLift calls are needed. Nakama maps the [seats it reserved](#seat-reservations) back to their users, while Player Sessions that weren't created through Nakama are counted as connected players without a known user.
+
+A player's seat is released as soon as its Player Session is missing from `player_session_ids`, but GameLift only frees it when the Game Session calls the Server SDK's `RemovePlayerSession`. Game Sessions must call it when a player disconnects, otherwise GameLift may reject new Player Sessions as the Game Session is full while Nakama lists it as having room.
+
+Since each update replaces the connected Player Sessions, updates applied out of order would overwrite the current ones with outdated ones. To prevent this, Game Sessions should set `seq` to a number that increases with every update, such as a counter or the current time in milliseconds. The connected Player Sessions of an update whose `seq` isn't greater than the last applied one are ignored, while its metadata is still applied. Updates without `seq` are always applied.
+
+The deprecated `player_count` field is still accepted when `player_session_ids` isn't set. Since the connected Player Sessions aren't known, it releases all the Game Session's seat reservations.
 
 It can also be used to update a Game Session's `GameSessionName`, `GameSessionData` or `GameProperties`. Updating these metadata fields allow the filtering of Game Sessions in the `List` function based on the properties values.
 Each of metadata's expected keys are optional, and only if any is present with a value will it overwrite the current value in the Nakama Storage Index.
+These updates are only stored in Nakama, which owns the Game Session's metadata, and aren't sent to GameLift. The values the Game Session retrieves from the GameLift Server SDK remain the ones it was created with.
 The expected RPC payload is the following:
 ```json
 {
   "id": "<Game Session ARN>",
-  "player_count": 10,
+  "seq": 42,
+  "player_session_ids": ["<player session id>", "<player session id>"],
   "metadata": {
     "GameSessionData": "<game_session_data>",
     "GameSessionName": "<game_session_name>",
@@ -292,6 +333,13 @@ The expected RPC payload is the following:
   }
 }
 ```
+
+#### Heartbeats
+Invoking the Update RPC periodically, in addition to when players connect or disconnect, corrects any drift in the Game Session's `player_count`, for instance from a missed or failed update, within one interval. It also releases expired seat reservations promptly. An interval of 30 to 60 seconds is recommended. Heartbeats don't need to include metadata, and heartbeats that don't change anything aren't written to storage.
+
+Heartbeat tracking can be enabled with the `WithHeartbeatTimeout` option. `List` queries then exclude Game Sessions that haven't invoked the Update RPC within the timeout, such as unresponsive Game Sessions that GameLift hasn't terminated yet. The timeout should be at least 3 times the heartbeat interval. Game Sessions stored before heartbeat tracking was enabled remain listed until their next update.
+
+> **Warning:** Only enable heartbeat tracking once every game server build running in the fleet invokes the Update RPC periodically. Game Sessions that only invoke it when players connect or disconnect are excluded from `List` queries after the timeout whenever no player connects or disconnects within it, including empty Game Sessions waiting for their first player, and are only listed again on their next update.
 
 ### Delete RPC
 * RpcId: `gamelift_<namespace>_delete_instance_info`

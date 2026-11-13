@@ -63,8 +63,15 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 		return runtime.NewError("missing GL_PLACEMENT_EVENTS_SQS_URL environment variable", 3)
 	}
 
-	cfg := fleetmanager.NewGameLiftConfig(awsAccessKey, awsSecretAccessKey, awsRegion, awsAliasId, awsPlacementQueueName, awsGameLiftPlacementEventsQueueUrl)
-	glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, nk, cfg)
+	awsCfg := fleetmanager.AwsConfig{
+		Key:                   awsAccessKey,
+		Secret:                awsSecretAccessKey,
+		Region:                awsRegion,
+		FleetAlias:            awsAliasId,
+		PlacementQueueName:    awsPlacementQueueName,
+		PlacementEventsSqsUrl: awsGameLiftPlacementEventsQueueUrl,
+	}
+	glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, nk, awsCfg, fleetmanager.WithSqsMessageBatchSize(1))
 	if err != nil {
 		return err
 	}
@@ -74,6 +81,6 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 		return err
 	}
 
-	logger.Info("Plugin loaded in '%d' ms", time.Now().Sub(initStart).Milliseconds())
+	logger.Info("Plugin loaded in '%d' ms", time.Since(initStart).Milliseconds())
 	return nil
 }
