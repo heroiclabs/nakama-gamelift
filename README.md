@@ -33,7 +33,7 @@ The `fleetmanager` instance has to be created within your Nakama plugin `InitMod
 
 ### Registration
 ```go
-glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, nk, cfg)
+glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, nk, awsCfg)
 if err != nil {
     return err
 }
@@ -185,19 +185,30 @@ err := fm.Delete(ctx, id)
 ```
 
 ### Configuration
-The `fleetmanager` instance expects a number of required configurations to be provided on creation:
+The `fleetmanager` instance requires an `AwsConfig` with the following settings on creation:
 
-* AWS Key;
-* AWS Secret;
-* AWS Fleet Region;
-* AWS Fleet Alias ID;
-* AWS Fleet Placement Queue Name;
-* AWS GameLift Placement Events SQS URL;
-* SQS message batch size: the max number of placement events fetched and processed per SQS request (1-10);
-* SQS workers: the number of concurrent consumers polling the SQS queue for placement events (minimum 1);
-* Placement timeout: how long a pending placement is tracked before it's considered stale and cleaned up. It should be greater than or equal to the GameLift Placement Queue timeout (600 seconds by default).
+* `Key`: AWS Key;
+* `Secret`: AWS Secret;
+* `Region`: AWS Fleet Region;
+* `FleetAlias`: AWS Fleet Alias ID;
+* `PlacementQueueName`: AWS Fleet Placement Queue Name;
+* `PlacementEventsSqsUrl`: AWS GameLift Placement Events SQS URL.
 
 Typically, these values would be passed to Nakama via its [Nakama's runtime env configuration](https://heroiclabs.com/docs/nakama/getting-started/configuration/#runtime.env).
+
+The other settings have defaults, which can be overridden by passing options to `NewGameLiftFleetManager`:
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `WithSqsMessageBatchSize` | `10` | The max number of placement events fetched and processed per SQS request (1-10). |
+| `WithSqsWorkers` | `1` | The number of concurrent consumers polling the SQS queue for placement events (minimum 1). |
+| `WithSqsVisibilityTimeout` | 10 seconds | How long a received placement event is hidden from other consumers before it's redelivered if it isn't processed. |
+| `WithSqsWaitTime` | 20 seconds | How long an SQS request waits for placement events to arrive (0-20 seconds). |
+| `WithPlacementTimeout` | 10 minutes | How long a pending placement is tracked before it's considered stale and cleaned up. It should be greater than or equal to the GameLift Placement Queue timeout (600 seconds by default). |
+| `WithGameLiftPollingPeriod` | 15 minutes | How often GameLift is polled to remove terminated Game Sessions and stale placements from storage. |
+| `WithHttpRequestTimeout` | 30 seconds | The AWS HTTP client request timeout. It must be greater than the SQS wait time. |
+| `WithHttpDialerTimeout` | 15 seconds | The AWS HTTP client dialing timeout. |
+| `WithIndexMaxEntries` | `1000000` | The max entries of the Nakama storage index, which limits the number of Game Sessions that can be listed. |
 
 ### Example
 ```go
@@ -237,13 +248,19 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
     return runtime.NewError("missing GL_PLACEMENT_EVENTS_SQS_URL environment variable", 3)
   }
 
-  sqsMessageBatchSize := 10            // Max number of SQS messages to fetch per request (1-10).
-  sqsWorkers := 1                      // Number of concurrent SQS consumers (>= 1).
-  placementTimeout := 10 * time.Minute // Should be >= the GameLift Placement Queue timeout.
+  awsCfg := fleetmanager.AwsConfig{
+    Key:                   awsAccessKey,
+    Secret:                awsSecretAccessKey,
+    Region:                awsRegion,
+    FleetAlias:            awsAliasId,
+    PlacementQueueName:    awsPlacementQueueName,
+    PlacementEventsSqsUrl: awsGameLiftPlacementEventsQueueUrl,
+  }
 
-  cfg := fleetmanager.NewGameLiftConfig(awsAccessKey, awsSecretAccessKey, awsRegion, awsAliasId, awsPlacementQueueName, awsGameLiftPlacementEventsQueueUrl, sqsMessageBatchSize, sqsWorkers, placementTimeout)
-
-  glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, nk, cfg)
+  glfm, err := fleetmanager.NewGameLiftFleetManager(ctx, logger, db, nk, awsCfg,
+    fleetmanager.WithSqsWorkers(2),                    // Number of concurrent SQS consumers (>= 1).
+    fleetmanager.WithPlacementTimeout(15*time.Minute), // Should be >= the GameLift Placement Queue timeout.
+  )
   if err != nil {
     return err
   }

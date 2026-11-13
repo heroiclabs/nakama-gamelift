@@ -58,9 +58,6 @@ const (
 	storageWriteMaxRetries = 10
 	// syncWriteBatchSize is the max number of game sessions written per storage transaction by the sync worker.
 	syncWriteBatchSize = 100
-	// reservationTimeout is how long a reserved seat counts towards a game session's player count until the user
-	// connects to it. It matches GameLift's fixed 60s timeout for a reserved player session to be accepted.
-	reservationTimeout = time.Minute
 )
 
 // RPC IDs are lowercased to match how Nakama registers and resolves them.
@@ -89,120 +86,28 @@ type GameLiftFleetManager struct {
 	logger          runtime.Logger
 	nk              runtime.NakamaModule
 	db              *sql.DB
-	cfg             GameLiftConfig
+	cfg             *config
 	callbackHandler runtime.FmCallbackHandler
 }
 
-type GameLiftConfig struct {
-	NakamaNode               string        // Nakama node
-	AwsKey                   string        // AWS Key
-	AwsSecret                string        // AWS Secret
-	AwsRegion                string        // AWS Fleet Region
-	AwsFleetAlias            string        // AWS GameLift Fleet Alias
-	AwsPlacementQueueName    string        // AWS GameLift Placement Queue Name
-	AwsPlacementEventsSqsUrl string        // AWS GameLift Placement Events SQS Queue URL
-	AwsGameLiftPollingPeriod time.Duration // Periodicity of the polling to the Aws GameLift APIs
-	HttpRequestTimeout       time.Duration // AWS Http Client request timeout
-	HttpDialerTimeout        time.Duration // AWS Http Client request dialing timeout
-	PlacementTimeout         time.Duration // Max time a placement can stay unresolved before its storage entry is considered stale. Should be >= the GameLift queue timeout.
-	SqsVisibilityTimeout     time.Duration // AWS SQS Client Visibility Timeout
-	SqsWaitTime              time.Duration // AWS SQS Client Wait Time
-	SqsMessageBatchSize      int           // AWS SQS Max Number of Messages to retrieve per request (1-10)
-	SqsWorkers               int           // Number of concurrent SQS consumers (>= 1)
-	IndexMaxEntries          int           // Nakama storage index max entries - limits the number of game sessions that can be indexed.
-
-	reservationTimeout time.Duration // How long a reserved seat counts towards a game session's player count until the user connects to it. Not configurable as GameLift's timeout is fixed.
-}
-
-func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsGameLiftPlacementQueueName, awsGameLiftPlacementEventsSqsUrl string, sqsMessageBatchSize, sqsWorkers int, placementTimeout time.Duration) GameLiftConfig {
-	return GameLiftConfig{
-		AwsKey:                   awsKey,
-		AwsSecret:                awsSecret,
-		AwsRegion:                awsRegion,
-		AwsFleetAlias:            awsGameLiftFleetAlias,
-		AwsPlacementQueueName:    awsGameLiftPlacementQueueName,
-		AwsPlacementEventsSqsUrl: awsGameLiftPlacementEventsSqsUrl,
-		AwsGameLiftPollingPeriod: 15 * time.Minute,
-		IndexMaxEntries:          1_000_000,
-		HttpRequestTimeout:       30 * time.Second,
-		HttpDialerTimeout:        15 * time.Second,
-		SqsVisibilityTimeout:     10 * time.Second,
-		SqsWaitTime:              20 * time.Second,
-		SqsMessageBatchSize:      sqsMessageBatchSize,
-		SqsWorkers:               sqsWorkers,
-		PlacementTimeout:         placementTimeout,
-		reservationTimeout:       reservationTimeout,
-	}
-}
-
-func (glc *GameLiftConfig) Validate() error {
-	errs := make([]error, 0)
-	if glc.NakamaNode == "" {
-		errs = append(errs, errors.New("node must be set"))
-	}
-	if glc.AwsKey == "" {
-		errs = append(errs, errors.New("aws key must be set"))
-	}
-	if glc.AwsSecret == "" {
-		errs = append(errs, errors.New("aws secret must be set"))
-	}
-	if glc.AwsRegion == "" {
-		errs = append(errs, errors.New("aws region must be set"))
-	}
-	if glc.AwsFleetAlias == "" {
-		errs = append(errs, errors.New("aws fleet alias must be set"))
-	}
-	if glc.AwsPlacementQueueName == "" {
-		errs = append(errs, errors.New("aws fleet placement queue name must be set"))
-	}
-	if glc.AwsPlacementEventsSqsUrl == "" {
-		errs = append(errs, errors.New("aws placement events sqs url must be set"))
-	}
-	if glc.AwsGameLiftPollingPeriod == 0 {
-		errs = append(errs, errors.New("aws gamelift polling period must be > 0"))
-	}
-	if glc.IndexMaxEntries == 0 {
-		errs = append(errs, errors.New("index max entries must be > 0"))
-	}
-	if glc.SqsWaitTime >= glc.HttpRequestTimeout {
-		errs = append(errs, errors.New("sqs wait time must be < http request timeout"))
-	}
-	if glc.SqsMessageBatchSize < 1 || glc.SqsMessageBatchSize > 10 {
-		errs = append(errs, errors.New("sqs message batch size must be between 1 and 10"))
-	}
-	if glc.SqsWorkers < 1 {
-		errs = append(errs, errors.New("sqs workers must be >= 1"))
-	}
-	if glc.PlacementTimeout <= 0 {
-		errs = append(errs, errors.New("placement timeout must be > 0"))
-	}
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-
-	return nil
-}
-
-func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, conf GameLiftConfig) (runtime.FleetManagerInitializer, error) {
+// NewGameLiftFleetManager creates a GameLift fleet manager with the required AWS settings. The other settings use
+// their defaults unless overridden by opts.
+func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, awsCfg AwsConfig, opts ...Option) (runtime.FleetManagerInitializer, error) {
 	nakamaNode, ok := ctx.Value(runtime.RUNTIME_CTX_NODE).(string)
 	if !ok || !strings.HasPrefix(nakamaNode, "nakama") {
 		return nil, errors.New("failed to get nakama node from ctx")
 	}
-	conf.NakamaNode = nakamaNode
-	if conf.reservationTimeout <= 0 {
-		// The config wasn't created with NewGameLiftConfig.
-		conf.reservationTimeout = reservationTimeout
-	}
-	if err := conf.Validate(); err != nil {
+	conf := newConfig(awsCfg, nakamaNode, opts...)
+	if err := conf.validate(); err != nil {
 		return nil, err
 	}
 
 	awsConfig := aws.Config{
-		Region:      conf.AwsRegion,
-		Credentials: credentials.NewStaticCredentialsProvider(conf.AwsKey, conf.AwsSecret, ""),
+		Region:      conf.aws.Region,
+		Credentials: credentials.NewStaticCredentialsProvider(conf.aws.Key, conf.aws.Secret, ""),
 		HTTPClient: awshttp.NewBuildableClient().
-			WithTimeout(conf.HttpRequestTimeout).
-			WithDialerOptions(func(d *net.Dialer) { d.Timeout = conf.HttpDialerTimeout }),
+			WithTimeout(conf.httpRequestTimeout).
+			WithDialerOptions(func(d *net.Dialer) { d.Timeout = conf.httpDialerTimeout }),
 	}
 
 	glService := gamelift.NewFromConfig(awsConfig)
@@ -218,14 +123,14 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 		cfg:        conf,
 	}
 
-	logger.WithField("region", conf.AwsRegion).
-		WithField("fleet_alias", conf.AwsFleetAlias).
-		WithField("placement_queue", conf.AwsPlacementQueueName).
-		WithField("sqs_url", conf.AwsPlacementEventsSqsUrl).
-		WithField("sqs_batch_size", conf.SqsMessageBatchSize).
-		WithField("sqs_workers", conf.SqsWorkers).
-		WithField("sqs_visibility_timeout", conf.SqsVisibilityTimeout).
-		WithField("sqs_wait_time", conf.SqsWaitTime).
+	logger.WithField("region", conf.aws.Region).
+		WithField("fleet_alias", conf.aws.FleetAlias).
+		WithField("placement_queue", conf.aws.PlacementQueueName).
+		WithField("sqs_url", conf.aws.PlacementEventsSqsUrl).
+		WithField("sqs_batch_size", conf.sqsMessageBatchSize).
+		WithField("sqs_workers", conf.sqsWorkers).
+		WithField("sqs_visibility_timeout", conf.sqsVisibilityTimeout).
+		WithField("sqs_wait_time", conf.sqsWaitTime).
 		Info("GameLift fleet manager initialized")
 
 	return glfm, nil
@@ -236,7 +141,7 @@ func (fm *GameLiftFleetManager) Init(initializer runtime.Initializer, nk runtime
 	fm.callbackHandler = callbackHandler
 	fm.namespace = namespace
 
-	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex(namespace), StorageGameLiftInstancesCollection(namespace), "", []string{"id", "create_time", "player_count", "status", "metadata"}, []string{"create_time", "player_count"}, fm.cfg.IndexMaxEntries, false); err != nil {
+	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex(namespace), StorageGameLiftInstancesCollection(namespace), "", []string{"id", "create_time", "player_count", "status", "metadata"}, []string{"create_time", "player_count"}, fm.cfg.indexMaxEntries, false); err != nil {
 		return err
 	}
 
@@ -252,12 +157,12 @@ func (fm *GameLiftFleetManager) Init(initializer runtime.Initializer, nk runtime
 	}
 
 	// Initialise sqs background consumers here as they depend on the callbackHandler
-	for range fm.cfg.SqsWorkers {
+	for range fm.cfg.sqsWorkers {
 		go fm.processSqsPlacementEvents()
 	}
 
 	// The sync worker only needs to run on a single node of the cluster.
-	if fm.cfg.NakamaNode == "nakama" || fm.cfg.NakamaNode == "nakama-0" {
+	if fm.cfg.nakamaNode == "nakama" || fm.cfg.nakamaNode == "nakama-0" {
 		go fm.syncInstancesWorker()
 	}
 
@@ -388,7 +293,7 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 
 	placementInput := &gamelift.StartGameSessionPlacementInput{
 		PlacementId:               aws.String(placementId),
-		GameSessionQueueName:      aws.String(fm.cfg.AwsPlacementQueueName),
+		GameSessionQueueName:      aws.String(fm.cfg.aws.PlacementQueueName),
 		MaximumPlayerSessionCount: aws.Int32(int32(maxPlayers)),
 		DesiredPlayerSessions:     desiredPlayerSessions,
 		GameProperties:            gameProperties,
@@ -509,7 +414,7 @@ func (fm *GameLiftFleetManager) List(ctx context.Context, query string, limit in
 
 func (fm *GameLiftFleetManager) listGameLiftGameSessions(ctx context.Context, cursor string) ([]*runtime.InstanceInfo, string, error) {
 	params := &gamelift.SearchGameSessionsInput{
-		AliasId:        aws.String(fm.cfg.AwsFleetAlias),
+		AliasId:        aws.String(fm.cfg.aws.FleetAlias),
 		Limit:          aws.Int32(int32(20)), // max API limit is 20
 		SortExpression: aws.String("creationTimeMillis ASC"),
 	}
@@ -1097,10 +1002,10 @@ type SqsMessagePlacementEventBody struct {
 
 func (fm *GameLiftFleetManager) processSqsPlacementEvents() {
 	receiveMessageInput := &sqs.ReceiveMessageInput{
-		QueueUrl:            aws.String(fm.cfg.AwsPlacementEventsSqsUrl),
-		MaxNumberOfMessages: int32(fm.cfg.SqsMessageBatchSize),
-		VisibilityTimeout:   int32(fm.cfg.SqsVisibilityTimeout.Seconds()),
-		WaitTimeSeconds:     int32(fm.cfg.SqsWaitTime.Seconds()),
+		QueueUrl:            aws.String(fm.cfg.aws.PlacementEventsSqsUrl),
+		MaxNumberOfMessages: int32(fm.cfg.sqsMessageBatchSize),
+		VisibilityTimeout:   int32(fm.cfg.sqsVisibilityTimeout.Seconds()),
+		WaitTimeSeconds:     int32(fm.cfg.sqsWaitTime.Seconds()),
 	}
 
 	ctx := fm.ctx
@@ -1151,7 +1056,7 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvents() {
 
 			if len(ackEntries) > 0 {
 				res, err := fm.sqsService.DeleteMessageBatch(ctx, &sqs.DeleteMessageBatchInput{
-					QueueUrl: aws.String(fm.cfg.AwsPlacementEventsSqsUrl),
+					QueueUrl: aws.String(fm.cfg.aws.PlacementEventsSqsUrl),
 					Entries:  ackEntries,
 				})
 				if err != nil {
@@ -1353,7 +1258,7 @@ func (fm *GameLiftFleetManager) syncInstancesWorker() {
 		for _, dbInfo := range dbInstances {
 			if dbInfo.Status == GameSessionStatusPlaced {
 				// Placements still in flight are kept, stale ones never got (or lost) their placement event.
-				if time.Since(dbInfo.CreateTime) > fm.cfg.PlacementTimeout {
+				if time.Since(dbInfo.CreateTime) > fm.cfg.placementTimeout {
 					placementsToRemove = append(placementsToRemove, dbInfo.Id)
 				}
 				continue
@@ -1389,7 +1294,7 @@ func (fm *GameLiftFleetManager) syncInstancesWorker() {
 
 	deleteTerminatedInstancesFn()
 
-	t := time.NewTicker(fm.cfg.AwsGameLiftPollingPeriod)
+	t := time.NewTicker(fm.cfg.gameLiftPollingPeriod)
 	for {
 		select {
 		case <-fm.ctx.Done():
@@ -1402,7 +1307,7 @@ func (fm *GameLiftFleetManager) syncInstancesWorker() {
 
 func (fm *GameLiftFleetManager) listGameliftActiveInstances(ctx context.Context, cursor string) ([]*runtime.InstanceInfo, string, error) {
 	params := &gamelift.DescribeGameSessionsInput{
-		AliasId:      aws.String(fm.cfg.AwsFleetAlias),
+		AliasId:      aws.String(fm.cfg.aws.FleetAlias),
 		Limit:        aws.Int32(100), // Max AWS API limit is 100
 		StatusFilter: aws.String(string(gltypes.GameSessionStatusActive)),
 	}
