@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,9 +17,9 @@ import (
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/gamelift"
-	"github.com/aws/aws-sdk-go-v2/service/gamelift/types"
+	gltypes "github.com/aws/aws-sdk-go-v2/service/gamelift/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	types2 "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
@@ -44,6 +45,11 @@ const (
 	GamePropertiesKey  = "GameProperties"
 	GameSessionNameKey = "GameSessionName"
 )
+
+// GameSessionStatusPlaced is a custom status for storage entries created when a placement request is started and
+// GameLift hasn't yet reported the placement outcome. These entries are keyed by placement id and are never returned
+// by List queries.
+const GameSessionStatusPlaced = "PLACED"
 
 // RPC IDs are lowercased to match how Nakama registers and resolves them.
 var (
@@ -84,15 +90,17 @@ type GameLiftConfig struct {
 	AwsPlacementQueueName    string        // AWS GameLift Placement Queue Name
 	AwsPlacementEventsSqsUrl string        // AWS GameLift Placement Events SQS Queue URL
 	AwsGameLiftPollingPeriod time.Duration // Periodicity of the polling to the Aws GameLift APIs
-	IndexMaxEntries          int           // Nakama storage index max entries - limits the number of game sessions that can be indexed.
 	HttpRequestTimeout       time.Duration // AWS Http Client request timeout
 	HttpDialerTimeout        time.Duration // AWS Http Client request dialing timeout
+	PlacementTimeout         time.Duration // Max time a placement can stay unresolved before its storage entry is considered stale. Should be >= the GameLift queue timeout.
 	SqsVisibilityTimeout     time.Duration // AWS SQS Client Visibility Timeout
 	SqsWaitTime              time.Duration // AWS SQS Client Wait Time
 	SqsMessageBatchSize      int           // AWS SQS Max Number of Messages to retrieve per request (1-10)
+	SqsWorkers               int           // Number of concurrent SQS consumers (>= 1)
+	IndexMaxEntries          int           // Nakama storage index max entries - limits the number of game sessions that can be indexed.
 }
 
-func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsGameLiftPlacementQueueName, awsGameLiftPlacementEventsSqsUrl string, sqsMessageBatchSize int) GameLiftConfig {
+func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsGameLiftPlacementQueueName, awsGameLiftPlacementEventsSqsUrl string, sqsMessageBatchSize, sqsWorkers int, placementTimeout time.Duration) GameLiftConfig {
 	return GameLiftConfig{
 		AwsKey:                   awsKey,
 		AwsSecret:                awsSecret,
@@ -107,6 +115,8 @@ func NewGameLiftConfig(awsKey, awsSecret, awsRegion, awsGameLiftFleetAlias, awsG
 		SqsVisibilityTimeout:     10 * time.Second,
 		SqsWaitTime:              20 * time.Second,
 		SqsMessageBatchSize:      sqsMessageBatchSize,
+		SqsWorkers:               sqsWorkers,
+		PlacementTimeout:         placementTimeout,
 	}
 }
 
@@ -144,6 +154,12 @@ func (glc *GameLiftConfig) Validate() error {
 	}
 	if glc.SqsMessageBatchSize < 1 || glc.SqsMessageBatchSize > 10 {
 		errs = append(errs, errors.New("sqs message batch size must be between 1 and 10"))
+	}
+	if glc.SqsWorkers < 1 {
+		errs = append(errs, errors.New("sqs workers must be >= 1"))
+	}
+	if glc.PlacementTimeout <= 0 {
+		errs = append(errs, errors.New("placement timeout must be > 0"))
 	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)
@@ -188,6 +204,7 @@ func NewGameLiftFleetManager(ctx context.Context, logger runtime.Logger, db *sql
 		WithField("placement_queue", conf.AwsPlacementQueueName).
 		WithField("sqs_url", conf.AwsPlacementEventsSqsUrl).
 		WithField("sqs_batch_size", conf.SqsMessageBatchSize).
+		WithField("sqs_workers", conf.SqsWorkers).
 		WithField("sqs_visibility_timeout", conf.SqsVisibilityTimeout).
 		WithField("sqs_wait_time", conf.SqsWaitTime).
 		Info("GameLift fleet manager initialized")
@@ -200,7 +217,7 @@ func (fm *GameLiftFleetManager) Init(initializer runtime.Initializer, nk runtime
 	fm.callbackHandler = callbackHandler
 	fm.namespace = namespace
 
-	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex(namespace), StorageGameLiftInstancesCollection(namespace), "", []string{"id", "create_time", "player_count", "metadata"}, []string{"create_time", "player_count"}, fm.cfg.IndexMaxEntries, false); err != nil {
+	if err := initializer.RegisterStorageIndex(StorageGameLiftIndex(namespace), StorageGameLiftInstancesCollection(namespace), "", []string{"id", "create_time", "player_count", "status", "metadata"}, []string{"create_time", "player_count"}, fm.cfg.IndexMaxEntries, false); err != nil {
 		return err
 	}
 
@@ -215,9 +232,15 @@ func (fm *GameLiftFleetManager) Init(initializer runtime.Initializer, nk runtime
 		return err
 	}
 
-	// Initialise sqs background consumer here as it depends on the callbackHandler
-	go fm.processSqsPlacementEvents()
-	go fm.syncInstancesWorker()
+	// Initialise sqs background consumers here as they depend on the callbackHandler
+	for range fm.cfg.SqsWorkers {
+		go fm.processSqsPlacementEvents()
+	}
+
+	// The sync worker only needs to run on a single node of the cluster.
+	if fm.cfg.NakamaNode == "nakama" || fm.cfg.NakamaNode == "nakama-0" {
+		go fm.syncInstancesWorker()
+	}
 
 	fm.logger.WithField("namespace", namespace).Info("GameLift Fleet Manager initialized")
 
@@ -225,9 +248,9 @@ func (fm *GameLiftFleetManager) Init(initializer runtime.Initializer, nk runtime
 }
 
 func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, userIds []string, latencies []runtime.FleetUserLatencies, metadata map[string]any, callback runtime.FmCreateCallbackFn) (map[string]string, error) {
-	var desiredPlayerSessions []types.DesiredPlayerSession
+	var desiredPlayerSessions []gltypes.DesiredPlayerSession
 	if len(userIds) > 0 {
-		desiredPlayerSessions = make([]types.DesiredPlayerSession, 0, len(userIds))
+		desiredPlayerSessions = make([]gltypes.DesiredPlayerSession, 0, len(userIds))
 		for _, id := range userIds {
 			var playerData *string
 			if m := metadata[id]; m != nil {
@@ -237,7 +260,7 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 				}
 			}
 
-			desiredPlayerSessions = append(desiredPlayerSessions, types.DesiredPlayerSession{
+			desiredPlayerSessions = append(desiredPlayerSessions, gltypes.DesiredPlayerSession{
 				PlayerData: playerData,
 				PlayerId:   aws.String(id),
 			})
@@ -263,14 +286,14 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 	}
 	gameSessionData := aws.String(string(sessionDataJson))
 
-	var gameProperties []types.GameProperty
+	var gameProperties []gltypes.GameProperty
 	if m := metadata[GamePropertiesKey]; m != nil {
 		if gp, ok := m.(map[string]string); ok {
-			props := make([]types.GameProperty, 0, len(gp))
+			props := make([]gltypes.GameProperty, 0, len(gp))
 			for k, v := range gp {
 				pk, pv := new(string), new(string)
 				*pk, *pv = k, v
-				props = append(props, types.GameProperty{
+				props = append(props, gltypes.GameProperty{
 					Key:   pk,
 					Value: pv,
 				})
@@ -289,11 +312,11 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 		}
 	}
 
-	var playerLatencies []types.PlayerLatency
+	var playerLatencies []gltypes.PlayerLatency
 	if len(latencies) > 0 {
-		playerLatencies = make([]types.PlayerLatency, 0, len(latencies))
+		playerLatencies = make([]gltypes.PlayerLatency, 0, len(latencies))
 		for _, l := range latencies {
-			playerLatencies = append(playerLatencies, types.PlayerLatency{
+			playerLatencies = append(playerLatencies, gltypes.PlayerLatency{
 				LatencyInMilliseconds: aws.Float32(l.LatencyInMilliseconds),
 				PlayerId:              aws.String(l.UserId),
 				RegionIdentifier:      aws.String(l.RegionIdentifier),
@@ -316,6 +339,34 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 	}
 	fm.logger.WithField("placement_id", placementId).WithField("game_properties", gameProperties).Debug("placement input")
 
+	placedMetadata := make(map[string]any)
+	if gameSessionData != nil {
+		placedMetadata[GameSessionDataKey] = *gameSessionData
+	}
+	if len(gameProperties) > 0 {
+		props := make(map[string]string, len(gameProperties))
+		for _, p := range gameProperties {
+			props[*p.Key] = *p.Value
+		}
+		placedMetadata[GamePropertiesKey] = props
+	}
+	if gameSessionName != nil {
+		placedMetadata[GameSessionNameKey] = *gameSessionName
+	}
+
+	// Store the placement inputs before starting the placement so that the fulfilled event handler can build the
+	// instance info without having to call GameLift, regardless of which node consumes the event.
+	if err := fm.writeStoragePlacement(ctx, &runtime.InstanceInfo{
+		Id:             placementId,
+		ConnectionInfo: nil,
+		CreateTime:     time.Now().UTC(),
+		PlayerCount:    0,
+		Status:         GameSessionStatusPlaced,
+		Metadata:       placedMetadata,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to store placement: %s", err.Error())
+	}
+
 	placementInput := &gamelift.StartGameSessionPlacementInput{
 		PlacementId:               aws.String(placementId),
 		GameSessionQueueName:      aws.String(fm.cfg.AwsPlacementQueueName),
@@ -330,21 +381,29 @@ func (fm *GameLiftFleetManager) Create(ctx context.Context, maxPlayers int, user
 	placementOutput, err := fm.glService.StartGameSessionPlacement(ctx, placementInput)
 	if err != nil {
 		fm.nk.MetricsCounterAdd("gamelift_api_errors", map[string]string{"operation": "StartGameSessionPlacement"}, 1)
+		if err := fm.deleteStoragePlacements(ctx, []string{placementId}); err != nil {
+			fm.logger.WithField("error", err.Error()).WithField("placement_id", placementId).Warn("failed to delete placement storage entry")
+		}
 		return nil, err
 	}
 
 	switch placementOutput.GameSessionPlacement.Status {
-	case types.GameSessionPlacementStatePending:
-		fallthrough
-	case types.GameSessionPlacementStateFulfilled:
+	case gltypes.GameSessionPlacementStateFulfilled, gltypes.GameSessionPlacementStatePending:
 		fm.nk.MetricsCounterAdd("gamelift_placement_requests", map[string]string{"status": "pending"}, 1)
 		fm.logger.WithField("placement_id", placementId).Debug("placement started")
-	case types.GameSessionPlacementStateCancelled:
-		fallthrough
-	case types.GameSessionPlacementStateTimedOut:
-		fallthrough
-	case types.GameSessionPlacementStateFailed:
+	case gltypes.GameSessionPlacementStateCancelled, gltypes.GameSessionPlacementStateTimedOut, gltypes.GameSessionPlacementStateFailed:
 		fm.nk.MetricsCounterAdd("gamelift_placement_requests", map[string]string{"status": "failed"}, 1)
+		if err := fm.deleteStoragePlacements(ctx, []string{placementId}); err != nil {
+			fm.logger.WithField("error", err.Error()).WithField("placement_id", placementId).Warn("failed to delete placement storage entry")
+		}
+		return nil, errors.New("failed to start game session placement")
+	default:
+		// Should never happen.
+		fm.logger.WithField("status", string(placementOutput.GameSessionPlacement.Status)).Warn("unhandled start game session placement status")
+		fm.nk.MetricsCounterAdd("gamelift_placement_requests", map[string]string{"status": "failed"}, 1)
+		if err := fm.deleteStoragePlacements(ctx, []string{placementId}); err != nil {
+			fm.logger.WithField("error", err.Error()).WithField("placement_id", placementId).Warn("failed to delete placement storage entry")
+		}
 		return nil, errors.New("failed to start game session placement")
 	}
 
@@ -378,11 +437,11 @@ func (fm *GameLiftFleetManager) Get(ctx context.Context, id string) (instance *r
 	instance = NewInstanceInfo(gs)
 
 	switch gs.Status {
-	case types.GameSessionStatusActive:
+	case gltypes.GameSessionStatusActive:
 		if err = fm.updateStorageGameSessions(ctx, []*runtime.InstanceInfo{instance}); err != nil {
 			return nil, errors.New("failed to update gamelift game session instance info")
 		}
-	case types.GameSessionStatusTerminated, types.GameSessionStatusTerminating, types.GameSessionStatusError:
+	case gltypes.GameSessionStatusTerminated, gltypes.GameSessionStatusTerminating, gltypes.GameSessionStatusError:
 		if err = fm.deleteStorageGameSessions(ctx, []string{id}); err != nil {
 			return nil, errors.New("failed to delete gamelift game session instance info")
 		}
@@ -405,6 +464,9 @@ func (fm *GameLiftFleetManager) List(ctx context.Context, query string, limit in
 
 		return instances, nextCursor, nil
 	}
+
+	// Exclude placements that haven't been fulfilled yet.
+	query = query + " -value.status:" + GameSessionStatusPlaced
 
 	// Emptiest matches, most recently created first.
 	entries, _, err := fm.nk.StorageIndexList(ctx, "", StorageGameLiftIndex(fm.namespace), query, limit, []string{"player_count", "-create_time"}, "")
@@ -551,6 +613,56 @@ func (fm *GameLiftFleetManager) deleteStorageGameSessions(ctx context.Context, i
 	}
 
 	return nil
+}
+
+// writeStoragePlacement creates a PLACED storage entry for a placement. The write fails if an entry already exists.
+func (fm *GameLiftFleetManager) writeStoragePlacement(ctx context.Context, placement *runtime.InstanceInfo) error {
+	v, err := json.Marshal(placement)
+	if err != nil {
+		return err
+	}
+
+	_, err = fm.nk.StorageWrite(ctx, []*runtime.StorageWrite{{
+		Collection: StorageGameLiftInstancesCollection(fm.namespace),
+		Key:        PlacementIdToStorageKey(placement.Id),
+		Value:      string(v),
+		Version:    "*",
+	}})
+
+	return err
+}
+
+func (fm *GameLiftFleetManager) getStoragePlacement(ctx context.Context, placementId string) (*runtime.InstanceInfo, error) {
+	objects, err := fm.nk.StorageRead(ctx, []*runtime.StorageRead{{
+		Collection: StorageGameLiftInstancesCollection(fm.namespace),
+		Key:        PlacementIdToStorageKey(placementId),
+	}})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(objects) == 0 {
+		return nil, nil
+	}
+
+	var placement *runtime.InstanceInfo
+	if err = json.Unmarshal([]byte(objects[0].Value), &placement); err != nil {
+		return nil, err
+	}
+
+	return placement, nil
+}
+
+func (fm *GameLiftFleetManager) deleteStoragePlacements(ctx context.Context, placementIds []string) error {
+	deletes := make([]*runtime.StorageDelete, 0, len(placementIds))
+	for _, id := range placementIds {
+		deletes = append(deletes, &runtime.StorageDelete{
+			Collection: StorageGameLiftInstancesCollection(fm.namespace),
+			Key:        PlacementIdToStorageKey(id),
+		})
+	}
+
+	return fm.nk.StorageDelete(ctx, deletes)
 }
 
 func (fm *GameLiftFleetManager) Join(ctx context.Context, id string, userIds []string, metadata map[string]string) (joinInfo *runtime.JoinInfo, err error) {
@@ -701,7 +813,7 @@ func (fm *GameLiftFleetManager) Update(ctx context.Context, id string, playerCou
 		return err
 	}
 
-	var gameProps []types.GameProperty
+	var gameProps []gltypes.GameProperty
 	dbInfo.PlayerCount = playerCount
 	if metadata != nil {
 		if m := metadata[GameSessionDataKey]; m != nil {
@@ -713,11 +825,11 @@ func (fm *GameLiftFleetManager) Update(ctx context.Context, id string, playerCou
 			if !ok {
 				return errors.New("failed to type assert 'GameProperties' value to map[string]any")
 			}
-			gameProps = make([]types.GameProperty, 0, len(mmap))
+			gameProps = make([]gltypes.GameProperty, 0, len(mmap))
 			for k, v := range mmap {
 				kk, vv := new(string), new(string)
 				*kk, *vv = k, v.(string)
-				gameProps = append(gameProps, types.GameProperty{
+				gameProps = append(gameProps, gltypes.GameProperty{
 					Key:   kk,
 					Value: vv,
 				})
@@ -844,12 +956,14 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvents() {
 			wg.Wait()
 			fm.logger.WithField("processed", processed).WithField("total", len(message.Messages)).WithField("duration_ms", time.Since(t).Milliseconds()).Info("sqs placement events processed")
 
-			ackEntries := make([]types2.DeleteMessageBatchRequestEntry, 0, len(message.Messages))
+			ackEntries := make([]sqstypes.DeleteMessageBatchRequestEntry, 0, len(message.Messages))
 			for i, m := range message.Messages {
 				if !processed[i] {
+					fm.nk.MetricsCounterAdd("gamelift_sqs_messages_processed", map[string]string{"result": "failure"}, 1)
 					continue
 				}
-				ackEntries = append(ackEntries, types2.DeleteMessageBatchRequestEntry{
+				fm.nk.MetricsCounterAdd("gamelift_sqs_messages_processed", map[string]string{"result": "success"}, 1)
+				ackEntries = append(ackEntries, sqstypes.DeleteMessageBatchRequestEntry{
 					Id:            m.MessageId,
 					ReceiptHandle: m.ReceiptHandle,
 				})
@@ -874,7 +988,7 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvents() {
 
 // processSqsPlacementEvent handles a single placement event message and reports whether it was
 // successfully processed and can be acked. Messages that fail are left on the queue to be redelivered.
-func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m types2.Message) bool {
+func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m sqstypes.Message) bool {
 	logger := fm.logger.WithField("message_id", *m.MessageId)
 	logger.WithField("message_body", *m.Body).Debug("Sqs placement notification received.")
 
@@ -897,9 +1011,9 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m 
 
 	switch placementEventMsg.Detail.Type {
 	case GameLiftEventIdPlacementFulfilled:
-		instanceInfo, err := fm.Get(ctx, placementEventMsg.Detail.GameSessionArn)
+		instanceInfo, err := fm.resolvePlacementFulfilled(ctx, placementEventMsg)
 		if err != nil {
-			logger.WithField("error", err.Error()).Error("failed to get instance info")
+			logger.WithField("error", err.Error()).Error("failed to resolve fulfilled placement instance info")
 			return false
 		}
 
@@ -920,15 +1034,19 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m 
 		fm.nk.MetricsTimerRecord("gamelift_placement_fulfillment_duration", nil, placementEventMsg.Detail.EndTime.Sub(placementEventMsg.Detail.StartTime))
 		// Spin callback in separate goroutine to not delay the batch ack.
 		go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateSuccess, instanceInfo, sessions, eventMetadata, nil)
-	case GameLiftEventIdPlacementTimedOut:
-		fm.nk.MetricsCounterAdd("gamelift_placement_events", map[string]string{"event": GameLiftEventIdPlacementTimedOut}, 1)
-		go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateTimeout, nil, nil, eventMetadata, errors.New(placementEventMsg.Detail.Type))
-	case GameLiftEventIdPlacementCancelled:
-		fm.nk.MetricsCounterAdd("gamelift_placement_events", map[string]string{"event": GameLiftEventIdPlacementCancelled}, 1)
-		go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateError, nil, nil, eventMetadata, errors.New(placementEventMsg.Detail.Type))
-	case GameLiftEventIdPlacementFailed:
-		fm.nk.MetricsCounterAdd("gamelift_placement_events", map[string]string{"event": GameLiftEventIdPlacementFailed}, 1)
-		go fm.callbackHandler.InvokeCallback(placementId, runtime.CreateError, nil, nil, eventMetadata, errors.New(placementEventMsg.Detail.Type))
+	case GameLiftEventIdPlacementTimedOut, GameLiftEventIdPlacementCancelled, GameLiftEventIdPlacementFailed:
+		// A failed delete doesn't block the ack, the sync worker eventually removes stale placement entries.
+		if err := fm.deleteStoragePlacements(ctx, []string{placementId}); err != nil {
+			logger.WithField("error", err.Error()).WithField("placement_id", placementId).Warn("failed to delete placement storage entry")
+		}
+
+		status := runtime.CreateError
+		if placementEventMsg.Detail.Type == GameLiftEventIdPlacementTimedOut {
+			status = runtime.CreateTimeout
+		}
+
+		fm.nk.MetricsCounterAdd("gamelift_placement_events", map[string]string{"event": placementEventMsg.Detail.Type}, 1)
+		go fm.callbackHandler.InvokeCallback(placementId, status, nil, nil, eventMetadata, errors.New(placementEventMsg.Detail.Type))
 	default:
 		// Nothing to do for unknown event types; ack them so they aren't redelivered forever.
 		logger.WithField("type", placementEventMsg.Detail.Type).Warn("unhandled game session placement state")
@@ -937,48 +1055,146 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m 
 	return true
 }
 
+// resolvePlacementFulfilled builds the instance info of a fulfilled placement and stores it under the game session id.
+func (fm *GameLiftFleetManager) resolvePlacementFulfilled(ctx context.Context, event *SqsMessagePlacementEventBody) (*runtime.InstanceInfo, error) {
+	placementId := event.Detail.PlacementId
+	gameSessionId := event.Detail.GameSessionArn
+
+	placement, err := fm.getStoragePlacement(ctx, placementId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read placement from db: %s", err.Error())
+	}
+
+	if placement == nil {
+		dbInfo, err := fm.getDbGameSession(ctx, gameSessionId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read instance info from db: %s", err.Error())
+		}
+		if dbInfo != nil {
+			fm.nk.MetricsCounterAdd("gamelift_placement_fulfilled_source", map[string]string{"source": "db"}, 1)
+			return dbInfo, nil
+		}
+
+		fm.nk.MetricsCounterAdd("gamelift_placement_fulfilled_source", map[string]string{"source": "gamelift"}, 1)
+		return fm.Get(ctx, gameSessionId)
+	}
+
+	port, err := strconv.Atoi(event.Detail.Port)
+	if err != nil {
+		return nil, fmt.Errorf("invalid placement event port %q: %s", event.Detail.Port, err.Error())
+	}
+
+	instance := &runtime.InstanceInfo{
+		Id: gameSessionId,
+		ConnectionInfo: &runtime.ConnectionInfo{
+			IpAddress: event.Detail.IpAddress,
+			DnsName:   event.Detail.DnsName,
+			Port:      port,
+		},
+		CreateTime:  event.Detail.EndTime,
+		PlayerCount: len(event.Detail.PlacedPlayerSessions),
+		Status:      string(gltypes.GameSessionStatusActive),
+		Metadata:    placement.Metadata,
+	}
+
+	key, err := InstanceIdToStorageKey(gameSessionId)
+	if err != nil {
+		return nil, err
+	}
+	v, err := json.Marshal(instance)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the game session entry and remove the placement entry atomically. The game session entry is only created
+	// if it doesn't exist yet, so a more recent update from the game server isn't overwritten.
+	if _, _, err = fm.nk.MultiUpdate(ctx, nil, []*runtime.StorageWrite{{
+		Collection: StorageGameLiftInstancesCollection(fm.namespace),
+		Key:        key,
+		Value:      string(v),
+		Version:    "*",
+	}}, []*runtime.StorageDelete{{
+		Collection: StorageGameLiftInstancesCollection(fm.namespace),
+		Key:        PlacementIdToStorageKey(placementId),
+	}}, nil, false); err != nil {
+		dbInfo, readErr := fm.getDbGameSession(ctx, gameSessionId)
+		if readErr != nil || dbInfo == nil {
+			return nil, fmt.Errorf("failed to store instance info: %s", err.Error())
+		}
+		// The game session entry already exists. The placement entry is left for the sync worker to remove.
+		instance = dbInfo
+	}
+
+	fm.nk.MetricsCounterAdd("gamelift_placement_fulfilled_source", map[string]string{"source": "placement"}, 1)
+
+	return instance, nil
+}
+
 func (fm *GameLiftFleetManager) syncInstancesWorker() {
 	deleteTerminatedInstancesFn := func() {
+		// Collect every page before diffing, otherwise entries belonging to later pages would be removed.
+		activeInstances := make([]*runtime.InstanceInfo, 0)
 		cursor := ""
 		for {
-			activeInstances, nextCursor, err := fm.listGameliftActiveInstances(fm.ctx, cursor)
+			instances, nextCursor, err := fm.listGameliftActiveInstances(fm.ctx, cursor)
 			if err != nil {
 				fm.logger.WithField("error", err.Error()).Error("failed to list gamelift terminated instances")
 				return
 			}
-			fm.logger.WithField("active_instances", len(activeInstances)).Debug("fetched active game instances list")
-
-			dbInstances, err := fm.listDbGameSessions(fm.ctx)
-			if err != nil {
-				fm.logger.WithField("error", err.Error()).Error("failed to read instances from db")
-				return
+			activeInstances = append(activeInstances, instances...)
+			if nextCursor == "" {
+				break
 			}
+			cursor = nextCursor
+		}
+		fm.logger.WithField("active_instances", len(activeInstances)).Debug("fetched active game instances list")
 
-			activeInstancesMap := make(map[string]struct{}, len(activeInstances))
-			for _, i := range activeInstances {
-				activeInstancesMap[i.Id] = struct{}{}
-			}
+		dbInstances, err := fm.listDbGameSessions(fm.ctx)
+		if err != nil {
+			fm.logger.WithField("error", err.Error()).Error("failed to read instances from db")
+			return
+		}
 
-			instancesToRemove := make([]string, 0)
-			for _, dbInfo := range dbInstances {
-				if _, ok := activeInstancesMap[dbInfo.Id]; !ok {
-					instancesToRemove = append(instancesToRemove, dbInfo.Id)
+		activeInstancesMap := make(map[string]struct{}, len(activeInstances))
+		for _, i := range activeInstances {
+			activeInstancesMap[i.Id] = struct{}{}
+		}
+
+		instancesToRemove := make([]string, 0)
+		placementsToRemove := make([]string, 0)
+		for _, dbInfo := range dbInstances {
+			if dbInfo.Status == GameSessionStatusPlaced {
+				// Placements still in flight are kept, stale ones never got (or lost) their placement event.
+				if time.Since(dbInfo.CreateTime) > fm.cfg.PlacementTimeout {
+					placementsToRemove = append(placementsToRemove, dbInfo.Id)
 				}
+				continue
 			}
+			if _, ok := activeInstancesMap[dbInfo.Id]; !ok {
+				instancesToRemove = append(instancesToRemove, dbInfo.Id)
+			}
+		}
 
+		if len(activeInstances) > 0 {
 			if err = fm.updateStorageGameSessions(fm.ctx, activeInstances); err != nil {
 				fm.logger.WithField("error", err.Error()).Error("failed to update db instances")
 				return
 			}
+		}
 
+		if len(instancesToRemove) > 0 {
 			if err = fm.deleteStorageGameSessions(fm.ctx, instancesToRemove); err != nil {
 				fm.logger.WithField("error", err.Error()).Error("failed to delete a game instances")
 				return
 			}
-			if nextCursor == "" {
+		}
+
+		if len(placementsToRemove) > 0 {
+			fm.logger.WithField("placement_ids", placementsToRemove).Info("removing stale placement entries")
+			if err = fm.deleteStoragePlacements(fm.ctx, placementsToRemove); err != nil {
+				fm.logger.WithField("error", err.Error()).Error("failed to delete stale placements")
 				return
 			}
-			cursor = nextCursor
 		}
 	}
 
@@ -999,7 +1215,7 @@ func (fm *GameLiftFleetManager) listGameliftActiveInstances(ctx context.Context,
 	params := &gamelift.DescribeGameSessionsInput{
 		AliasId:      aws.String(fm.cfg.AwsFleetAlias),
 		Limit:        aws.Int32(100), // Max AWS API limit is 100
-		StatusFilter: aws.String(string(types.GameSessionStatusActive)),
+		StatusFilter: aws.String(string(gltypes.GameSessionStatusActive)),
 	}
 	if cursor != "" {
 		params.NextToken = aws.String(cursor)
@@ -1028,7 +1244,7 @@ func (fm *GameLiftFleetManager) listGameliftActiveInstances(ctx context.Context,
 	return activeSessions, nextCursor, nil
 }
 
-func NewInstanceInfo(gs types.GameSession) *runtime.InstanceInfo {
+func NewInstanceInfo(gs gltypes.GameSession) *runtime.InstanceInfo {
 	metadata := make(map[string]any)
 	if gs.GameSessionData != nil {
 		metadata[GameSessionDataKey] = *gs.GameSessionData
@@ -1061,6 +1277,12 @@ func NewInstanceInfo(gs types.GameSession) *runtime.InstanceInfo {
 		Status:      string(gs.Status),
 		Metadata:    metadata,
 	}
+}
+
+// PlacementIdToStorageKey returns the storage key of a PLACED entry. The prefix keeps it from ever colliding with a
+// game session key.
+func PlacementIdToStorageKey(placementId string) string {
+	return "placement_" + placementId
 }
 
 func InstanceIdToStorageKey(id string) (string, error) {
