@@ -770,6 +770,9 @@ func (fm *GameLiftFleetManager) UpdateInstanceInfo(ctx context.Context, logger r
 
 	if err := fm.Update(ctx, req.Id, req.PlayerCount, req.Metadata); err != nil {
 		logger.WithField("error", err.Error()).Error("failed to update instance info")
+		if errors.Is(err, ErrInvalidInput) {
+			return "", ErrInvalidInput
+		}
 		return "", ErrInternalError
 	}
 
@@ -823,12 +826,16 @@ func (fm *GameLiftFleetManager) Update(ctx context.Context, id string, playerCou
 			dbInfo.Metadata[GamePropertiesKey] = m
 			mmap, ok := m.(map[string]any)
 			if !ok {
-				return errors.New("failed to type assert 'GameProperties' value to map[string]any")
+				return fmt.Errorf("%w: 'GameProperties' value must be map[string]string", ErrInvalidInput)
 			}
 			gameProps = make([]gltypes.GameProperty, 0, len(mmap))
 			for k, v := range mmap {
+				s, ok := v.(string)
+				if !ok {
+					return fmt.Errorf("%w: 'GameProperties' value for key %q must be a string", ErrInvalidInput, k)
+				}
 				kk, vv := new(string), new(string)
-				*kk, *vv = k, v.(string)
+				*kk, *vv = k, s
 				gameProps = append(gameProps, gltypes.GameProperty{
 					Key:   kk,
 					Value: vv,
@@ -988,6 +995,7 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvents() {
 
 // processSqsPlacementEvent handles a single placement event message and reports whether it was
 // successfully processed and can be acked. Messages that fail are left on the queue to be redelivered.
+// Malformed messages are acked, as redelivering them would never succeed.
 func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m sqstypes.Message) bool {
 	logger := fm.logger.WithField("message_id", *m.MessageId)
 	logger.WithField("message_body", *m.Body).Debug("Sqs placement notification received.")
@@ -995,15 +1003,19 @@ func (fm *GameLiftFleetManager) processSqsPlacementEvent(ctx context.Context, m 
 	var queueMsg SqsMessage
 	if err := json.Unmarshal([]byte(*m.Body), &queueMsg); err != nil {
 		fm.nk.MetricsCounterAdd("gamelift_sqs_errors", map[string]string{"stage": "unmarshal_queue"}, 1)
-		logger.WithField("error", err.Error()).Error("failed to unmarshal sqs queue message body.")
-		return false
+		logger.WithField("error", err.Error()).WithField("message_body", *m.Body).Error("failed to unmarshal sqs queue message body, discarding message.")
+		return true
 	}
 
 	var placementEventMsg *SqsMessagePlacementEventBody
-	if err := json.Unmarshal([]byte(queueMsg.Message), &placementEventMsg); err != nil {
+	if err := json.Unmarshal([]byte(queueMsg.Message), &placementEventMsg); err != nil || placementEventMsg == nil {
+		errMsg := "empty event body"
+		if err != nil {
+			errMsg = err.Error()
+		}
 		fm.nk.MetricsCounterAdd("gamelift_sqs_errors", map[string]string{"stage": "unmarshal_event"}, 1)
-		logger.WithField("error", err.Error()).Error("failed to unmarshal sqs event body.")
-		return false
+		logger.WithField("error", errMsg).WithField("message_body", *m.Body).Error("failed to unmarshal sqs event body, discarding message.")
+		return true
 	}
 
 	placementId := placementEventMsg.Detail.PlacementId

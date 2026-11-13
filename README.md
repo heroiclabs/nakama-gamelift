@@ -16,6 +16,7 @@ The Nakama GameLift Fleet Manager expects a GameLift Fleet to be up and running 
 * A Placement Queue;
   * An SNS Topic to publish Placement Events;
 * An SQS Queue subscribed to the above Topic;
+  * A [redrive policy](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html) with a Dead-Letter Queue is strongly recommended. Placement events that fail to be processed are left on the queue to be redelivered, and without a Dead-Letter Queue they are retried until they expire. Malformed events are discarded;
 * Invocation of [status update RPCs](#status-update-rpcs) exposed by the Fleet Manager implementation.
 
 Follow [our setup guide](https://heroiclabs.com/docs/nakama/guides/concepts/gamelift-integration/) to create a minimal test Fleet deployment on AWS, with instructions on how to set up the above.
